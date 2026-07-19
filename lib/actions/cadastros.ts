@@ -211,6 +211,24 @@ export async function toggleFuncionarioAtivo(id: string, ativo: boolean): Promis
   return { ok: true };
 }
 
+// Vincula (ou desvincula, com chatId vazio) o chat_id do Telegram de uma pessoa
+// a partir da tela de "Vincular Telegram". Usado para preencher o destino das
+// cobranças sem precisar digitar o número à mão.
+export async function vincularTelegramChatId(
+  funcionarioId: string,
+  chatId: string,
+): Promise<ActionResult> {
+  await requireAdmin();
+  const limpo = chatId.replace(/[^\d-]/g, "");
+  await prisma.funcionario.update({
+    where: { id: funcionarioId },
+    data: { telegramChatId: limpo || null },
+  });
+  revalidatePath("/cadastros/telegram");
+  revalidatePath("/cadastros/funcionarios");
+  return { ok: true };
+}
+
 export async function deleteFuncionario(id: string): Promise<ActionResult> {
   await requireAdmin();
   const [lancamentos, bonificacoes] = await Promise.all([

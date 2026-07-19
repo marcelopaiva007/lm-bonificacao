@@ -21,6 +21,61 @@ export function emailConfigurado(): boolean {
   return !!process.env.RESEND_API_KEY;
 }
 
+export type TelegramContato = {
+  chatId: string;
+  nome: string;
+  username: string | null;
+};
+
+// Lê os últimos updates do bot (getUpdates) e devolve os chats privados
+// distintos de quem já mandou mensagem — a forma de descobrir o chat_id de
+// cada pessoa para vincular no cadastro. O Telegram guarda os updates por ~24h.
+export async function buscarUpdatesTelegram(): Promise<
+  { ok: true; contatos: TelegramContato[] } | { ok: false; erro: string }
+> {
+  const token = process.env.TELEGRAM_BOT_TOKEN;
+  if (!token) {
+    return { ok: false, erro: "TELEGRAM_BOT_TOKEN não configurado" };
+  }
+  try {
+    const res = await fetch(`https://api.telegram.org/bot${token}/getUpdates`, {
+      cache: "no-store",
+    });
+    if (!res.ok) {
+      const t = await res.text();
+      return { ok: false, erro: `HTTP ${res.status}: ${t.slice(0, 200)}` };
+    }
+    const data = (await res.json()) as {
+      ok: boolean;
+      result?: Array<{
+        message?: {
+          chat?: {
+            id?: number;
+            type?: string;
+            first_name?: string;
+            last_name?: string;
+            username?: string;
+          };
+        };
+      }>;
+    };
+    const porChat = new Map<string, TelegramContato>();
+    for (const up of data.result ?? []) {
+      const chat = up.message?.chat;
+      if (!chat?.id || chat.type !== "private") continue;
+      const nome = [chat.first_name, chat.last_name].filter(Boolean).join(" ").trim();
+      porChat.set(String(chat.id), {
+        chatId: String(chat.id),
+        nome: nome || chat.username || String(chat.id),
+        username: chat.username ?? null,
+      });
+    }
+    return { ok: true, contatos: [...porChat.values()] };
+  } catch (e) {
+    return { ok: false, erro: String(e) };
+  }
+}
+
 export async function enviarTelegram(
   chatId: string,
   texto: string,
