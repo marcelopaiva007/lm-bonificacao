@@ -1005,10 +1005,10 @@ export async function GET(req: NextRequest) {
               });
               try {
                 await ensureRelatorioTable();
-                await prisma.ellevenRelatorioLinha.deleteMany({
+                await prisma.elevenRelatorioLinha.deleteMany({
                   where: { relatorio: slug, periodo },
                 });
-                const res = await prisma.ellevenRelatorioLinha.createMany({
+                const res = await prisma.elevenRelatorioLinha.createMany({
                   data: linhas,
                   skipDuplicates: true,
                 });

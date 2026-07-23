@@ -232,6 +232,34 @@ model ElevenRelatorioLinha {
   @@map("elleven_relatorio_linha")
 }
 
+// Vendas de chip do L&M Móvel (sync-chip). A tabela é criada sob demanda por
+// lib/chip-movel.ts (CREATE TABLE IF NOT EXISTS, mesmo padrão dos demais syncs);
+// este model apenas espelha essa estrutura para que o acesso tipado via
+// `prisma.vendaChipMovel` compile. Datas vêm como texto do endpoint de origem e
+// são guardadas cruas, sem conversão.
+model VendaChipMovel {
+  id            Int      @id @default(autoincrement())
+  vendaId       Int      @unique
+  periodo       String
+  sellerIdMovel Int?
+  sellerNome    String?
+  sellerCpf     String?
+  clienteNome   String?
+  clienteCpf    String?
+  msisdn        String?
+  iccid         String?
+  planoNome     String?
+  planoPreco    String?
+  status        String?
+  soldAt        String?
+  activatedAt   String?
+  cancelledAt   String?
+  syncedAt      DateTime @default(now())
+
+  @@index([periodo])
+  @@map("venda_chip_movel")
+}
+
 // ------------------------------------------------------
 // MÓDULO DE RH — CLIMA ORGANIZACIONAL (multi-empresa)
 // ------------------------------------------------------
