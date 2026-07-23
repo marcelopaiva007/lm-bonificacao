@@ -4,7 +4,8 @@ import "server-only";
 // credenciais não estiverem configuradas — nada quebra por falta delas.
 //   TELEGRAM_BOT_TOKEN  — token do bot (@BotFather)
 //   RESEND_API_KEY      — chave do provedor de e-mail (Resend)
-//   COBRANCA_EMAIL_FROM — remetente (ex.: "LM Telecom <metas@seudominio.com>")
+//   COBRANCA_EMAIL_FROM — remetente; opcional, o default já usa o domínio
+//                         envios.assinelm.com.br (verificado no Resend)
 
 export type EnvioResultado = {
   canal: "telegram" | "email";
@@ -116,8 +117,11 @@ export async function enviarEmail(
   texto: string,
 ): Promise<EnvioResultado> {
   const key = process.env.RESEND_API_KEY;
+  // onboarding@resend.dev (remetente compartilhado do Resend) só entrega no
+  // e-mail dono da conta — por isso o default é o domínio próprio verificado.
   const from =
-    process.env.COBRANCA_EMAIL_FROM || "LM Bonificação <onboarding@resend.dev>";
+    process.env.COBRANCA_EMAIL_FROM ||
+    "LM Bonificação <metas@envios.assinelm.com.br>";
   if (!key) {
     return {
       canal: "email",
