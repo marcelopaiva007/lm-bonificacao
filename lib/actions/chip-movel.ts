@@ -15,6 +15,17 @@ export type { LinhaChipMovel };
 // Retorna o erro real como dado (não lança): em produção o Next redige a
 // mensagem de exceções de server action, mascarando a causa — devolvendo
 // { ok:false, error } a tela consegue mostrar o motivo verdadeiro.
+function isNextRedirect(e: unknown): boolean {
+  return !!(
+    e &&
+    typeof e === "object" &&
+    "digest" in e &&
+    typeof (e as { digest?: unknown }).digest === "string" &&
+    ((e as { digest: string }).digest.startsWith("NEXT_REDIRECT") ||
+      (e as { digest: string }).digest === "NEXT_NOT_FOUND")
+  );
+}
+
 export async function previsualizarChipMovel(periodo: string): Promise<
   | {
       ok: true;
@@ -32,15 +43,9 @@ export async function previsualizarChipMovel(periodo: string): Promise<
     const r = await previewChipMovel(periodo);
     return { ok: true, ...r };
   } catch (e) {
-    // redirect()/notFound() do Next usam `digest` e PRECISAM propagar.
-    if (
-      e &&
-      typeof e === "object" &&
-      "digest" in e &&
-      typeof (e as { digest?: unknown }).digest === "string" &&
-      ((e as { digest: string }).digest.startsWith("NEXT_REDIRECT") ||
-        (e as { digest: string }).digest === "NEXT_NOT_FOUND")
-    ) {
+    // redirect()/notFound() do Next usam `digest` e PRECISAM propagar
+    // sem serem capturados pelo try-catch do cliente.
+    if (isNextRedirect(e)) {
       throw e;
     }
     console.error("[chip] previsualizarChipMovel falhou:", e);
@@ -53,11 +58,21 @@ export async function previsualizarChipMovel(periodo: string): Promise<
 export async function sincronizarChipMovelAgora(
   periodo: string,
 ): Promise<{ ok: true; resultado: ResultadoSyncChip } | { ok: false; error: string }> {
-  await requireAdmin();
+  try {
+    await requireAdmin();
+  } catch (e) {
+    // Se a autenticação falhou (redirect/not found), propagar sem capturar
+    if (isNextRedirect(e)) {
+      throw e;
+    }
+    return { ok: false, error: e instanceof Error ? e.message : String(e) };
+  }
+
   const [ano, mes] = periodo.split("-").map(Number);
   if (!ano || !mes || mes < 1 || mes > 12) {
     return { ok: false, error: "Período inválido." };
   }
+
   try {
     const resultado = await syncChipMovel(ano, mes);
     revalidatePath("/lancamentos");
@@ -65,6 +80,9 @@ export async function sincronizarChipMovelAgora(
     revalidatePath("/importar/chip");
     return { ok: true, resultado };
   } catch (e) {
+    if (isNextRedirect(e)) {
+      throw e;
+    }
     return { ok: false, error: e instanceof Error ? e.message : String(e) };
   }
 }
