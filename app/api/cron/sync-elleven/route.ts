@@ -28,6 +28,7 @@ import {
 import { prisma } from "@/lib/prisma";
 import { periodoAtual } from "@/lib/periodo";
 import { importarLancamentosEllevenAuto } from "@/lib/importar-elleven-auto";
+import { recordCronRun } from "@/lib/cron-observability";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -651,6 +652,7 @@ export async function GET(req: NextRequest) {
   const reParametros = new RegExp(`${headingBase}\\s*-\\s*Par[âa]metros`, "i");
   const reGeracao = new RegExp(`${headingBase}\\s*-\\s*Gera[çc][ãa]o`, "i");
 
+  const started = Date.now();
   const log: string[] = [];
   const step = (s: string) => {
     const line = `[${new Date().toISOString()}] ${s}`;
@@ -1117,6 +1119,22 @@ export async function GET(req: NextRequest) {
       });
       step(`Screenshot capturado (${screenshot.length} bytes).`);
 
+      await recordCronRun({
+        job: `sync-elleven:${slug}`,
+        ok: modeResult?.ok ?? true,
+        durationMs: Date.now() - started,
+        erro: modeResult?.ok === false ? modeResult.error : null,
+        detalhes: {
+          reportNome: report.nome,
+          persist: report.persist ?? false,
+          rowCount: modeResult?.rowCount ?? 0,
+          savedCount,
+          errorCount,
+          reportFrameFound: !!reportFrame,
+          importacaoAuto,
+        },
+      });
+
       return NextResponse.json({
         ok: modeResult?.ok ?? true,
         report: slug,
@@ -1139,6 +1157,12 @@ export async function GET(req: NextRequest) {
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       step(`ERRO: ${message}`);
+      await recordCronRun({
+        job: `sync-elleven:${slug}`,
+        ok: false,
+        durationMs: Date.now() - started,
+        erro: message,
+      });
       return NextResponse.json(
         { ok: false, error: message, log, wizardSteps },
         { status: 500 },
