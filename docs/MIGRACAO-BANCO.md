@@ -147,11 +147,28 @@ fechar/reabrir um período de teste.
 
 ---
 
-## O que falta para executar
+## ✅ EXECUTADO em 24/07/2026 (~21:50–22:00 UTC)
 
-- [x] Ajustar o código do lm-bonificação (seção "Impacto no código"). — 24/07
-- [ ] **Aguardar a NR-01 encerrar** (decisão do Marcelo: só migrar depois disso).
-- [ ] Coordenar redeploy dos 3 repos (2 fora desta conversa: sistemadoRH, vapt-postos).
-- [ ] Aplicar o `@@schema` correspondente no schema.prisma do sistemadoRH e do vapt-postos.
-- [ ] Definir janela de manutenção.
-- [ ] Criar a Neon branch de backup imediatamente antes.
+Marcelo autorizou executar na hora (janela segura: ninguém responderia a NR-01
+até o dia seguinte). Desvios deliberados do plano original:
+
+- **vapt_\* ficou no public** — o app VAPT não foi tocado nem redeployado
+  (mover depois é trivial e vira tarefa própria, se quiser).
+- **Backup por cópia** no schema `backup_pre_cutover` (27 tabelas, inclui
+  vapt_\*) em vez de Neon branch. ⚠️ Remover esse schema quando a migração
+  estiver validada por alguns dias: `DROP SCHEMA backup_pre_cutover CASCADE;`
+- **search_path do role** ajustado para `public, bonificacao, rh, shared` como
+  rede de segurança para SQL cru não qualificado.
+- Todo SQL cru do lm-bonificação foi qualificado com `bonificacao.` (senão
+  `CREATE TABLE IF NOT EXISTS` criaria duplicata vazia no public).
+
+Verificação pós-cutover: contagens batem (86 respostas NR-01, 208 tokens, 316
+lançamentos); só as 3 FKs `*→shared.User` restantes; ambos os deploys (lm
+`ef718aa`, RH `33e7938`) com sucesso; health check do lm respondendo via
+`bonificacao.cron_run`; rota pública do RH lendo `rh.SurveyToken`; VAPT no ar.
+
+Pendências pós-migração:
+- [ ] Dropar `backup_pre_cutover` após validação (alguns dias de operação).
+- [ ] Confirmar amanhã (25/07) que os crons das 6h–12h rodaram verdes no
+      `/api/health/crons`.
+- [ ] (Opcional, futuro) mover vapt_\* para o schema `vapt` num deploy do VAPT.

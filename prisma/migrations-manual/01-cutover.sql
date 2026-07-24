@@ -1,6 +1,15 @@
 -- =============================================================================
 -- 01-CUTOVER — Fase A: organiza o banco em schemas (shared / bonificacao / rh / vapt)
 -- =============================================================================
+-- ✅ EXECUTADO em 24/07/2026 ~21:50 UTC, com 3 desvios deliberados:
+--   1. vapt_* NÃO foi movido — ficou no public (o app VAPT não precisou de
+--      redeploy; mover depois é trivial e vira tarefa própria).
+--   2. Backup por cópia no schema backup_pre_cutover (27 tabelas) em vez de
+--      Neon branch — remover esse schema quando a migração estiver validada.
+--   3. Rede de segurança adicionada: ALTER ROLE neondb_owner SET search_path =
+--      public, bonificacao, rh, shared (qualquer SQL cru não qualificado que
+--      tenha escapado continua resolvendo).
+-- =============================================================================
 -- PRÉ-REQUISITOS (ver docs/MIGRACAO-BANCO.md):
 --   1. Backup pronto (Neon branch criada).
 --   2. Os 3 apps (lm-bonificacao, sistemadoRH, vapt-postos) em janela de
