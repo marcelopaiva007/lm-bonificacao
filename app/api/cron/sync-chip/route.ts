@@ -12,6 +12,7 @@
 //   CRON_SECRET — enviado automaticamente pelo Vercel Cron
 import { NextRequest, NextResponse } from "next/server";
 import { syncChipMovel, type ResultadoSyncChip } from "@/lib/chip-movel";
+import { recordCronRun } from "@/lib/cron-observability";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -57,13 +58,27 @@ export async function GET(req: NextRequest) {
   }
 
   const resultados: ResultadoSyncChip[] = [];
+  const started = Date.now();
   try {
     for (const alvo of alvos) {
       resultados.push(await syncChipMovel(alvo.year, alvo.month));
     }
+    await recordCronRun({
+      job: "sync-chip",
+      ok: true,
+      durationMs: Date.now() - started,
+      detalhes: { alvos, resultados },
+    });
     return NextResponse.json({ ok: true, resultados });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
+    await recordCronRun({
+      job: "sync-chip",
+      ok: false,
+      durationMs: Date.now() - started,
+      erro: message,
+      detalhes: { alvos, resultados },
+    });
     return NextResponse.json(
       { ok: false, error: message, resultados },
       { status: 500 },

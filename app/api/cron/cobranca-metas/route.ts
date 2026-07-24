@@ -26,6 +26,7 @@ import {
   emailConfigurado,
   type EnvioResultado,
 } from "@/lib/notificacoes";
+import { recordCronRun } from "@/lib/cron-observability";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
@@ -46,6 +47,8 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const started = Date.now();
+  try {
   const ativa = process.env.COBRANCA_ATIVA === "true";
   // E-mail começa desligado; só entra quando o domínio do Resend estiver
   // verificado e este flag for ligado.
@@ -92,6 +95,20 @@ export async function GET(req: NextRequest) {
     }
   }
 
+  await recordCronRun({
+    job: "cobranca-metas",
+    ok: true,
+    durationMs: Date.now() - started,
+    detalhes: {
+      periodo,
+      ativa,
+      dryRun: !ativa,
+      emailAtivo,
+      totalPessoas: acompanhamentos.length,
+      semContato,
+      enviados,
+    },
+  });
   return NextResponse.json({
     ok: true,
     periodo,
@@ -110,4 +127,14 @@ export async function GET(req: NextRequest) {
     enviados,
     resultados: resultados.slice(0, 200),
   });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    await recordCronRun({
+      job: "cobranca-metas",
+      ok: false,
+      durationMs: Date.now() - started,
+      erro: message,
+    });
+    return NextResponse.json({ ok: false, error: message }, { status: 500 });
+  }
 }
