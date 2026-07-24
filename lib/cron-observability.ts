@@ -1,5 +1,6 @@
 import "server-only";
 import { prisma } from "@/lib/prisma";
+import { enviarTelegram } from "@/lib/notificacoes";
 
 // Observabilidade dos crons: grava o resultado de cada execução em "cron_run" e
 // expõe um resumo de saúde por job. Segue o mesmo padrão do ensureRelatorioTable
@@ -66,6 +67,37 @@ export async function recordCronRun(input: CronRunInput): Promise<void> {
     `;
   } catch (e) {
     console.error(`[cron-observability] falha ao gravar cron_run (${input.job}):`, e);
+  }
+
+  // Alerta ativo: cron falhou -> avisa no Telegram do responsável. Fora do try
+  // acima de propósito (mesmo se a gravação falhar, o alerta ainda sai), e com
+  // blindagem própria — alerta é best-effort, nunca derruba o cron.
+  if (!input.ok) {
+    try {
+      await alertarFalhaCron(input);
+    } catch (e) {
+      console.error(`[cron-observability] falha ao alertar (${input.job}):`, e);
+    }
+  }
+}
+
+// Chat que recebe os alertas de falha (ex.: o do Marcelo, o mesmo bot
+// @Marcelo_Paiva_07_bot já usado na cobrança). Sem a env var, o alerta fica
+// desligado em silêncio — o health check continua acusando a falha.
+//   CRON_ALERTA_TELEGRAM_CHAT_ID — chat_id numérico do destinatário
+async function alertarFalhaCron(input: CronRunInput): Promise<void> {
+  const chatId = process.env.CRON_ALERTA_TELEGRAM_CHAT_ID;
+  if (!chatId) return;
+  const def = CRON_JOBS.find((j) => j.job === input.job);
+  const duracao =
+    input.durationMs != null ? ` após ${Math.round(input.durationMs / 1000)}s` : "";
+  const texto =
+    `⚠️ Cron FALHOU: ${def?.label ?? input.job}${duracao}\n` +
+    `Erro: ${(input.erro ?? "sem mensagem").slice(0, 500)}\n` +
+    `Detalhes: /api/health/crons`;
+  const r = await enviarTelegram(chatId, texto);
+  if (!r.ok) {
+    console.error(`[cron-observability] Telegram não entregou o alerta: ${r.erro}`);
   }
 }
 
