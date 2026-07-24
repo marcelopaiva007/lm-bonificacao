@@ -171,4 +171,10 @@ Pendências pós-migração:
 - [ ] Dropar `backup_pre_cutover` após validação (alguns dias de operação).
 - [ ] Confirmar amanhã (25/07) que os crons das 6h–12h rodaram verdes no
       `/api/health/crons`.
-- [ ] (Opcional, futuro) mover vapt_\* para o schema `vapt` num deploy do VAPT.
+- [x] ~~(Opcional, futuro) mover vapt_\* para o schema `vapt`~~ — **FEITO em
+      24/07/2026 (~22h30 UTC)**: código em `C:\vapt-postos` (12 pontos de SQL
+      qualificados com `vapt.`, incluindo um `CREATE TABLE IF NOT EXISTS`),
+      4 tabelas movidas, deploy via `vercel deploy --prod`, produção verificada
+      (login lendo `vapt.vapt_usuarios`). O `public` agora só tem
+      `_prisma_migrations`. search_path do role: `public, vapt, bonificacao,
+      rh, shared`.
