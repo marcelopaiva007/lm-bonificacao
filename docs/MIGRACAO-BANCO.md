@@ -85,21 +85,25 @@ schemas que usa + `shared`. Mantém-se a mesma credencial/host do Neon.
 
 ---
 
-## Impacto no código (lm-bonificação) — para a janela
+## Impacto no código (lm-bonificação) — ✅ FEITO (24/07/2026)
 
-Como `User.empresa`/`User.setor` deixam de ser relação, buscar nome de
-empresa/setor de um usuário passa a ser consulta separada por `empresaId`/
-`setorId`. Arquivos a revisar (grep de `empresa`/`setor`/`fechadoPor`/
-`criadoPor`/`usuario` em 24/07 — 19 arquivos; a maioria é do módulo RH):
+O grep amplo apontou 19 arquivos, mas a maioria usava `Colaborador.empresa/setor`
+(relação que PERMANECE) ou os escalares `empresaId/setorId`. O único ponto que
+usava a relação `User.empresa`/`User.setor` (que some no schema-alvo) era a tela
+de usuários. Ajustado para resolver o nome por id a partir das listas já
+carregadas — **compatível com o schema atual E com o alvo**:
 
-- `lib/actions/fechamento.ts`, `app/(app)/fechamento/[periodo]/*`
-- `lib/actions/pesquisas.ts`, `lib/actions/pesquisas-publico.ts`
-- `app/(app)/usuarios/*`, `app/(app)/cadastros/usuarios/*`
-- `app/(app)/rh/**`, `lib/actions/rh-*.ts`
-- `prisma/seed.ts`
+- `app/(app)/usuarios/page.tsx` — removido o `include: { empresa, setor }`;
+  passa a buscar as listas completas de empresa/setor.
+- `app/(app)/usuarios/usuarios-table.tsx` — tipo `Usuario` sem os objetos
+  `empresa`/`setor`; nomes resolvidos via `Map` por id; selects do formulário
+  filtram os ativos.
 
-As relações `ImportLote.usuario`, `FechamentoMensal.fechadoPor` e
-`Pesquisa.criadoPor` permanecem — **não** precisam mudar na Fase A.
+Verificação: `npx tsc --noEmit` passa (exit 0).
+
+Não precisaram mudar (relações que permanecem na Fase A): `ImportLote.usuario`,
+`FechamentoMensal.fechadoPor`, `Pesquisa.criadoPor`, e todas as de `Colaborador`.
+`auth.ts`/`auth.config.ts` já usavam só os escalares `empresaId`/`setorId`.
 
 ---
 
@@ -145,8 +149,9 @@ fechar/reabrir um período de teste.
 
 ## O que falta para executar
 
-- [ ] Encerrar (ou aceitar risco d)a NR-01 ativa.
-- [ ] Coordenar redeploy dos 3 repos (2 fora desta conversa).
-- [ ] Ajustar o código do lm-bonificação (seção "Impacto no código").
+- [x] Ajustar o código do lm-bonificação (seção "Impacto no código"). — 24/07
+- [ ] **Aguardar a NR-01 encerrar** (decisão do Marcelo: só migrar depois disso).
+- [ ] Coordenar redeploy dos 3 repos (2 fora desta conversa: sistemadoRH, vapt-postos).
+- [ ] Aplicar o `@@schema` correspondente no schema.prisma do sistemadoRH e do vapt-postos.
 - [ ] Definir janela de manutenção.
 - [ ] Criar a Neon branch de backup imediatamente antes.
