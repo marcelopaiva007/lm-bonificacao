@@ -58,8 +58,11 @@ type SellerApi = {
 let vendaChipTableEnsured = false;
 export async function ensureVendaChipTable(): Promise<void> {
   if (vendaChipTableEnsured) return;
+  // Schema-qualificado desde o cutover de 24/07/2026: sem o prefixo, o
+  // IF NOT EXISTS checaria só o search_path (public) e criaria uma tabela
+  // duplicada vazia lá, ignorando a real em "bonificacao".
   await prisma.$executeRawUnsafe(
-    `CREATE TABLE IF NOT EXISTS "venda_chip_movel" (
+    `CREATE TABLE IF NOT EXISTS "bonificacao"."venda_chip_movel" (
       "id" SERIAL NOT NULL,
       "vendaId" INTEGER NOT NULL,
       "periodo" TEXT NOT NULL,
@@ -81,10 +84,10 @@ export async function ensureVendaChipTable(): Promise<void> {
     );`,
   );
   await prisma.$executeRawUnsafe(
-    `CREATE UNIQUE INDEX IF NOT EXISTS "venda_chip_movel_vendaId_key" ON "venda_chip_movel"("vendaId");`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS "venda_chip_movel_vendaId_key" ON "bonificacao"."venda_chip_movel"("vendaId");`,
   );
   await prisma.$executeRawUnsafe(
-    `CREATE INDEX IF NOT EXISTS "venda_chip_movel_periodo_idx" ON "venda_chip_movel"("periodo");`,
+    `CREATE INDEX IF NOT EXISTS "venda_chip_movel_periodo_idx" ON "bonificacao"."venda_chip_movel"("periodo");`,
   );
   vendaChipTableEnsured = true;
 }

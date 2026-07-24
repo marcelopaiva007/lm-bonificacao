@@ -9,11 +9,15 @@ import { prisma } from "@/lib/prisma";
 let funcionarioContatoEnsured = false;
 export async function ensureFuncionarioContato(): Promise<void> {
   if (funcionarioContatoEnsured) return;
+  // Schema-qualificado desde o cutover de 24/07/2026 (Funcionario vive em
+  // "bonificacao"): SQL cru não passa pelo mapeamento @@schema do Prisma, e sem
+  // qualificar o Postgres resolveria pelo search_path (public) — criando/alterando
+  // a tabela errada em silêncio.
   await prisma.$executeRawUnsafe(
-    `ALTER TABLE "Funcionario" ADD COLUMN IF NOT EXISTS "email" TEXT;`,
+    `ALTER TABLE "bonificacao"."Funcionario" ADD COLUMN IF NOT EXISTS "email" TEXT;`,
   );
   await prisma.$executeRawUnsafe(
-    `ALTER TABLE "Funcionario" ADD COLUMN IF NOT EXISTS "telegramChatId" TEXT;`,
+    `ALTER TABLE "bonificacao"."Funcionario" ADD COLUMN IF NOT EXISTS "telegramChatId" TEXT;`,
   );
   funcionarioContatoEnsured = true;
 }

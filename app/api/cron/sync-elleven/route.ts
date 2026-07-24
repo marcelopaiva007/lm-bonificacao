@@ -102,8 +102,11 @@ function escapeRegex(s: string): string {
 let relatorioTableEnsured = false;
 async function ensureRelatorioTable(): Promise<void> {
   if (relatorioTableEnsured) return;
+  // Schema-qualificado desde o cutover de 24/07/2026: sem o prefixo, o
+  // IF NOT EXISTS checaria só o search_path (public) e criaria uma tabela
+  // duplicada vazia lá, ignorando a real em "bonificacao".
   await prisma.$executeRawUnsafe(
-    `CREATE TABLE IF NOT EXISTS "elleven_relatorio_linha" (
+    `CREATE TABLE IF NOT EXISTS "bonificacao"."elleven_relatorio_linha" (
       "id" SERIAL NOT NULL,
       "relatorio" TEXT NOT NULL,
       "periodo" TEXT NOT NULL,
@@ -114,10 +117,10 @@ async function ensureRelatorioTable(): Promise<void> {
     );`,
   );
   await prisma.$executeRawUnsafe(
-    `CREATE INDEX IF NOT EXISTS "elleven_relatorio_linha_relatorio_periodo_idx" ON "elleven_relatorio_linha"("relatorio", "periodo");`,
+    `CREATE INDEX IF NOT EXISTS "elleven_relatorio_linha_relatorio_periodo_idx" ON "bonificacao"."elleven_relatorio_linha"("relatorio", "periodo");`,
   );
   await prisma.$executeRawUnsafe(
-    `CREATE UNIQUE INDEX IF NOT EXISTS "elleven_relatorio_linha_relatorio_periodo_chave_key" ON "elleven_relatorio_linha"("relatorio", "periodo", "chave");`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS "elleven_relatorio_linha_relatorio_periodo_chave_key" ON "bonificacao"."elleven_relatorio_linha"("relatorio", "periodo", "chave");`,
   );
   relatorioTableEnsured = true;
 }

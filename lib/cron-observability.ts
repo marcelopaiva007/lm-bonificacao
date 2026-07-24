@@ -23,8 +23,11 @@ export const CRON_JOBS = [
 let cronRunTableEnsured = false;
 export async function ensureCronRunTable(): Promise<void> {
   if (cronRunTableEnsured) return;
+  // Schema-qualificado desde o cutover de 24/07/2026: SQL cru não passa pelo
+  // mapeamento do Prisma, e sem o prefixo o IF NOT EXISTS criaria uma tabela
+  // duplicada no public em vez de usar a real em "bonificacao".
   await prisma.$executeRawUnsafe(
-    `CREATE TABLE IF NOT EXISTS "cron_run" (
+    `CREATE TABLE IF NOT EXISTS "bonificacao"."cron_run" (
       "id" SERIAL NOT NULL,
       "job" TEXT NOT NULL,
       "ok" BOOLEAN NOT NULL,
@@ -36,7 +39,7 @@ export async function ensureCronRunTable(): Promise<void> {
     );`,
   );
   await prisma.$executeRawUnsafe(
-    `CREATE INDEX IF NOT EXISTS "cron_run_job_finishedAt_idx" ON "cron_run"("job", "finishedAt" DESC);`,
+    `CREATE INDEX IF NOT EXISTS "cron_run_job_finishedAt_idx" ON "bonificacao"."cron_run"("job", "finishedAt" DESC);`,
   );
   cronRunTableEnsured = true;
 }
@@ -56,7 +59,7 @@ export async function recordCronRun(input: CronRunInput): Promise<void> {
     await ensureCronRunTable();
     const detalhesJson = input.detalhes != null ? JSON.stringify(input.detalhes) : null;
     await prisma.$executeRaw`
-      INSERT INTO "cron_run" ("job", "ok", "durationMs", "detalhes", "erro")
+      INSERT INTO "bonificacao"."cron_run" ("job", "ok", "durationMs", "detalhes", "erro")
       VALUES (
         ${input.job},
         ${input.ok},
@@ -130,7 +133,7 @@ export async function getCronHealth(): Promise<CronJobHealth[]> {
   await ensureCronRunTable();
   const rows = await prisma.$queryRawUnsafe<CronRunRow[]>(
     `SELECT DISTINCT ON ("job") "job", "ok", "durationMs", "detalhes", "erro", "finishedAt"
-     FROM "cron_run"
+     FROM "bonificacao"."cron_run"
      ORDER BY "job", "finishedAt" DESC`,
   );
   const porJob = new Map(rows.map((r) => [r.job, r]));

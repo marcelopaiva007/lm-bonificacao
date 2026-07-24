@@ -1,5 +1,25 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
+// =============================================================================
+// Schema ATIVO — banco organizado em schemas do Postgres (cutover 24/07/2026)
+// =============================================================================
+// Reflete o estado do banco após prisma/migrations-manual/01-cutover.sql
+// (runbook em docs/MIGRACAO-BANCO.md; o schema antigo está em
+// prisma/schema.pre-cutover.bak para consulta).
+//
+// Decisões:
+//  - Um único banco Neon, organizado em schemas: shared, bonificacao, rh.
+//    (vapt_* são movidos para o schema `vapt` pelo SQL, mas pertencem ao app
+//     VAPT — não são modelados aqui.)
+//  - FKs continuam REAIS (o PostgreSQL suporta foreign key entre schemas).
+//    Isso mantém a integridade no banco. O DESACOPLAMENTO do User em relação
+//    ao RH é feito removendo apenas as relações User→Empresa/Setor (viram
+//    colunas simples empresaId/setorId, sem FK) — esse é o passo que destrava
+//    a separação futura de bancos, porque tira a única dependência do schema
+//    `shared` para dentro do `rh`.
+//  - Ainda restam 3 FKs cross-schema para shared.User (ImportLote, Fechamento,
+//    Pesquisa). Elas são mantidas por ora; no dia da separação DEFINITIVA em
+//    bancos distintos, viram referência leve (ver docs/MIGRACAO-BANCO.md, Fase B).
+//  - IMPORTANTE: com estes apps, NÃO rode `prisma migrate` contra produção.
+//    O schema é gerido à mão + `prisma db pull`/`migrate resolve`.
 
 generator client {
   provider = "prisma-client"
@@ -8,21 +28,12 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+  schemas  = ["shared", "bonificacao", "rh"]
 }
 
-// Enums are kept as plain String columns (not Prisma `enum`) so the schema
-// works unchanged on both SQLite (local dev) and Postgres (production),
-// since SQLite does not support native enums.
-// Role: "ADMIN" | "DIRETORIA" | "RH_MANAGER" | "GESTOR_SETOR"
-// Cargo: "VENDEDOR_EXTERNO" | "ATENDIMENTO_ADM" | "SUPERVISOR" | "OUTRO_SETOR"
-// Origem: "MANUAL" | "IMPORTADO"
-// StatusFechamento: "ABERTO" | "FECHADO"
-// StatusPesquisa: "DRAFT" | "ACTIVE" | "FINISHED" | "ARCHIVED"
-// TipoPergunta: "LIKERT_5" | "NPS_10" | "MULTIPLE_CHOICE" | "TEXT"
-// DimensaoGPTW: "CREDIBILIDADE" | "RESPEITO" | "IMPARCIALIDADE" | "ORGULHO" | "CAMARADAGEM" | "GERAL"
-// CanalToken: "TELEGRAM" | "LINK_PUBLICO"
-// StatusToken: "PENDING" | "SENT" | "DELIVERED" | "FAILED" | "RESPONDED"
-
+// ============================================================
+// SHARED — autenticação (candidato natural a virar banco próprio)
+// ============================================================
 model User {
   id           String   @id @default(cuid())
   nome         String
@@ -31,23 +42,32 @@ model User {
   role         String
   createdAt    DateTime @default(now())
 
-  // Escopo do módulo de RH: preenchido apenas para RH_MANAGER (empresaId) e
-  // GESTOR_SETOR (empresaId + setorId). ADMIN/DIRETORIA ficam nulos.
+  // Escopo do módulo de RH. Colunas simples, SEM @relation → não geram FK para
+  // rh.Empresa/rh.Setor. É isso que desacopla o `shared` do `rh` e destrava a
+  // separação futura de bancos. (No banco atual essas 2 FKs ainda existem e são
+  // removidas pelo 01-cutover.sql.)
   empresaId String?
-  empresa   Empresa? @relation(fields: [empresaId], references: [id], onDelete: SetNull)
   setorId   String?
-  setor     Setor?   @relation(fields: [setorId], references: [id], onDelete: SetNull)
 
   fechamentosFechados FechamentoMensal[] @relation("FechadoPor")
   importLotes         ImportLote[]
   pesquisasCriadas    Pesquisa[]
+
+  @@index([empresaId])
+  @@index([setorId])
+  @@schema("shared")
 }
 
+// ============================================================
+// BONIFICACAO — motor de vendas
+// ============================================================
 model Cidade {
   id   String @id @default(cuid())
   nome String @unique
 
   funcionarios Funcionario[]
+
+  @@schema("bonificacao")
 }
 
 model Equipe {
@@ -58,6 +78,9 @@ model Equipe {
   tamanhoTier  Int?
 
   membros Funcionario[] @relation("MembroDaEquipe")
+
+  @@index([supervisorId])
+  @@schema("bonificacao")
 }
 
 model Funcionario {
@@ -81,6 +104,7 @@ model Funcionario {
 
   @@index([cidadeId])
   @@index([equipeId])
+  @@schema("bonificacao")
 }
 
 model RegraBonificacao {
@@ -88,13 +112,12 @@ model RegraBonificacao {
   cargo          String
   vigenciaInicio DateTime
   vigenciaFim    DateTime?
-  // Configuração do motor de bonificação (faixas/metas por serviço + regra de
-  // supervisor). Formato definido em lib/bonificacao.ts (RegraConfig).
   config         Json?
   observacoes    String?
   createdAt      DateTime  @default(now())
 
   @@index([cargo, vigenciaInicio])
+  @@schema("bonificacao")
 }
 
 model LancamentoVenda {
@@ -106,8 +129,6 @@ model LancamentoVenda {
   aprovado         Int          @default(0)
   cancelado        Int          @default(0)
   valorInstalado   Float        @default(0)
-  // Valor monetário total dos serviços não-internet do lançamento — base para a
-  // regra de 50% do Atendimento/Administrativo (OS §4).
   valorDemaisServicos Float     @default(0)
   qtdInternet      Int          @default(0)
   qtdChip          Int          @default(0)
@@ -123,6 +144,8 @@ model LancamentoVenda {
 
   @@index([funcionarioId, periodo])
   @@index([periodo])
+  @@index([importLoteId])
+  @@schema("bonificacao")
 }
 
 model ImportLote {
@@ -130,6 +153,7 @@ model ImportLote {
   arquivoNome       String
   dataImportacao    DateTime @default(now())
   usuarioId         String
+  // FK cross-schema (bonificacao → shared.User). Mantida por ora; vira soft ref na Fase B.
   usuario           User     @relation(fields: [usuarioId], references: [id])
   linhasOk          Int      @default(0)
   linhasErro        Int      @default(0)
@@ -137,6 +161,9 @@ model ImportLote {
   detalhesErrosJson Json?
 
   lancamentos LancamentoVenda[]
+
+  @@index([usuarioId])
+  @@schema("bonificacao")
 }
 
 model FechamentoMensal {
@@ -146,12 +173,16 @@ model FechamentoMensal {
   valorTotalVendido     Float     @default(0)
   valorTotalBonificacao Float     @default(0)
   fechadoPorId          String?
+  // FK cross-schema (bonificacao → shared.User). Mantida por ora; vira soft ref na Fase B.
   fechadoPor            User?     @relation("FechadoPor", fields: [fechadoPorId], references: [id])
   fechadoEm             DateTime?
   createdAt             DateTime  @default(now())
 
   bonificacoes BonificacaoCalculada[]
   ajustes      Ajuste[]
+
+  @@index([fechadoPorId])
+  @@schema("bonificacao")
 }
 
 model BonificacaoCalculada {
@@ -171,6 +202,7 @@ model BonificacaoCalculada {
 
   @@unique([fechamentoId, funcionarioId])
   @@index([funcionarioId])
+  @@schema("bonificacao")
 }
 
 model Ajuste {
@@ -185,10 +217,10 @@ model Ajuste {
   createdAt     DateTime          @default(now())
 
   @@index([funcionarioId, periodo])
+  @@index([fechamentoId])
+  @@schema("bonificacao")
 }
 
-// Linhas do relatório "Ativação Contratos" do elleven (sync-elleven).
-// Colunas confirmadas a partir de uma extração real do CSV (scripts/ativacao-contratos.csv).
 model ContratoAtivacaoElleven {
   id                       Int      @id @default(autoincrement())
   contrato                 String   @unique
@@ -214,11 +246,9 @@ model ContratoAtivacaoElleven {
   syncedAt                 DateTime @default(now()) @updatedAt
 
   @@map("contrato_ativacao_elleven")
+  @@schema("bonificacao")
 }
 
-// Linhas genéricas de relatórios do elleven (sync-elleven), armazenadas como
-// JSON por relatório/período/chave — usado pelos relatórios além de
-// "Ativação Contratos" (que tem seu próprio modelo tipado acima).
 model ElevenRelatorioLinha {
   id        Int      @id @default(autoincrement())
   relatorio String
@@ -230,13 +260,9 @@ model ElevenRelatorioLinha {
   @@unique([relatorio, periodo, chave])
   @@index([relatorio, periodo])
   @@map("elleven_relatorio_linha")
+  @@schema("bonificacao")
 }
 
-// Vendas de chip do L&M Móvel (sync-chip). A tabela é criada sob demanda por
-// lib/chip-movel.ts (CREATE TABLE IF NOT EXISTS, mesmo padrão dos demais syncs);
-// este model apenas espelha essa estrutura para que o acesso tipado via
-// `prisma.vendaChipMovel` compile. Datas vêm como texto do endpoint de origem e
-// são guardadas cruas, sem conversão.
 model VendaChipMovel {
   id            Int      @id @default(autoincrement())
   vendaId       Int      @unique
@@ -258,27 +284,24 @@ model VendaChipMovel {
 
   @@index([periodo])
   @@map("venda_chip_movel")
+  @@schema("bonificacao")
 }
 
-// ------------------------------------------------------
-// MÓDULO DE RH — CLIMA ORGANIZACIONAL (multi-empresa)
-// ------------------------------------------------------
-// Totalmente aditivo e isolado do motor de bonificação de vendas acima:
-// nenhuma relação com Funcionario/Equipe/Cidade. Cada empresa (LM Telecom,
-// Centrysol, VAPT, ...) tem seus próprios Setor/Posicao/Colaborador/Pesquisa,
-// sempre filtrados por empresaId nas queries e nas server actions.
-
+// ============================================================
+// RH — clima organizacional (candidato natural a virar banco próprio)
+// ============================================================
 model Empresa {
   id        String   @id @default(cuid())
   nome      String   @unique
   ativo     Boolean  @default(true)
   createdAt DateTime @default(now())
 
-  usuarios      User[]
   setores       Setor[]
   posicoes      Posicao[]
   colaboradores Colaborador[]
   pesquisas     Pesquisa[]
+
+  @@schema("rh")
 }
 
 model Setor {
@@ -289,11 +312,11 @@ model Setor {
   ativo     Boolean  @default(true)
   createdAt DateTime @default(now())
 
-  usuarios      User[]
   colaboradores Colaborador[]
 
   @@unique([empresaId, nome])
   @@index([empresaId])
+  @@schema("rh")
 }
 
 model Posicao {
@@ -308,6 +331,7 @@ model Posicao {
 
   @@unique([empresaId, nome])
   @@index([empresaId])
+  @@schema("rh")
 }
 
 model Colaborador {
@@ -321,9 +345,6 @@ model Colaborador {
   setor          Setor    @relation(fields: [setorId], references: [id])
   posicaoId      String
   posicao        Posicao  @relation(fields: [posicaoId], references: [id])
-  // Chat ID numérico do Telegram do colaborador, obtido manualmente (RH pede
-  // pro colaborador dar /start no bot e lê o chat_id via Bot API getUpdates).
-  // Sem isso, o convite da pesquisa não pode ser enviado automaticamente.
   telegramChatId String?
   ativo          Boolean  @default(true)
   createdAt      DateTime @default(now())
@@ -337,6 +358,7 @@ model Colaborador {
   @@index([empresaId])
   @@index([setorId])
   @@index([posicaoId])
+  @@schema("rh")
 }
 
 model Pesquisa {
@@ -345,10 +367,10 @@ model Pesquisa {
   empresa     Empresa   @relation(fields: [empresaId], references: [id])
   titulo      String
   descricao   String?
-  // Regra de Ouro do Anonimato: quando true, Resposta nunca grava colaboradorId.
   anonima     Boolean   @default(true)
   status      String    @default("DRAFT")
   criadoPorId String?
+  // FK cross-schema (rh → shared.User). Mantida por ora; vira soft ref na Fase B.
   criadoPor   User?     @relation(fields: [criadoPorId], references: [id])
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -360,6 +382,8 @@ model Pesquisa {
   respostas Resposta[]
 
   @@index([empresaId, status])
+  @@index([criadoPorId])
+  @@schema("rh")
 }
 
 model Pergunta {
@@ -377,6 +401,7 @@ model Pergunta {
 
   @@unique([pesquisaId, ordem])
   @@index([pesquisaId])
+  @@schema("rh")
 }
 
 model Opcao {
@@ -389,6 +414,7 @@ model Opcao {
   itens RespostaItem[]
 
   @@index([perguntaId])
+  @@schema("rh")
 }
 
 model SurveyToken {
@@ -397,8 +423,6 @@ model SurveyToken {
   pesquisa      Pesquisa    @relation(fields: [pesquisaId], references: [id], onDelete: Cascade)
   colaboradorId String
   colaborador   Colaborador @relation(fields: [colaboradorId], references: [id])
-  // Gerado com crypto.randomBytes(24).toString("base64url") — imprevisível,
-  // não apenas único, já que é a única "autenticação" da rota pública /responder.
   token         String    @unique
   canal         String    @default("TELEGRAM")
   status        String    @default("PENDING")
@@ -409,15 +433,10 @@ model SurveyToken {
 
   @@unique([pesquisaId, colaboradorId])
   @@index([status])
+  @@index([colaboradorId])
+  @@schema("rh")
 }
 
-// Nota: quando Pesquisa.anonima = true, Resposta NUNCA grava colaboradorId —
-// só um snapshot de setor/posição no momento do envio, para o RH filtrar
-// agregados sem identificar quem respondeu. Deliberadamente não há relação
-// com SurveyToken aqui: saber "que alguém respondeu" (no token) é mantido
-// separado de "o que essa pessoa respondeu" (aqui). Consultas de agregados
-// por GESTOR_SETOR devem exigir amostra mínima de 3 respostas por
-// (setor × pesquisa) antes de exibir qualquer número.
 model Resposta {
   id                  String   @id @default(uuid())
   pesquisaId          String
@@ -431,6 +450,8 @@ model Resposta {
   itens RespostaItem[]
 
   @@index([pesquisaId])
+  @@index([colaboradorId])
+  @@schema("rh")
 }
 
 model RespostaItem {
@@ -446,4 +467,6 @@ model RespostaItem {
 
   @@index([respostaId])
   @@index([perguntaId])
+  @@index([opcaoId])
+  @@schema("rh")
 }
