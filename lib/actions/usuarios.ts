@@ -7,7 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth-guard";
 import type { ActionResult } from "@/lib/constants";
 
-const ROLES = ["ADMIN", "DIRETORIA", "RH_MANAGER", "GESTOR_SETOR", "CONTABIL"] as const;
+const ROLES = ["ADMIN", "DIRETORIA", "RH_MANAGER", "GESTOR_SETOR"] as const;
 
 const usuarioSchema = z
   .object({

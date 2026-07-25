@@ -6,8 +6,8 @@
 // prisma/schema.pre-cutover.bak para consulta).
 //
 // Decisões:
-//  - Um único banco Neon, organizado em schemas: shared, bonificacao, rh,
-//    contabil (este último criado por prisma/migrations-manual/03-contabil.sql).
+//  - Um único banco Neon, organizado em schemas: shared, bonificacao, rh.
+//    (vapt e contabil pertencem a outros apps — não são modelados aqui.)
 //    (vapt_* são movidos para o schema `vapt` pelo SQL, mas pertencem ao app
 //     VAPT — não são modelados aqui.)
 //  - FKs continuam REAIS (o PostgreSQL suporta foreign key entre schemas).
@@ -29,7 +29,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  schemas  = ["shared", "bonificacao", "rh", "contabil"]
+  schemas  = ["shared", "bonificacao", "rh"]
 }
 
 // ============================================================
@@ -470,101 +470,4 @@ model RespostaItem {
   @@index([perguntaId])
   @@index([opcaoId])
   @@schema("rh")
-}
-
-// ============================================================
-// CONTABIL — informações contábeis, impostos e fechamento de lucro
-// ============================================================
-// Módulo do analista contábil. Nasce já desacoplado: NENHUMA FK cruza para
-// `shared`/`bonificacao`/`rh` (quem fechou a competência é guardado como
-// referência leve — id + nome —, o que deixa o schema pronto para virar banco
-// próprio sem trabalho de migração, conforme a Fase B do docs/MIGRACAO-BANCO.md).
-model EmpresaContabil {
-  id        String   @id @default(cuid())
-  nome      String   @unique
-  cnpj      String?
-  regime    String? // SIMPLES | PRESUMIDO | REAL
-  ativo     Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  competencias CompetenciaContabil[]
-
-  @@map("empresa_contabil")
-  @@schema("contabil")
-}
-
-// Cadastro dos tributos acompanhados (ISS, PIS, COFINS, retenções...). É global
-// e não por empresa: o mesmo tributo tem o mesmo significado nas três empresas,
-// e o que varia é o valor apurado — que vive em ImpostoApurado.
-model TipoImposto {
-  id        String   @id @default(cuid())
-  nome      String   @unique
-  descricao String?
-  ordem     Int      @default(0)
-  ativo     Boolean  @default(true)
-  createdAt DateTime @default(now())
-
-  impostos ImpostoApurado[]
-
-  @@map("tipo_imposto")
-  @@schema("contabil")
-}
-
-// Uma linha da planilha de resultado: empresa + mês (periodo "AAAA-MM").
-// O lucro NÃO é coluna — é sempre derivado (faturamento - despesas), para não
-// existir a possibilidade de o número salvo divergir das parcelas.
-model CompetenciaContabil {
-  id          String  @id @default(cuid())
-  empresaId   String
-  empresa     EmpresaContabil @relation(fields: [empresaId], references: [id], onDelete: Cascade)
-  periodo     String
-  faturamento Float   @default(0)
-  despesas    Float   @default(0)
-
-  // ABERTA = o analista ainda edita; FECHADA = trava lançamentos e impostos.
-  status       String    @default("ABERTA")
-  fechadaEm    DateTime?
-  fechadaPorId String? // referência leve a shared.User (sem FK, de propósito)
-  fechadaPor   String?
-  observacoes  String?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  impostos ImpostoApurado[]
-
-  @@unique([empresaId, periodo])
-  @@index([periodo])
-  @@map("competencia_contabil")
-  @@schema("contabil")
-}
-
-// Valor de um tributo numa competência + o controle do pagamento (a guia).
-model ImpostoApurado {
-  id            String              @id @default(cuid())
-  competenciaId String
-  competencia   CompetenciaContabil @relation(fields: [competenciaId], references: [id], onDelete: Cascade)
-  tipoId        String
-  tipo          TipoImposto         @relation(fields: [tipoId], references: [id])
-
-  valor      Float     @default(0)
-  vencimento DateTime?
-
-  // PENDENTE | PAGO. `valorPago` só é preenchido quando difere do apurado
-  // (juros/multa ou pagamento parcial), então o relatório pode comparar os dois.
-  status        String    @default("PENDENTE")
-  dataPagamento DateTime?
-  valorPago     Float?
-  documento     String? // nº da guia / DARF / DAS
-  observacoes   String?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@unique([competenciaId, tipoId])
-  @@index([tipoId])
-  @@index([status])
-  @@map("imposto_apurado")
-  @@schema("contabil")
 }

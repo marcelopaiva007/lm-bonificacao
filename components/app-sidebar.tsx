@@ -14,7 +14,6 @@ const ROLE_LABELS: Record<string, string> = {
   DIRETORIA: "Diretoria/Gestão",
   RH_MANAGER: "RH",
   GESTOR_SETOR: "Gestor de Setor",
-  CONTABIL: "Contabilidade",
 };
 
 export function AppSidebar({
