@@ -11,4 +11,5 @@ export const CARGOS = [
 export const ROLES = [
   { value: "ADMIN", label: "Administrativo/Financeiro" },
   { value: "DIRETORIA", label: "Diretoria/Gestão" },
+  { value: "CONTABIL", label: "Analista Contábil" },
 ] as const;

@@ -17,6 +17,7 @@ export default async function HomePage({
   // qualquer query do motor de bonificação.
   if (user.role === "RH_MANAGER") redirect("/rh");
   if (user.role === "GESTOR_SETOR") redirect("/rh/meu-setor");
+  if (user.role === "CONTABIL") redirect("/contabilidade");
   const params = await searchParams;
 
   const fechamentos = await prisma.fechamentoMensal.findMany({

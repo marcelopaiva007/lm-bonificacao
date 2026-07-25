@@ -11,6 +11,7 @@ import {
   BarChart3,
   HeartHandshake,
   UserCog,
+  Calculator,
 } from "lucide-react";
 
 export type NavItem = {
@@ -39,6 +40,7 @@ export const diretoriaNav: NavItem[] = [
 ];
 
 const rhHubItem: NavItem = { href: "/rh", label: "RH — Clima Organizacional", icon: HeartHandshake };
+const contabilItem: NavItem = { href: "/contabilidade", label: "Contabilidade", icon: Calculator };
 const usuariosItem: NavItem = { href: "/usuarios", label: "Usuários", icon: UserCog };
 const painelItem: NavItem = { href: "/", label: "Painel", icon: LayoutDashboard };
 const meuSetorItem: NavItem = { href: "/rh/meu-setor", label: "Meu Setor", icon: HeartHandshake };
@@ -46,8 +48,10 @@ const meuSetorItem: NavItem = { href: "/rh/meu-setor", label: "Meu Setor", icon:
 // Lookup por role — adminNav/diretoriaNav continuam intactos (referenciados
 // diretamente), RH_MANAGER/GESTOR_SETOR ganham navegação própria e enxuta.
 export const navByRole: Record<string, NavItem[]> = {
-  ADMIN: [...adminNav, rhHubItem, usuariosItem],
-  DIRETORIA: diretoriaNav,
+  ADMIN: [...adminNav, contabilItem, rhHubItem, usuariosItem],
+  DIRETORIA: [...diretoriaNav, contabilItem],
   RH_MANAGER: [painelItem, rhHubItem],
   GESTOR_SETOR: [painelItem, meuSetorItem],
+  // O analista contábil só enxerga o próprio módulo — nada de vendas/bonificação.
+  CONTABIL: [contabilItem],
 };
