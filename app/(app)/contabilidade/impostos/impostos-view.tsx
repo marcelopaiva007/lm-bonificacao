@@ -38,7 +38,6 @@ import {
   formatBRL,
   formatData,
   inputDeData,
-  montarCSV,
   parseValorBR,
 } from "@/lib/contabil";
 import { salvarImpostosAno, salvarPagamentoImposto, baixarImpostoRapido } from "@/lib/actions/contabil";
@@ -142,25 +141,23 @@ export function ImpostosView({
     )
     .sort((a, b) => a.mes - b.mes || a.tipoNome.localeCompare(b.tipoNome));
 
-  function exportarCSV() {
-    const csv = montarCSV(
-      ["Mês", ...tipos.map((t) => t.nome), "Total"],
-      meses.map((m) => {
-        const linha = tipos.map((t) => parseValorBR(valores[`${m.periodo}_${t.id}`] ?? ""));
-        return [
-          MESES_NOMES[m.mes - 1],
-          ...linha,
-          linha.reduce((s, v) => s + v, 0),
-        ];
-      }),
-    );
-    const blob = new Blob([`﻿${csv}`], { type: "text/csv;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `impostos-${empresaNome.toLowerCase().replace(/\s+/g, "-")}-${ano}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+  async function exportarPlanilha() {
+    const XLSX = await import("xlsx");
+
+    const dados: (string | number)[][] = [
+      [`IMPOSTOS ${empresaNome.toUpperCase()} — ${ano}`],
+      [],
+      ["PERÍODO", ...tipos.map((t) => t.nome), "TOTAL"],
+    ];
+    for (const m of meses) {
+      const linha = tipos.map((t) => parseValorBR(valores[`${m.periodo}_${t.id}`] ?? ""));
+      dados.push([MESES_NOMES[m.mes - 1].toUpperCase(), ...linha, linha.reduce((s, v) => s + v, 0)]);
+    }
+    dados.push(["TOTAL", ...tipos.map((t) => totaisPorTipo[t.id] ?? 0), totalGeral]);
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(dados), "Impostos");
+    XLSX.writeFile(wb, `impostos-${empresaNome.toLowerCase().replace(/\s+/g, "-")}-${ano}.xlsx`);
   }
 
   async function baixaRapida(id: string) {
@@ -173,9 +170,9 @@ export function ImpostosView({
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <ContabilFiltros empresas={empresas} empresaId={empresaId} anos={anos} ano={ano} />
-        <Button variant="outline" onClick={exportarCSV}>
+        <Button variant="outline" onClick={exportarPlanilha}>
           <Download className="size-4" />
-          Exportar CSV
+          Baixar planilha
         </Button>
       </div>
 

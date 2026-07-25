@@ -1,5 +1,6 @@
 "use client";
 
+import { Fragment } from "react";
 import {
   ResponsiveContainer,
   Bar,
@@ -23,6 +24,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import {
   MESES_CURTOS,
@@ -30,11 +32,11 @@ import {
   formatBRL,
   formatData,
   margem,
-  montarCSV,
   porTrimestre,
   somaLinhas,
   temMovimento,
   type LinhaMes,
+  type ResumoBloco,
 } from "@/lib/contabil";
 import { ContabilFiltros, type EmpresaOpcao } from "./contabil-filtros";
 
@@ -59,6 +61,8 @@ export function PainelView({
   ano,
   linhas,
   porTipo,
+  tributos,
+  matrizImpostos,
   guias,
 }: {
   empresas: EmpresaOpcao[];
@@ -68,6 +72,8 @@ export function PainelView({
   ano: number;
   linhas: LinhaMes[];
   porTipo: TipoTotal[];
+  tributos: string[];
+  matrizImpostos: { mes: number; valores: number[] }[];
   guias: Guia[];
 }) {
   const total = somaLinhas(linhas);
@@ -82,35 +88,65 @@ export function PainelView({
     lucro: l.lucro,
   }));
 
-  function exportarCSV() {
-    const csv = montarCSV(
-      ["Mês", "Faturamento", "Despesas", "Lucro", "Impostos", "Lucro após impostos", "Status"],
-      linhas.map((l) => [
-        MESES_NOMES[l.mes - 1],
-        l.faturamento,
-        l.despesas,
-        l.lucro,
-        l.impostos,
-        l.lucroAposImpostos,
-        l.status,
-      ]),
-    );
-    const blob = new Blob([`﻿${csv}`], { type: "text/csv;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `resultado-${empresaNome.toLowerCase().replace(/\s+/g, "-")}-${ano}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+  /**
+   * Exporta a planilha anual: uma aba de resultado (com os subtotais de
+   * trimestre, como o analista já lia) e outra com a matriz de impostos.
+   */
+  async function exportarPlanilha() {
+    const XLSX = await import("xlsx");
+
+    const abaResultado: (string | number)[][] = [
+      [`RESULTADO ${empresaNome.toUpperCase()} — ${ano}`],
+      [],
+      ["PERÍODO", "FATURAMENTO", "DESPESAS", "LUCRO", "IMPOSTOS", "SITUAÇÃO"],
+    ];
+    for (const { trimestre, linhas: doTrimestre, total: t } of trimestres) {
+      for (const l of doTrimestre) {
+        abaResultado.push([
+          MESES_NOMES[l.mes - 1].toUpperCase(),
+          l.faturamento,
+          l.despesas,
+          l.lucro,
+          l.impostos,
+          l.status === "FECHADA" ? "Fechado" : "Aberto",
+        ]);
+      }
+      abaResultado.push([`TOTAL ${trimestre}º TRIMESTRE`, t.faturamento, t.despesas, t.lucro, t.impostos, ""]);
+      abaResultado.push([]);
+    }
+    abaResultado.push([`TOTAL ${ano}`, total.faturamento, total.despesas, total.lucro, total.impostos, ""]);
+
+    const abaImpostos: (string | number)[][] = [
+      [`IMPOSTOS ${empresaNome.toUpperCase()} — ${ano}`],
+      [],
+      ["PERÍODO", ...tributos, "TOTAL"],
+    ];
+    for (const linha of matrizImpostos) {
+      abaImpostos.push([
+        MESES_NOMES[linha.mes - 1].toUpperCase(),
+        ...linha.valores,
+        linha.valores.reduce((s, v) => s + v, 0),
+      ]);
+    }
+    abaImpostos.push([
+      "TOTAL",
+      ...tributos.map((_, i) => matrizImpostos.reduce((s, l) => s + (l.valores[i] ?? 0), 0)),
+      matrizImpostos.reduce((s, l) => s + l.valores.reduce((sv, v) => sv + v, 0), 0),
+    ]);
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(abaResultado), "Resultado");
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(abaImpostos), "Impostos");
+    XLSX.writeFile(wb, `contabilidade-${empresaNome.toLowerCase().replace(/\s+/g, "-")}-${ano}.xlsx`);
   }
 
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <ContabilFiltros empresas={empresas} empresaId={empresaId} anos={anos} ano={ano} />
-        <Button variant="outline" onClick={exportarCSV}>
+        <Button variant="outline" onClick={exportarPlanilha}>
           <Download className="size-4" />
-          Exportar CSV
+          Baixar planilha do ano
         </Button>
       </div>
 
@@ -141,9 +177,26 @@ export function PainelView({
         />
       </div>
 
-      {/* Os 4 blocos trimestrais — mesmo recorte da planilha do analista. */}
-      <div className="grid gap-4 lg:grid-cols-2">
-        {trimestres.map(({ trimestre, linhas: doTrimestre, total: totalTri }) => (
+      <Tabs defaultValue="ano">
+        <TabsList>
+          <TabsTrigger value="ano">Planilha do ano</TabsTrigger>
+          <TabsTrigger value="trimestres">Por trimestre</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="ano" className="mt-4">
+          <PlanilhaAnual
+            ano={ano}
+            empresaNome={empresaNome}
+            trimestres={trimestres}
+            total={total}
+            margemAno={margemAno}
+          />
+        </TabsContent>
+
+        <TabsContent value="trimestres" className="mt-4">
+          {/* Os 4 blocos trimestrais — mesmo recorte da planilha original. */}
+          <div className="grid gap-4 lg:grid-cols-2">
+            {trimestres.map(({ trimestre, linhas: doTrimestre, total: totalTri }) => (
           <Card key={trimestre}>
             <CardHeader>
               <CardTitle className="text-base">{trimestre}º Trimestre</CardTitle>
@@ -191,10 +244,12 @@ export function PainelView({
                   {formatBRL(totalTri.lucro)}
                 </span>
               </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </TabsContent>
+      </Tabs>
 
       <Card>
         <CardHeader>
@@ -319,6 +374,133 @@ export function PainelView({
         </Card>
       </div>
     </div>
+  );
+}
+
+/**
+ * O ano inteiro numa tabela só, com o subtotal de cada trimestre no meio — é a
+ * visão que substitui a planilha, sem precisar somar dois blocos na mão.
+ */
+function PlanilhaAnual({
+  ano,
+  empresaNome,
+  trimestres,
+  total,
+  margemAno,
+}: {
+  ano: number;
+  empresaNome: string;
+  trimestres: { trimestre: number; linhas: LinhaMes[]; total: ResumoBloco }[];
+  total: ResumoBloco;
+  margemAno: number | null;
+}) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">
+          {empresaNome} — resultado de {ano}
+        </CardTitle>
+        <p className="text-sm text-muted-foreground">
+          Os 12 meses com o fechamento de cada trimestre e o total do ano. O lucro é sempre
+          faturamento menos despesas; a coluna de impostos é informativa.
+        </p>
+      </CardHeader>
+      <CardContent>
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-40">Período</TableHead>
+                <TableHead className="text-right">Faturamento</TableHead>
+                <TableHead className="text-right">Despesas</TableHead>
+                <TableHead className="text-right">Lucro</TableHead>
+                <TableHead className="text-right">Margem</TableHead>
+                <TableHead className="text-right">Impostos</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {trimestres.map(({ trimestre, linhas: doTrimestre, total: t }) => (
+                <Fragment key={trimestre}>
+                  {doTrimestre.map((l) => {
+                    const m = margem(l.faturamento, l.lucro);
+                    return (
+                      <TableRow key={l.periodo} className={temMovimento(l) ? "" : "opacity-50"}>
+                        <TableCell className="uppercase">{MESES_NOMES[l.mes - 1]}</TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {l.faturamento ? formatBRL(l.faturamento) : "—"}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {l.despesas ? formatBRL(l.despesas) : "—"}
+                        </TableCell>
+                        <TableCell
+                          className={cn(
+                            "text-right tabular-nums",
+                            temMovimento(l) && l.lucro < 0 && "text-rose-600",
+                            temMovimento(l) && l.lucro > 0 && "text-emerald-600",
+                          )}
+                        >
+                          {temMovimento(l) ? formatBRL(l.lucro) : "—"}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums text-muted-foreground">
+                          {m === null ? "—" : `${m.toFixed(1)}%`}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums text-muted-foreground">
+                          {l.impostos ? formatBRL(l.impostos) : "—"}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                  <TableRow className="border-y bg-muted/40 font-medium">
+                    <TableCell>{trimestre}º trimestre</TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {formatBRL(t.faturamento)}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">{formatBRL(t.despesas)}</TableCell>
+                    <TableCell
+                      className={cn(
+                        "text-right tabular-nums",
+                        t.lucro < 0 ? "text-rose-600" : t.lucro > 0 ? "text-emerald-600" : "",
+                      )}
+                    >
+                      {formatBRL(t.lucro)}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums text-muted-foreground">
+                      {margem(t.faturamento, t.lucro)?.toFixed(1) ?? "—"}
+                      {margem(t.faturamento, t.lucro) === null ? "" : "%"}
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums text-muted-foreground">
+                      {t.impostos ? formatBRL(t.impostos) : "—"}
+                    </TableCell>
+                  </TableRow>
+                </Fragment>
+              ))}
+
+              <TableRow className="border-t-2 text-base font-semibold">
+                <TableCell>TOTAL {ano}</TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {formatBRL(total.faturamento)}
+                </TableCell>
+                <TableCell className="text-right tabular-nums">{formatBRL(total.despesas)}</TableCell>
+                <TableCell
+                  className={cn(
+                    "text-right tabular-nums",
+                    total.lucro < 0 ? "text-rose-600" : "text-emerald-600",
+                  )}
+                >
+                  {formatBRL(total.lucro)}
+                </TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {margemAno === null ? "—" : `${margemAno.toFixed(1)}%`}
+                </TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {formatBRL(total.impostos)}
+                </TableCell>
+              </TableRow>
+            </TableBody>
+          </Table>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 

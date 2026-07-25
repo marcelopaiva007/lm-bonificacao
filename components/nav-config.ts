@@ -40,7 +40,7 @@ export const diretoriaNav: NavItem[] = [
 ];
 
 const rhHubItem: NavItem = { href: "/rh", label: "RH — Clima Organizacional", icon: HeartHandshake };
-const contabilItem: NavItem = { href: "/contabil", label: "Contabilidade", icon: Calculator };
+const contabilItem: NavItem = { href: "/contabilidade", label: "Contabilidade", icon: Calculator };
 const usuariosItem: NavItem = { href: "/usuarios", label: "Usuários", icon: UserCog };
 const painelItem: NavItem = { href: "/", label: "Painel", icon: LayoutDashboard };
 const meuSetorItem: NavItem = { href: "/rh/meu-setor", label: "Meu Setor", icon: HeartHandshake };

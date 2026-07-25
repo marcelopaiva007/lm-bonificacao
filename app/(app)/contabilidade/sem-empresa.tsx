@@ -14,7 +14,9 @@ export function SemEmpresa({ podeCadastrar }: { podeCadastrar: boolean }) {
         </p>
       </div>
       {podeCadastrar && (
-        <Button render={<Link href="/contabil/cadastros" />}>Cadastrar empresa</Button>
+        <Button nativeButton={false} render={<Link href="/contabilidade/cadastros" />}>
+          Cadastrar empresa
+        </Button>
       )}
     </div>
   );

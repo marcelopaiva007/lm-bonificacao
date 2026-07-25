@@ -8,11 +8,11 @@ import { parseValorBR, dataDeInput, periodosDoAno } from "@/lib/contabil";
 import type { ActionResult } from "@/lib/constants";
 
 function revalidarContabil() {
-  revalidatePath("/contabil");
-  revalidatePath("/contabil/resultado");
-  revalidatePath("/contabil/impostos");
-  revalidatePath("/contabil/fechamento");
-  revalidatePath("/contabil/cadastros");
+  revalidatePath("/contabilidade");
+  revalidatePath("/contabilidade/resultado");
+  revalidatePath("/contabilidade/impostos");
+  revalidatePath("/contabilidade/fechamento");
+  revalidatePath("/contabilidade/cadastros");
 }
 
 // ---------------------------------------------------------------------------

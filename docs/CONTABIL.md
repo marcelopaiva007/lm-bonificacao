@@ -10,11 +10,11 @@ por trimestre e a de impostos por mês/tributo.
 
 | Tela | Rota | O que faz |
 |------|------|-----------|
-| Painel | `/contabil` | KPIs do ano, os 4 blocos trimestrais (mesmo recorte da planilha), gráfico, impostos por tributo e guias em aberto de todas as empresas |
-| Faturamento x Despesas | `/contabil/resultado` | Grade dos 12 meses; o lucro é calculado, nunca digitado |
-| Impostos | `/contabil/impostos` | Matriz mês x tributo + tabela de guias (vencimento, baixa, nº do documento) |
-| Fechamento | `/contabil/fechamento` | Trava a competência (faturamento, despesas e impostos daquele mês) |
-| Cadastros | `/contabil/cadastros` | Empresas e tributos acompanhados |
+| Painel | `/contabilidade` | Planilha do ano inteiro (12 meses + subtotal de cada trimestre + total), aba alternativa com os 4 blocos trimestrais, KPIs, gráfico, impostos por tributo, guias em aberto de todas as empresas e o download da planilha anual em .xlsx |
+| Faturamento x Despesas | `/contabilidade/resultado` | Grade dos 12 meses; o lucro é calculado, nunca digitado |
+| Impostos | `/contabilidade/impostos` | Matriz mês x tributo + tabela de guias (vencimento, baixa, nº do documento) |
+| Fechamento | `/contabilidade/fechamento` | Trava a competência (faturamento, despesas e impostos daquele mês) |
+| Cadastros | `/contabilidade/cadastros` | Empresas e tributos acompanhados |
 
 Empresa e ano viajam na query string (`?empresa=<id>&ano=2026`) e são preservados
 ao trocar de aba.
@@ -26,7 +26,7 @@ Papel novo: **`CONTABIL`** (rótulo "Analista Contábil"), criado em `/usuarios`
 | Papel | Vê | Edita |
 |-------|----|-------|
 | `ADMIN` | sim | sim (único que pode **reabrir** um mês fechado) |
-| `CONTABIL` | sim (só este módulo — cai direto em `/contabil` ao entrar) | sim |
+| `CONTABIL` | sim (só este módulo — cai direto em `/contabilidade` ao entrar) | sim |
 | `DIRETORIA` | sim | não |
 
 ## Modelo de dados (schema `contabil`)
@@ -72,11 +72,11 @@ original ao final.
   `R$ 1.234,56`) — ver `parseValorBR` em `lib/contabil.ts`.
 - Datas de vencimento/pagamento são gravadas em UTC "puro" (meia-noite) e
   formatadas em UTC, para o dia 1 não virar dia 31 do mês anterior.
-- Exportações CSV usam `;` e BOM — abrem direto no Excel pt-BR.
+- As exportações são `.xlsx` de verdade (biblioteca `xlsx`), geradas no navegador. A do painel traz duas abas: **Resultado** (com os subtotais de trimestre) e **Impostos** (matriz mês x tributo).
 
 ## Ponto em aberto
 
 Se as despesas lançadas **já incluem** os impostos, o "lucro após impostos"
-mostrado no CSV/painel subtrai duas vezes. Hoje o número principal em todo lugar
+mostrado no painel subtrai duas vezes. Hoje o número principal em todo lugar
 é o da planilha (`faturamento - despesas`); confirmar com o analista antes de
 usar a coluna "lucro após impostos" para decisão.

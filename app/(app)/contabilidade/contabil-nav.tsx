@@ -7,11 +7,11 @@ import { cn } from "@/lib/utils";
 import { podeEditarContabil } from "@/lib/contabil";
 
 const ITENS = [
-  { href: "/contabil", label: "Painel", icon: LayoutDashboard, soEditor: false },
-  { href: "/contabil/resultado", label: "Faturamento x Despesas", icon: TrendingUp, soEditor: false },
-  { href: "/contabil/impostos", label: "Impostos", icon: Receipt, soEditor: false },
-  { href: "/contabil/fechamento", label: "Fechamento", icon: Lock, soEditor: false },
-  { href: "/contabil/cadastros", label: "Cadastros", icon: Settings, soEditor: true },
+  { href: "/contabilidade", label: "Painel", icon: LayoutDashboard, soEditor: false },
+  { href: "/contabilidade/resultado", label: "Faturamento x Despesas", icon: TrendingUp, soEditor: false },
+  { href: "/contabilidade/impostos", label: "Impostos", icon: Receipt, soEditor: false },
+  { href: "/contabilidade/fechamento", label: "Fechamento", icon: Lock, soEditor: false },
+  { href: "/contabilidade/cadastros", label: "Cadastros", icon: Settings, soEditor: true },
 ];
 
 export function ContabilNav({ role }: { role: string }) {
@@ -33,7 +33,7 @@ export function ContabilNav({ role }: { role: string }) {
     <nav className="flex flex-wrap gap-1 border-b pb-2">
       {itens.map((item) => {
         const ativo =
-          item.href === "/contabil" ? pathname === "/contabil" : pathname.startsWith(item.href);
+          item.href === "/contabilidade" ? pathname === "/contabilidade" : pathname.startsWith(item.href);
         const Icon = item.icon;
         return (
           <Link

@@ -202,12 +202,3 @@ export function margem(faturamento: number, lucro: number): number | null {
 export function temMovimento(linha: LinhaMes): boolean {
   return linha.faturamento !== 0 || linha.despesas !== 0 || linha.impostos !== 0;
 }
-
-/** Monta o CSV (separador ";" — o que o Excel pt-BR abre direto). */
-export function montarCSV(cabecalho: string[], linhas: (string | number)[][]): string {
-  const escapa = (v: string | number) => {
-    const texto = typeof v === "number" ? v.toFixed(2).replace(".", ",") : v;
-    return /[;"\n]/.test(texto) ? `"${texto.replace(/"/g, '""')}"` : texto;
-  };
-  return [cabecalho, ...linhas].map((l) => l.map(escapa).join(";")).join("\r\n");
-}

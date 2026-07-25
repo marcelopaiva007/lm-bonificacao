@@ -10,7 +10,7 @@ export async function requireContabilAccess() {
 
 export async function requireContabilEditor() {
   const user = await requireUser();
-  if (!ROLES_EDICAO.includes(user.role)) redirect("/contabil");
+  if (!ROLES_EDICAO.includes(user.role)) redirect("/contabilidade");
   return user;
 }
 
