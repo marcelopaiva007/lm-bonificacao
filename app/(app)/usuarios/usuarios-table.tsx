@@ -44,7 +44,6 @@ const ROLES = [
   { value: "DIRETORIA", label: "Diretoria/Gestão" },
   { value: "RH_MANAGER", label: "RH (gestor de empresa)" },
   { value: "GESTOR_SETOR", label: "Gestor de setor" },
-  { value: "CONTABIL", label: "Analista contábil" },
 ] as const;
 
 const roleLabel = (role: string) => ROLES.find((r) => r.value === role)?.label ?? role;
