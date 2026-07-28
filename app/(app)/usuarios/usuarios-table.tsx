@@ -13,6 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -55,7 +56,7 @@ type Usuario = {
   nome: string;
   username: string;
   role: string;
-  empresaId: string | null;
+  empresasIds: string[];
   setorId: string | null;
 };
 
@@ -75,7 +76,6 @@ export function UsuariosTable({
   const [senhaUsuario, setSenhaUsuario] = useState<Usuario | null>(null);
   const [busca, setBusca] = useState("");
 
-  // Nome da empresa/setor resolvido por id (o User não tem mais a relação).
   const empresaNome = useMemo(() => new Map(empresas.map((e) => [e.id, e.nome])), [empresas]);
   const setorNome = useMemo(() => new Map(setores.map((s) => [s.id, s.nome])), [setores]);
 
@@ -123,7 +123,7 @@ export function UsuariosTable({
               <TableHead>Nome</TableHead>
               <TableHead>Login</TableHead>
               <TableHead>Papel</TableHead>
-              <TableHead>Empresa</TableHead>
+              <TableHead>Empresa(s)</TableHead>
               <TableHead>Setor</TableHead>
               <TableHead className="w-32 text-right">Ações</TableHead>
             </TableRow>
@@ -143,7 +143,21 @@ export function UsuariosTable({
                 <TableCell>
                   <Badge variant="secondary">{roleLabel(u.role)}</Badge>
                 </TableCell>
-                <TableCell>{(u.empresaId && empresaNome.get(u.empresaId)) ?? "—"}</TableCell>
+                <TableCell>
+                  {u.empresasIds.length === 0
+                    ? "—"
+                    : u.empresasIds.length === 1
+                    ? (empresaNome.get(u.empresasIds[0]) ?? u.empresasIds[0])
+                    : (
+                      <span className="flex flex-wrap gap-1">
+                        {u.empresasIds.map((eid) => (
+                          <Badge key={eid} variant="outline" className="text-xs">
+                            {empresaNome.get(eid) ?? eid}
+                          </Badge>
+                        ))}
+                      </span>
+                    )}
+                </TableCell>
                 <TableCell>{(u.setorId && setorNome.get(u.setorId)) ?? "—"}</TableCell>
                 <TableCell className="text-right">
                   <div className="flex justify-end gap-1">
@@ -204,13 +218,18 @@ function UsuarioForm({
   onSuccess: () => void;
 }) {
   const [role, setRole] = useState(defaultValues?.role ?? "DIRETORIA");
-  const [empresaId, setEmpresaId] = useState(defaultValues?.empresaId ?? "");
+  // RH_MANAGER: múltiplas empresas; GESTOR_SETOR: uma empresa (para selecionar setor)
+  const [empresasIds, setEmpresasIds] = useState<string[]>(defaultValues?.empresasIds ?? []);
   const [setorId, setSetorId] = useState(defaultValues?.setorId ?? "");
 
   const precisaEmpresa = role === "RH_MANAGER" || role === "GESTOR_SETOR";
   const precisaSetor = role === "GESTOR_SETOR";
+  const precisaMultiEmpresa = role === "RH_MANAGER";
   const empresasAtivas = empresas.filter((e) => e.ativo);
-  const setoresDaEmpresa = setores.filter((s) => s.empresaId === empresaId && s.ativo);
+
+  // Para GESTOR_SETOR, só considera a primeira empresa selecionada para filtrar setores
+  const empresaIdParaSetor = empresasIds[0] ?? "";
+  const setoresDaEmpresa = setores.filter((s) => s.empresaId === empresaIdParaSetor && s.ativo);
 
   const [state, formAction, isPending] = useActionState(async (prev: ActionResult, fd: FormData) => {
     const result = await action(prev, fd);
@@ -221,11 +240,29 @@ function UsuarioForm({
     return result;
   }, initialState);
 
+  function toggleEmpresa(id: string) {
+    setEmpresasIds((prev) =>
+      prev.includes(id) ? prev.filter((e) => e !== id) : [...prev, id]
+    );
+    setSetorId(""); // reset setor ao mudar empresa(s)
+  }
+
+  function selecionarEmpresaUnica(id: string) {
+    setEmpresasIds(id ? [id] : []);
+    setSetorId("");
+  }
+
   return (
     <form action={formAction} className="space-y-4">
       <DialogHeader>
         <DialogTitle>{title}</DialogTitle>
       </DialogHeader>
+
+      {/* Campos ocultos para enviar empresasIds como múltiplos valores */}
+      {empresasIds.map((eid) => (
+        <input key={eid} type="hidden" name="empresasIds" value={eid} />
+      ))}
+
       <div className="space-y-2">
         <Label htmlFor="nome">Nome</Label>
         <Input id="nome" name="nome" defaultValue={defaultValues?.nome ?? ""} required autoFocus />
@@ -246,7 +283,7 @@ function UsuarioForm({
           value={role}
           onValueChange={(v) => {
             setRole(v ?? "DIRETORIA");
-            setEmpresaId("");
+            setEmpresasIds([]);
             setSetorId("");
           }}
           name="role"
@@ -264,16 +301,43 @@ function UsuarioForm({
           </SelectContent>
         </Select>
       </div>
-      {precisaEmpresa && (
+
+      {/* RH_MANAGER: checkboxes multi-seleção */}
+      {precisaEmpresa && precisaMultiEmpresa && (
+        <div className="space-y-2">
+          <Label>Empresas</Label>
+          <div className="rounded-md border bg-muted/30 p-3 space-y-2 max-h-48 overflow-y-auto">
+            {empresasAtivas.length === 0 && (
+              <p className="text-sm text-muted-foreground">Nenhuma empresa ativa cadastrada.</p>
+            )}
+            {empresasAtivas.map((e) => (
+              <div key={e.id} className="flex items-center gap-2">
+                <Checkbox
+                  id={`empresa-${e.id}`}
+                  checked={empresasIds.includes(e.id)}
+                  onCheckedChange={() => toggleEmpresa(e.id)}
+                />
+                <label htmlFor={`empresa-${e.id}`} className="text-sm cursor-pointer select-none">
+                  {e.nome}
+                </label>
+              </div>
+            ))}
+          </div>
+          {empresasIds.length > 0 && (
+            <p className="text-xs text-muted-foreground">
+              {empresasIds.length} empresa(s) selecionada(s)
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* GESTOR_SETOR: select único de empresa */}
+      {precisaEmpresa && !precisaMultiEmpresa && (
         <div className="space-y-2">
           <Label>Empresa</Label>
           <Select
-            value={empresaId}
-            onValueChange={(v) => {
-              setEmpresaId(v ?? "");
-              setSetorId("");
-            }}
-            name="empresaId"
+            value={empresaIdParaSetor}
+            onValueChange={(v) => selecionarEmpresaUnica(v ?? "")}
             items={Object.fromEntries(empresasAtivas.map((e) => [e.id, e.nome]))}
           >
             <SelectTrigger className="w-full">
@@ -289,6 +353,8 @@ function UsuarioForm({
           </Select>
         </div>
       )}
+
+      {/* Setor: só para GESTOR_SETOR */}
       {precisaSetor && (
         <div className="space-y-2">
           <Label>Setor</Label>
@@ -299,7 +365,9 @@ function UsuarioForm({
             items={Object.fromEntries(setoresDaEmpresa.map((s) => [s.id, s.nome]))}
           >
             <SelectTrigger className="w-full">
-              <SelectValue placeholder={empresaId ? "Selecione o setor" : "Selecione a empresa primeiro"} />
+              <SelectValue
+                placeholder={empresaIdParaSetor ? "Selecione o setor" : "Selecione a empresa primeiro"}
+              />
             </SelectTrigger>
             <SelectContent>
               {setoresDaEmpresa.map((s) => (
@@ -311,6 +379,7 @@ function UsuarioForm({
           </Select>
         </div>
       )}
+
       {!state.ok && (
         <Alert variant="destructive">
           <AlertDescription>{state.error}</AlertDescription>

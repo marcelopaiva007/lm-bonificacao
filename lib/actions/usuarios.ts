@@ -14,26 +14,43 @@ const usuarioSchema = z
     nome: z.string().trim().min(2, "Informe o nome"),
     username: z.string().trim().min(3, "Informe o usuário de login"),
     role: z.enum(ROLES),
-    empresaId: z.string().trim().optional(),
+    // RH_MANAGER: array de empresas (multi-empresa). GESTOR_SETOR: array com uma empresa.
+    empresasIds: z.array(z.string()).default([]),
     setorId: z.string().trim().optional(),
   })
-  .refine((data) => data.role !== "RH_MANAGER" || !!data.empresaId, {
-    message: "Selecione a empresa do gestor de RH",
-    path: ["empresaId"],
-  })
-  .refine((data) => data.role !== "GESTOR_SETOR" || !!data.empresaId, {
-    message: "Selecione a empresa do gestor de setor",
-    path: ["empresaId"],
-  })
-  .refine((data) => data.role !== "GESTOR_SETOR" || !!data.setorId, {
-    message: "Selecione o setor do gestor",
-    path: ["setorId"],
-  });
+  .refine(
+    (data) => data.role !== "RH_MANAGER" || data.empresasIds.length > 0,
+    { message: "Selecione ao menos uma empresa para o gestor de RH", path: ["empresasIds"] }
+  )
+  .refine(
+    (data) => data.role !== "GESTOR_SETOR" || data.empresasIds.length > 0,
+    { message: "Selecione a empresa do gestor de setor", path: ["empresasIds"] }
+  )
+  .refine(
+    (data) => data.role !== "GESTOR_SETOR" || !!data.setorId,
+    { message: "Selecione o setor do gestor", path: ["setorId"] }
+  );
 
 function escopoPorRole(data: z.infer<typeof usuarioSchema>) {
-  if (data.role === "RH_MANAGER") return { empresaId: data.empresaId!, setorId: null };
-  if (data.role === "GESTOR_SETOR") return { empresaId: data.empresaId!, setorId: data.setorId! };
-  return { empresaId: null, setorId: null };
+  if (data.role === "RH_MANAGER") return { empresasIds: data.empresasIds, setorId: null };
+  if (data.role === "GESTOR_SETOR") return { empresasIds: data.empresasIds, setorId: data.setorId! };
+  return { empresasIds: [], setorId: null };
+}
+
+function parseFormData(formData: FormData) {
+  // empresasIds podem vir como múltiplos campos "empresasIds" ou como JSON array
+  const raw = formData.getAll("empresasIds");
+  const empresasIds = raw
+    .map((v) => String(v).trim())
+    .filter(Boolean);
+
+  return {
+    nome: formData.get("nome"),
+    username: formData.get("username"),
+    role: formData.get("role"),
+    empresasIds,
+    setorId: formData.get("setorId") || undefined,
+  };
 }
 
 export async function createUsuario(_prev: ActionResult, formData: FormData): Promise<ActionResult> {
@@ -42,13 +59,7 @@ export async function createUsuario(_prev: ActionResult, formData: FormData): Pr
   const senha = String(formData.get("senha") ?? "");
   if (senha.length < 8) return { ok: false, error: "A senha deve ter pelo menos 8 caracteres." };
 
-  const parsed = usuarioSchema.safeParse({
-    nome: formData.get("nome"),
-    username: formData.get("username"),
-    role: formData.get("role"),
-    empresaId: formData.get("empresaId") || undefined,
-    setorId: formData.get("setorId") || undefined,
-  });
+  const parsed = usuarioSchema.safeParse(parseFormData(formData));
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
 
   const passwordHash = await bcrypt.hash(senha, 10);
@@ -73,13 +84,7 @@ export async function createUsuario(_prev: ActionResult, formData: FormData): Pr
 export async function updateUsuario(id: string, _prev: ActionResult, formData: FormData): Promise<ActionResult> {
   await requireAdmin();
 
-  const parsed = usuarioSchema.safeParse({
-    nome: formData.get("nome"),
-    username: formData.get("username"),
-    role: formData.get("role"),
-    empresaId: formData.get("empresaId") || undefined,
-    setorId: formData.get("setorId") || undefined,
-  });
+  const parsed = usuarioSchema.safeParse(parseFormData(formData));
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
 
   try {

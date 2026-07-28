@@ -7,15 +7,22 @@ import { prisma } from "@/lib/prisma";
 export default async function RHHubPage() {
   const user = await requireRHAccess();
 
-  if (user.role === "RH_MANAGER" && user.empresaId) {
-    redirect(`/rh/${user.empresaId}/colaboradores`);
-  }
   if (user.role === "GESTOR_SETOR") {
     redirect("/rh/meu-setor");
   }
 
+  // RH_MANAGER com uma única empresa: redireciona direto (comportamento anterior)
+  if (user.role === "RH_MANAGER" && user.empresasIds.length === 1) {
+    redirect(`/rh/${user.empresasIds[0]}/colaboradores`);
+  }
+
+  // ADMIN ou RH_MANAGER com múltiplas empresas: exibe lista filtrada
+  const whereAtivo = user.role === "ADMIN"
+    ? { ativo: true }
+    : { ativo: true, id: { in: user.empresasIds } };
+
   const empresas = await prisma.empresa.findMany({
-    where: { ativo: true },
+    where: whereAtivo,
     orderBy: { nome: "asc" },
     include: { _count: { select: { colaboradores: true, pesquisas: true } } },
   });

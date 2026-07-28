@@ -45,16 +45,17 @@ model User {
 
   // Escopo do módulo de RH. Colunas simples, SEM @relation → não geram FK para
   // rh.Empresa/rh.Setor. É isso que desacopla o `shared` do `rh` e destrava a
-  // separação futura de bancos. (No banco atual essas 2 FKs ainda existem e são
-  // removidas pelo 01-cutover.sql.)
-  empresaId String?
-  setorId   String?
+  // separação futura de bancos.
+  // empresasIds: array de IDs de empresas. RH_MANAGER pode ter mais de uma.
+  //   GESTOR_SETOR tem exatamente uma. ADMIN/DIRETORIA fica como [].
+  empresasIds String[]
+  setorId     String?
 
   fechamentosFechados FechamentoMensal[] @relation("FechadoPor")
   importLotes         ImportLote[]
   pesquisasCriadas    Pesquisa[]
 
-  @@index([empresaId])
+  // Índice GIN criado manualmente na migration (Prisma não suporta USING GIN via @@index)
   @@index([setorId])
   @@schema("shared")
 }

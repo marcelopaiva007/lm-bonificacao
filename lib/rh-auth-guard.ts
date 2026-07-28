@@ -9,17 +9,17 @@ export async function requireRHAccess() {
   return user;
 }
 
-// ADMIN acessa qualquer empresa; RH_MANAGER só a própria; demais papéis não
-// têm acesso a telas escopadas por empresa (ex: GESTOR_SETOR usa /rh/meu-setor).
+// ADMIN acessa qualquer empresa; RH_MANAGER só as próprias (pode ser mais de uma);
+// GESTOR_SETOR usa /rh/meu-setor e não acessa telas escopadas por empresa.
 export async function requireEmpresaAccess(empresaId: string) {
   const user = await requireRHAccess();
   if (user.role === "ADMIN") return user;
-  if (user.role === "RH_MANAGER" && user.empresaId === empresaId) return user;
+  if (user.role === "RH_MANAGER" && user.empresasIds.includes(empresaId)) return user;
   redirect(user.role === "GESTOR_SETOR" ? "/rh/meu-setor" : "/rh");
 }
 
 export async function requireGestorSetor() {
   const user = await requireUser();
-  if (user.role !== "GESTOR_SETOR" || !user.empresaId || !user.setorId) redirect("/");
-  return user as typeof user & { empresaId: string; setorId: string };
+  if (user.role !== "GESTOR_SETOR" || user.empresasIds.length === 0 || !user.setorId) redirect("/");
+  return user as typeof user & { setorId: string };
 }

@@ -9,10 +9,10 @@ export default async function UsuariosPage() {
     prisma.user.findMany({
       orderBy: [{ role: "asc" }, { nome: "asc" }],
     }),
-    // O User não tem mais relação com Empresa/Setor (só as colunas empresaId/
-    // setorId). Buscamos as listas completas — incluindo inativas, para resolver
-    // o nome de um vínculo já desativado — e cruzamos por id na tabela. O
-    // formulário filtra as ativas para os selects.
+    // O User não tem mais relação com Empresa/Setor (só empresasIds[] e setorId).
+    // Buscamos as listas completas — incluindo inativas, para resolver o nome de
+    // um vínculo já desativado — e cruzamos por id na tabela. O formulário filtra
+    // as ativas para os selects.
     prisma.empresa.findMany({
       orderBy: { nome: "asc" },
       select: { id: true, nome: true, ativo: true },

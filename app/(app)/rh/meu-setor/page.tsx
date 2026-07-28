@@ -12,7 +12,7 @@ export default async function MeuSetorPage() {
   }
 
   const pesquisas = await prisma.pesquisa.findMany({
-    where: { empresaId: user.empresaId, status: { in: ["ACTIVE", "FINISHED"] } },
+    where: { empresaId: user.empresasIds[0], status: { in: ["ACTIVE", "FINISHED"] } },
     orderBy: { createdAt: "desc" },
     include: {
       perguntas: true,
