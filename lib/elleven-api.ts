@@ -222,3 +222,6 @@ export function dictionariesAtivacaoContratos(
       { key: "FinalDate", value: fimIso },
       { key: "ContractStatus", value: "1,2,3,4,5,6,7,9" },
       { key: "Order", value: 'p."name"' },
+        { key: "Direction", value: "ASC" },
+          ];
+}
