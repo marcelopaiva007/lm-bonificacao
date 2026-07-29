@@ -554,7 +554,7 @@ async function fillDateLikeInputs(
     valueAfter: string;
     debug?: string;
   }> = [];
-  const hoje = todayFormats();
+  const hoje = todayFormats(); const fimMes = (() => { const p = saoPauloParts(new Date()); const last = new Date(Date.UTC(Number(p.yyyy), Number(p.mm), 0)).getUTCDate(); return dateFormats({ dd: String(last).padStart(2, "0"), mm: p.mm, yyyy: p.yyyy }); })();
   const inicioMes = firstOfMonthFormats();
   const candidates = (await describeInteractiveElements(frame)) as Array<
     Record<string, unknown>
@@ -579,8 +579,8 @@ async function fillDateLikeInputs(
     // Classifica o campo: "Data Inicial" recebe o dia 1º do mês; "Data Final"
     // (e qualquer campo de data não classificável) recebe hoje. Assim cada
     // rodada do cron puxa o relatório do mês inteiro (dia 1º -> hoje).
-    const isInicial = /inicial|início|inicio|\bde\b|from/.test(haystack);
-    const alvo = isInicial ? inicioMes : hoje;
+    const isFinal = /final|fim/i.test(haystack); const isInicial = !isFinal && /inicial|início|inicio|\bde\b|from/.test(haystack);
+    const alvo = isInicial ? inicioMes : fimMes;
 
     if (className.includes("flatpickr")) {
       // 1ª tentativa: interação real (abrir o calendário e clicar na célula do
