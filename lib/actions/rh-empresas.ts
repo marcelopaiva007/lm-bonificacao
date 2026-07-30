@@ -16,7 +16,41 @@ export async function createEmpresa(_prev: ActionResult, formData: FormData): Pr
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
 
   try {
-    await prisma.empresa.create({ data: parsed.data });
+    const newEmpresa = await prisma.empresa.create({ data: parsed.data });
+
+    // Replicate setors and positions from the default company (RSM TELECOM LTDA)
+    const defaultCompanyId = "cms6u3mln0003si10dsp1fey5";
+    const [setoresDefault, posicoesFefault] = await Promise.all([
+      prisma.setor.findMany({ where: { empresaId: defaultCompanyId } }),
+      prisma.posicao.findMany({ where: { empresaId: defaultCompanyId } }),
+    ]);
+
+    if (setoresDefault.length > 0 || posicoesFefault.length > 0) {
+      await Promise.all([
+        ...(setoresDefault.length > 0
+          ? [
+              prisma.setor.createMany({
+                data: setoresDefault.map((s) => ({
+                  empresaId: newEmpresa.id,
+                  nome: s.nome,
+                  ativo: s.ativo,
+                })),
+              }),
+            ]
+          : []),
+        ...(posicoesFefault.length > 0
+          ? [
+              prisma.posicao.createMany({
+                data: posicoesFefault.map((p) => ({
+                  empresaId: newEmpresa.id,
+                  nome: p.nome,
+                  ativo: p.ativo,
+                })),
+              }),
+            ]
+          : []),
+      ]);
+    }
   } catch {
     return { ok: false, error: "Já existe uma empresa com esse nome." };
   }
