@@ -70,6 +70,32 @@ export function categoriaProduto(servico: string | null): ProdutoKey | null {
   return PRODUTO_KEYWORDS.find((p) => p.regex.test(servico || ""))?.key ?? null;
 }
 
+// Mesma ideia de PRODUTO_KEYWORDS, mas para o "Servico Carrinho" do relatório
+// Funil de Vendas - Gerencial, cuja nomenclatura de produto é diferente da
+// "Serviço Ativado" de Ativação Contratos (ver OS de troca de fonte de dados).
+// Validado contra a amostra real de julho/2026 (895 negociações). Nenhum
+// produto bateu em qtdTv/qtdChip nessa amostra — regras mantidas por segurança
+// para não perder um produto futuro que use essa nomenclatura.
+export const PRODUTO_KEYWORDS_FUNIL: { key: ProdutoKey; regex: RegExp }[] = [
+  { key: "qtdGps", regex: /gps|rastre/i },
+  { key: "qtdTelefoniaFixa", regex: /telefonia|telefone|voip/i },
+  {
+    key: "qtdStreaming",
+    regex: /cdntv|stream|hbo|netflix|paramount|telecine|max\b|filmes|s[ée]ries/i,
+  },
+  { key: "qtdTv", regex: /\btv\b|iptv|tv ?box|canais/i },
+  { key: "qtdChip", regex: /chip|sim ?card|m2m/i },
+  {
+    key: "qtdInternet",
+    regex: /internet|banda[ _]?larga|fibra|\d+\s*mb(ps)?(?![a-z])|ip fixo/i,
+  },
+];
+
+// Categoria de um "Servico Carrinho" do Funil de Vendas - Gerencial.
+export function categoriaProdutoFunil(servico: string | null): ProdutoKey | null {
+  return PRODUTO_KEYWORDS_FUNIL.find((p) => p.regex.test(servico || ""))?.key ?? null;
+}
+
 // "Status Contrato" traz "Normal", "Cancelado", etc. Contrato cancelado não
 // conta como venda aprovada nem gera bônus de produto/valor.
 export function isCancelado(status: string | null): boolean {

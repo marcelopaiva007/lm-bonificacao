@@ -12,7 +12,6 @@ import { enviarTelegram } from "@/lib/notificacoes";
 // Jobs esperados (espelham vercel.json). `maxIdadeHoras` = quanto tempo sem
 // rodar até considerarmos o job "atrasado" (todos são diários → 24h + folga).
 export const CRON_JOBS = [
-  { job: "sync-elleven:ativacao-contratos", label: "Elleven — Ativação Contratos", maxIdadeHoras: 26 },
   { job: "sync-elleven:vendedores-comercial", label: "Elleven — Vendedores Comercial", maxIdadeHoras: 26 },
   { job: "sync-elleven:funil-de-vendas", label: "Elleven — Funil de Vendas", maxIdadeHoras: 26 },
   { job: "sync-elleven:pedidos-de-venda", label: "Elleven — Pedidos de Venda", maxIdadeHoras: 26 },

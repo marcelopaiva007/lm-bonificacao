@@ -1,15 +1,19 @@
 // Sincronização diária com o elleven (Voalle/EVO).
 //
-// "Ativação Contratos" (o relatório de vendas que alimenta a bonificação) usa
-// a API interna direta (lib/elleven-api.ts): login via browser só para
-// capturar o Authorization das portas 45701/45703, depois um único POST
-// síncrono que devolve o CSV — dispensa o wizard inteiro. Ver handoff de
-// 26/07/2026 (CSV idêntico ao do wizard, comprovado em produção).
+// "Funil de Vendas - Gerencial" é o relatório de vendas que alimenta a
+// bonificação (trocado de "Ativação Contratos" — OS de 30/07/2026: os dados
+// de Ativação Contratos não refletiam os números reais da empresa). O cron de
+// "ativacao-contratos" foi desligado; a tabela ContratoAtivacaoElleven e o
+// caminho de importação via API direta (lib/elleven-api.ts,
+// lib/importar-elleven-auto.ts) continuam no repo só para a tela de
+// importação manual (app/(app)/importar/elleven).
 //
-// Os demais relatórios ("genéricos": vendedores-comercial, funil-de-vendas,
+// Os relatórios ("genéricos": vendedores-comercial, funil-de-vendas,
 // pedidos-de-venda) ainda não tiveram reportId/dictionaries confirmados
 // contra a API, então continuam no wizard legado (Filtros -> [Parâmetros] ->
-// Geração -> download CSV) até serem migrados um a um.
+// Geração -> download CSV). "funil-de-vendas" gera LancamentoVenda ao final
+// do sync (ver lib/importar-elleven-funil.ts); os demais só guardam as linhas
+// cruas em ElevenRelatorioLinha.
 //
 // CONFIRMADO (scripts/test-elleven-scraping.ts): a etapa "Geração" tem 3
 // botões (button.MuiButton-outlined) — índice 0 = PDF, índice 1 = CSV,
@@ -29,15 +33,8 @@ import {
   type Locator,
 } from "playwright-core";
 import { prisma } from "@/lib/prisma";
-import { periodoAtual } from "@/lib/periodo";
-import { importarLancamentosEllevenAuto } from "@/lib/importar-elleven-auto";
+import { importarLancamentosEllevenFunil } from "@/lib/importar-elleven-funil";
 import { recordCronRun } from "@/lib/cron-observability";
-import {
-  capturarBearerToken,
-  gerarRelatorioCsv,
-  REPORT_ID_ATIVACAO_CONTRATOS,
-  dictionariesAtivacaoContratos,
-} from "@/lib/elleven-api";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -60,22 +57,13 @@ const ELLEVEN_BASE = "https://elleven.assinelm.com.br";
 
 // Relatórios de venda do elleven que sincronizamos. Cada um é uma tela/assistente
 // legado (mesmo fluxo: Filtros -> [Parâmetros] -> Geração -> download CSV). IDs
-// vieram do menu (general/me/menus). Só "ativacao-contratos" tem tabela modelada
-// e save; os demais estão em fase de descoberta (baixam o CSV e retornam os
-// cabeçalhos/amostra para modelarmos a tabela certa depois).
-// persist  = tabela própria modelada (só ativacao-contratos, com preview e save
-//            tipado + regras de bonificação).
-// generico = guarda cada linha do CSV como JSONB em elleven_relatorio_linha
-//            (para os demais relatórios de venda, sem modelar tabela por relatório).
-const REPORTS: Record<
-  string,
-  { path: string; nome: string; persist?: boolean; generico?: boolean }
-> = {
-  "ativacao-contratos": {
-    path: "/ui/legacy/reports/316e54f3-bdaa-b95a-5597-e9164279071e",
-    nome: "Ativação Contratos",
-    persist: true,
-  },
+// vieram do menu (general/me/menus). Nenhum tem reportId/dictionaries
+// confirmados contra a API interna, então todos passam pelo wizard.
+// generico = guarda cada linha do CSV como JSONB em elleven_relatorio_linha.
+//            "funil-de-vendas" também gera LancamentoVenda a partir dessas
+//            linhas (ver lib/importar-elleven-funil.ts) — é o único que
+//            alimenta a bonificação.
+const REPORTS: Record<string, { path: string; nome: string; generico?: boolean }> = {
   "vendedores-comercial": {
     path: "/ui/legacy/reports/fc792c4f-d4cf-572a-361b-3502c29ede8c",
     nome: "Vendedores - Comercial",
@@ -95,7 +83,7 @@ const REPORTS: Record<
   // CRE - Títulos Recebidos (exige campo obrigatório extra) NÃO são usados para
   // comissão — removidos da sincronização a pedido do usuário.
 };
-const DEFAULT_REPORT = "ativacao-contratos";
+const DEFAULT_REPORT = "funil-de-vendas";
 
 function unauthorized() {
   return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -633,158 +621,6 @@ async function fillDateLikeInputs(
   return results;
 }
 
-// Caminho direto via API para "Ativação Contratos": sem wizard, sem
-// download/parse de arquivo via navegador — só login (para capturar o
-// Authorization) e um POST síncrono que já devolve o CSV.
-async function runApiSync(
-  login: string,
-  password: string,
-  report: (typeof REPORTS)[string],
-  slug: string,
-): Promise<NextResponse> {
-  const started = Date.now();
-  const log: string[] = [];
-  const step = (s: string) => {
-    const line = `[${new Date().toISOString()}] ${s}`;
-    log.push(line);
-    console.log(line);
-  };
-
-  let savedCount = 0;
-  let errorCount = 0;
-  let importacaoAuto: Awaited<
-    ReturnType<typeof importarLancamentosEllevenAuto>
-  > | null = null;
-
-  try {
-    step("Logando no elleven para capturar o token da API interna...");
-    const token = await capturarBearerToken(login, password, report.path);
-    step("Token capturado.");
-
-    const { iso: inicioIso } = firstOfMonthFormats();
-    const { iso: fimIso } = todayFormats();
-    const dictionaries = dictionariesAtivacaoContratos(inicioIso, fimIso);
-
-    step(`Gerando CSV via API (${inicioIso} a ${fimIso})...`);
-    const { headers, rows } = await gerarRelatorioCsv(
-      token,
-      REPORT_ID_ATIVACAO_CONTRATOS,
-      dictionaries,
-    );
-    step(`CSV recebido: ${headers.length} coluna(s), ${rows.length} linha(s).`);
-
-    for (const row of rows) {
-      if (!row["Contrato"]) continue;
-      try {
-        await prisma.contratoAtivacaoElleven.upsert({
-          where: { contrato: row["Contrato"] },
-          update: {
-            vendedor1: row["Vendedor 1"] || null,
-            vendedor2: row["Vendedor 2"] || null,
-            origem: row["Origem"] || null,
-            dataContrato: row["Data Contrato"] || null,
-            localContrato: row["Local do Contrato"] || null,
-            primeiraMensalidade: row["Primeira Mensalidade"] || null,
-            valorPrimeiraMensalidade: row["Valor Primeira Mensalidade"] || null,
-            codigoCliente: row["Codigo Cliente"] || null,
-            nomeCliente: row["Nome Cliente"] || null,
-            enderecoAtivacao: row["Endereco Ativacao"] || null,
-            cep: row["CEP"] || null,
-            cidade: row["Cidade"] || null,
-            servicoAtivado: row["Servico Ativado"] || null,
-            valServAtivado: row["Val Serv Ativado"] || null,
-            assinaturaContrato: row["Assinatura Contrato"] || null,
-            prazoAtivacaoContrato: row["Prazo Ativacao Contrato"] || null,
-            ativacaoContrato: row["Ativacao Contrato"] || null,
-            statusContrato: row["Status Contrato"] || null,
-            ativacaoConexao: row["Ativacao Conexao"] || null,
-          },
-          create: {
-            contrato: row["Contrato"],
-            vendedor1: row["Vendedor 1"] || null,
-            vendedor2: row["Vendedor 2"] || null,
-            origem: row["Origem"] || null,
-            dataContrato: row["Data Contrato"] || null,
-            localContrato: row["Local do Contrato"] || null,
-            primeiraMensalidade: row["Primeira Mensalidade"] || null,
-            valorPrimeiraMensalidade: row["Valor Primeira Mensalidade"] || null,
-            codigoCliente: row["Codigo Cliente"] || null,
-            nomeCliente: row["Nome Cliente"] || null,
-            enderecoAtivacao: row["Endereco Ativacao"] || null,
-            cep: row["CEP"] || null,
-            cidade: row["Cidade"] || null,
-            servicoAtivado: row["Servico Ativado"] || null,
-            valServAtivado: row["Val Serv Ativado"] || null,
-            assinaturaContrato: row["Assinatura Contrato"] || null,
-            prazoAtivacaoContrato: row["Prazo Ativacao Contrato"] || null,
-            ativacaoContrato: row["Ativacao Contrato"] || null,
-            statusContrato: row["Status Contrato"] || null,
-            ativacaoConexao: row["Ativacao Conexao"] || null,
-          },
-        });
-        savedCount++;
-      } catch (e) {
-        errorCount++;
-        step(`Erro upsert contrato ${row["Contrato"]}: ${e}`);
-      }
-    }
-    step(`Banco atualizado: ${savedCount} salvos, ${errorCount} erros.`);
-
-    try {
-      const periodo = periodoAtual();
-      step(`Importando lançamentos do elleven para ${periodo}...`);
-      importacaoAuto = await importarLancamentosEllevenAuto(periodo);
-      step(
-        `Importação automática: ${importacaoAuto.lancamentosGerados} lançamento(s) ` +
-          `(${importacaoAuto.matchExato} exato, ${importacaoAuto.matchFuzzy} fuzzy, ` +
-          `${importacaoAuto.funcionariosCriados} vendedor(es) criado(s)) ` +
-          `de ${importacaoAuto.contratosNoPeriodo} contrato(s).`,
-      );
-    } catch (e) {
-      step(`Erro na importação automática: ${e}`);
-    }
-
-    await recordCronRun({
-      job: `sync-elleven:${slug}`,
-      ok: true,
-      durationMs: Date.now() - started,
-      detalhes: {
-        reportNome: report.nome,
-        via: "api",
-        rowCount: rows.length,
-        savedCount,
-        errorCount,
-        importacaoAuto,
-      },
-    });
-
-    return NextResponse.json({
-      ok: true,
-      report: slug,
-      reportNome: report.nome,
-      persist: true,
-      via: "api",
-      csvHeaders: headers,
-      rowCount: rows.length,
-      sampleRows: rows.slice(0, 3),
-      savedCount,
-      errorCount,
-      importacaoAuto,
-      log,
-    });
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    step(`ERRO: ${message}`);
-    await recordCronRun({
-      job: `sync-elleven:${slug}`,
-      ok: false,
-      durationMs: Date.now() - started,
-      erro: message,
-    });
-    return NextResponse.json({ ok: false, error: message, log }, { status: 500 });
-  }
-}
-
 export async function GET(req: NextRequest) {
   if (!isAuthorized(req)) return unauthorized();
 
@@ -808,13 +644,6 @@ export async function GET(req: NextRequest) {
       },
       { status: 400 },
     );
-  }
-
-  // "Ativação Contratos" (o único que alimenta a bonificação) já usa a API
-  // interna direta — sem wizard. Os demais seguem no wizard legado abaixo até
-  // terem reportId/dictionaries confirmados.
-  if (report.persist) {
-    return runApiSync(login, password, report, slug);
   }
 
   // O cabeçalho de cada etapa do assistente é "<Nome do Relatório> - <Etapa>"
@@ -988,10 +817,11 @@ export async function GET(req: NextRequest) {
       let modeResult: Awaited<ReturnType<typeof downloadAndParseCsv>> | null = null;
       let savedCount = 0;
       let errorCount = 0;
-      // O único relatório persist (Ativação Contratos) não passa mais por
-      // aqui — vai direto para runApiSync — então este wizard nunca gera
-      // lançamentos automáticos.
-      const importacaoAuto = null;
+      // Só "funil-de-vendas" gera lançamentos automáticos (ver bloco de save
+      // genérico abaixo); os demais relatórios ficam null aqui.
+      let importacaoAuto: Awaited<
+        ReturnType<typeof importarLancamentosEllevenFunil>
+      > | null = null;
 
       if (reportFrame) {
         // Etapa 1: Filtros
@@ -1191,6 +1021,24 @@ export async function GET(req: NextRequest) {
                 step(
                   `Genérico (${slug}): ${savedCount} linha(s) salvas em elleven_relatorio_linha (período ${periodo}).`,
                 );
+
+                // Único relatório que alimenta a bonificação (ver OS de
+                // 30/07/2026) — gera/atualiza LancamentoVenda do período logo
+                // após salvar as linhas cruas.
+                if (slug === "funil-de-vendas") {
+                  try {
+                    step(`Importando lançamentos do Funil de Vendas para ${periodo}...`);
+                    importacaoAuto = await importarLancamentosEllevenFunil(periodo);
+                    step(
+                      `Importação automática: ${importacaoAuto.lancamentosGerados} lançamento(s) ` +
+                        `(${importacaoAuto.matchExato} exato, ${importacaoAuto.matchFuzzy} fuzzy, ` +
+                        `${importacaoAuto.funcionariosCriados} vendedor(es) criado(s)) ` +
+                        `de ${importacaoAuto.negociacoesFiltradas} negociação(ões) Ganha(s).`,
+                    );
+                  } catch (e) {
+                    step(`Erro na importação automática do Funil de Vendas: ${e}`);
+                  }
+                }
               } catch (e) {
                 errorCount++;
                 step(`Erro salvando genérico (${slug}): ${e}`);
@@ -1217,7 +1065,6 @@ export async function GET(req: NextRequest) {
         erro: modeResult?.ok === false ? modeResult.error : null,
         detalhes: {
           reportNome: report.nome,
-          persist: report.persist ?? false,
           rowCount: modeResult?.rowCount ?? 0,
           savedCount,
           errorCount,
@@ -1230,7 +1077,6 @@ export async function GET(req: NextRequest) {
         ok: modeResult?.ok ?? true,
         report: slug,
         reportNome: report.nome,
-        persist: report.persist,
         modeError: modeResult?.ok === false ? modeResult.error : undefined,
         csvHeaders: modeResult?.csvHeaders ?? [],
         rowCount: modeResult?.rowCount ?? 0,
