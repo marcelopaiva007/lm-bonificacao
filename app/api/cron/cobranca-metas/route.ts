@@ -10,6 +10,11 @@
 // é usado quando COBRANCA_EMAIL_ATIVA="true" — aí é só ligar o flag, sem mexer
 // no código.
 //
+// RATE LIMIT: o Resend aceita 2 req/s, então os e-mails saem espaçados em
+// RESEND_INTERVALO_MS (500ms) e um 429 é reenviado com backoff exponencial
+// dentro de enviarEmail(). Falhas de entrega não derrubam o cron, mas são
+// contadas em detalhes.falhasEmail / falhasTelegram no cron_run.
+//
 // Variáveis de ambiente:
 //   COBRANCA_ATIVA         — "true" liga o envio real (default: dry-run)
 //   COBRANCA_EMAIL_ATIVA   — "true" também manda por e-mail (default: só Telegram)
@@ -24,6 +29,8 @@ import {
   enviarEmail,
   telegramConfigurado,
   emailConfigurado,
+  sleep,
+  RESEND_INTERVALO_MS,
   type EnvioResultado,
 } from "@/lib/notificacoes";
 import { recordCronRun } from "@/lib/cron-observability";
@@ -62,6 +69,16 @@ export async function GET(req: NextRequest) {
   > = [];
   let enviados = 0;
   let semContato = 0;
+  let falhasTelegram = 0;
+  let falhasEmail = 0;
+  // Amostra dos erros para o cron_run — o suficiente para diagnosticar sem
+  // inchar o JSONB com uma linha por pessoa.
+  const errosEmail: string[] = [];
+  const errosTelegram: string[] = [];
+  // Marca do último POST ao Resend, para espaçar os envios em RESEND_INTERVALO_MS
+  // (2 req/s). Guardamos o instante em vez de dormir fixo a cada volta: se o
+  // envio do Telegram já consumiu o intervalo, não há motivo para esperar mais.
+  let ultimoEnvioEmail = 0;
 
   for (const a of acompanhamentos) {
     const usaEmail = !!a.email && emailAtivo;
@@ -86,12 +103,27 @@ export async function GET(req: NextRequest) {
     if (a.telegramChatId) {
       const r = await enviarTelegram(a.telegramChatId, a.mensagem);
       resultados.push({ nome: a.nome, ...r });
-      if (r.ok) enviados++;
+      if (r.ok) {
+        enviados++;
+      } else {
+        falhasTelegram++;
+        if (errosTelegram.length < 10) errosTelegram.push(`${a.nome}: ${r.erro}`);
+      }
     }
     if (usaEmail && a.email) {
+      const desdeUltimo = Date.now() - ultimoEnvioEmail;
+      if (ultimoEnvioEmail > 0 && desdeUltimo < RESEND_INTERVALO_MS) {
+        await sleep(RESEND_INTERVALO_MS - desdeUltimo);
+      }
       const r = await enviarEmail(a.email, assunto, a.mensagem);
+      ultimoEnvioEmail = Date.now();
       resultados.push({ nome: a.nome, ...r });
-      if (r.ok) enviados++;
+      if (r.ok) {
+        enviados++;
+      } else {
+        falhasEmail++;
+        if (errosEmail.length < 10) errosEmail.push(`${a.nome}: ${r.erro}`);
+      }
     }
   }
 
@@ -107,6 +139,12 @@ export async function GET(req: NextRequest) {
       totalPessoas: acompanhamentos.length,
       semContato,
       enviados,
+      // Falhas de entrega não derrubam o cron (ok=true acima), mas ficam
+      // registradas aqui — sem isto, um 429 ou um endereço inválido sumia.
+      falhasEmail,
+      falhasTelegram,
+      ...(errosEmail.length ? { errosEmail } : {}),
+      ...(errosTelegram.length ? { errosTelegram } : {}),
     },
   });
   return NextResponse.json({
@@ -125,6 +163,8 @@ export async function GET(req: NextRequest) {
     ).length,
     semContato,
     enviados,
+    falhasEmail,
+    falhasTelegram,
     resultados: resultados.slice(0, 200),
   });
   } catch (err) {
