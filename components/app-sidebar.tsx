@@ -12,8 +12,6 @@ import { Logo } from "@/components/logo";
 const ROLE_LABELS: Record<string, string> = {
   ADMIN: "Administrativo/Financeiro",
   DIRETORIA: "Diretoria/Gestão",
-  RH_MANAGER: "RH",
-  GESTOR_SETOR: "Gestor de Setor",
 };
 
 export function AppSidebar({
