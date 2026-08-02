@@ -35,6 +35,14 @@ datasource db {
 // ============================================================
 // SHARED — autenticação (candidato natural a virar banco próprio)
 // ============================================================
+// Enums are kept as plain String columns (not Prisma `enum`) so the schema
+// works unchanged on both SQLite (local dev) and Postgres (production),
+// since SQLite does not support native enums.
+// Role: "ADMIN" | "DIRETORIA"
+// Cargo: "VENDEDOR_EXTERNO" | "ATENDIMENTO_ADM" | "SUPERVISOR" | "OUTRO_SETOR"
+// Origem: "MANUAL" | "IMPORTADO"
+// StatusFechamento: "ABERTO" | "FECHADO"
+
 model User {
   id           String   @id @default(cuid())
   nome         String
@@ -43,19 +51,9 @@ model User {
   role         String
   createdAt    DateTime @default(now())
 
-  // Escopo do módulo de RH. Colunas simples, SEM @relation → não geram FK para
-  // rh.Empresa/rh.Setor. É isso que desacopla o `shared` do `rh` e destrava a
-  // separação futura de bancos. (No banco atual essas 2 FKs ainda existem e são
-  // removidas pelo 01-cutover.sql.)
-  empresaId String?
-  setorId   String?
-
   fechamentosFechados FechamentoMensal[] @relation("FechadoPor")
   importLotes         ImportLote[]
-  pesquisasCriadas    Pesquisa[]
 
-  @@index([empresaId])
-  @@index([setorId])
   @@schema("shared")
 }
 
@@ -286,188 +284,4 @@ model VendaChipMovel {
   @@index([periodo])
   @@map("venda_chip_movel")
   @@schema("bonificacao")
-}
-
-// ============================================================
-// RH — clima organizacional (candidato natural a virar banco próprio)
-// ============================================================
-model Empresa {
-  id        String   @id @default(cuid())
-  nome      String   @unique
-  ativo     Boolean  @default(true)
-  createdAt DateTime @default(now())
-
-  setores       Setor[]
-  posicoes      Posicao[]
-  colaboradores Colaborador[]
-  pesquisas     Pesquisa[]
-
-  @@schema("rh")
-}
-
-model Setor {
-  id        String   @id @default(cuid())
-  empresaId String
-  empresa   Empresa  @relation(fields: [empresaId], references: [id])
-  nome      String
-  ativo     Boolean  @default(true)
-  createdAt DateTime @default(now())
-
-  colaboradores Colaborador[]
-
-  @@unique([empresaId, nome])
-  @@index([empresaId])
-  @@schema("rh")
-}
-
-model Posicao {
-  id        String   @id @default(cuid())
-  empresaId String
-  empresa   Empresa  @relation(fields: [empresaId], references: [id])
-  nome      String
-  ativo     Boolean  @default(true)
-  createdAt DateTime @default(now())
-
-  colaboradores Colaborador[]
-
-  @@unique([empresaId, nome])
-  @@index([empresaId])
-  @@schema("rh")
-}
-
-model Colaborador {
-  id             String   @id @default(cuid())
-  empresaId      String
-  empresa        Empresa  @relation(fields: [empresaId], references: [id])
-  nome           String
-  cpf            String?
-  email          String?
-  setorId        String
-  setor          Setor    @relation(fields: [setorId], references: [id])
-  posicaoId      String
-  posicao        Posicao  @relation(fields: [posicaoId], references: [id])
-  telegramChatId String?
-  ativo          Boolean  @default(true)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-
-  tokens SurveyToken[]
-  respostas Resposta[]
-
-  @@unique([empresaId, cpf])
-  @@unique([telegramChatId])
-  @@index([empresaId])
-  @@index([setorId])
-  @@index([posicaoId])
-  @@schema("rh")
-}
-
-model Pesquisa {
-  id          String    @id @default(cuid())
-  empresaId   String
-  empresa     Empresa   @relation(fields: [empresaId], references: [id])
-  titulo      String
-  descricao   String?
-  anonima     Boolean   @default(true)
-  status      String    @default("DRAFT")
-  criadoPorId String?
-  // FK cross-schema (rh → shared.User). Mantida por ora; vira soft ref na Fase B.
-  criadoPor   User?     @relation(fields: [criadoPorId], references: [id])
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  iniciadaEm  DateTime?
-  encerradaEm DateTime?
-
-  perguntas Pergunta[]
-  tokens    SurveyToken[]
-  respostas Resposta[]
-
-  @@index([empresaId, status])
-  @@index([criadoPorId])
-  @@schema("rh")
-}
-
-model Pergunta {
-  id           String   @id @default(cuid())
-  pesquisaId   String
-  pesquisa     Pesquisa @relation(fields: [pesquisaId], references: [id], onDelete: Cascade)
-  ordem        Int
-  enunciado    String
-  tipo         String   @default("LIKERT_5")
-  dimensaoGPTW String?
-  obrigatoria  Boolean  @default(true)
-
-  opcoes  Opcao[]
-  itens   RespostaItem[]
-
-  @@unique([pesquisaId, ordem])
-  @@index([pesquisaId])
-  @@schema("rh")
-}
-
-model Opcao {
-  id         String   @id @default(cuid())
-  perguntaId String
-  pergunta   Pergunta @relation(fields: [perguntaId], references: [id], onDelete: Cascade)
-  ordem      Int
-  texto      String
-
-  itens RespostaItem[]
-
-  @@index([perguntaId])
-  @@schema("rh")
-}
-
-model SurveyToken {
-  id            String    @id @default(cuid())
-  pesquisaId    String
-  pesquisa      Pesquisa    @relation(fields: [pesquisaId], references: [id], onDelete: Cascade)
-  colaboradorId String
-  colaborador   Colaborador @relation(fields: [colaboradorId], references: [id])
-  token         String    @unique
-  canal         String    @default("TELEGRAM")
-  status        String    @default("PENDING")
-  enviadoEm     DateTime?
-  respondidoEm  DateTime?
-  erro          String?
-  createdAt     DateTime  @default(now())
-
-  @@unique([pesquisaId, colaboradorId])
-  @@index([status])
-  @@index([colaboradorId])
-  @@schema("rh")
-}
-
-model Resposta {
-  id                  String   @id @default(uuid())
-  pesquisaId          String
-  pesquisa            Pesquisa     @relation(fields: [pesquisaId], references: [id], onDelete: Cascade)
-  colaboradorId       String?
-  colaborador         Colaborador? @relation(fields: [colaboradorId], references: [id])
-  setorNomeSnapshot   String
-  posicaoNomeSnapshot String
-  createdAt           DateTime     @default(now())
-
-  itens RespostaItem[]
-
-  @@index([pesquisaId])
-  @@index([colaboradorId])
-  @@schema("rh")
-}
-
-model RespostaItem {
-  id            String    @id @default(uuid())
-  respostaId    String
-  resposta      Resposta  @relation(fields: [respostaId], references: [id], onDelete: Cascade)
-  perguntaId    String
-  pergunta      Pergunta  @relation(fields: [perguntaId], references: [id])
-  valorNumerico Int?
-  valorTexto    String?
-  opcaoId       String?
-  opcao         Opcao?    @relation(fields: [opcaoId], references: [id])
-
-  @@index([respostaId])
-  @@index([perguntaId])
-  @@index([opcaoId])
-  @@schema("rh")
 }
