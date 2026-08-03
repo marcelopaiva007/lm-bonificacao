@@ -35,6 +35,14 @@ datasource db {
 // ============================================================
 // SHARED — autenticação (candidato natural a virar banco próprio)
 // ============================================================
+// Enums are kept as plain String columns (not Prisma `enum`) so the schema
+// works unchanged on both SQLite (local dev) and Postgres (production),
+// since SQLite does not support native enums.
+// Role: "ADMIN" | "DIRETORIA"
+// Cargo: "VENDEDOR_EXTERNO" | "ATENDIMENTO_ADM" | "SUPERVISOR" | "OUTRO_SETOR"
+// Origem: "MANUAL" | "IMPORTADO"
+// StatusFechamento: "ABERTO" | "FECHADO"
+
 model User {
   id           String   @id @default(cuid())
   nome         String
@@ -43,19 +51,9 @@ model User {
   role         String
   createdAt    DateTime @default(now())
 
-  // Escopo do módulo de RH. Colunas simples, SEM @relation → não geram FK para
-  // rh.Empresa/rh.Setor. É isso que desacopla o `shared` do `rh` e destrava a
-  // separação futura de bancos. (No banco atual essas 2 FKs ainda existem e são
-  // removidas pelo 01-cutover.sql.)
-  empresaId String?
-  setorId   String?
-
   fechamentosFechados FechamentoMensal[] @relation("FechadoPor")
   importLotes         ImportLote[]
-  pesquisasCriadas    Pesquisa[]
 
-  @@index([empresaId])
-  @@index([setorId])
   @@schema("shared")
 }
 
