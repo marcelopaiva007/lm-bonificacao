@@ -48,6 +48,8 @@ type Colaborador = {
   cpf: string | null;
   email: string | null;
   telegramChatId: string | null;
+  salarioFicha?: number | null;
+  dataAdmissao?: Date | null;
   ativo: boolean;
   setorId: string;
   setor: Setor;
@@ -280,6 +282,36 @@ function ColaboradorForm({
         <p className="text-xs text-muted-foreground">
           Necessário para enviar o convite da pesquisa automaticamente pelo Telegram. Peça
           para o colaborador dar /start no bot e informe aqui o chat_id obtido.
+        </p>
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="salarioFicha">Salário (opcional)</Label>
+        <Input
+          id="salarioFicha"
+          name="salarioFicha"
+          type="number"
+          step="0.01"
+          defaultValue={defaultValues?.salarioFicha ?? ""}
+          placeholder="Ex: 2500.00"
+        />
+        <p className="text-xs text-muted-foreground">
+          Valor do salário do colaborador para cálculo de custo de pessoal.
+        </p>
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="dataAdmissao">Data de Admissão (opcional)</Label>
+        <Input
+          id="dataAdmissao"
+          name="dataAdmissao"
+          type="date"
+          defaultValue={
+            defaultValues?.dataAdmissao
+              ? new Date(defaultValues.dataAdmissao).toISOString().split("T")[0]
+              : ""
+          }
+        />
+        <p className="text-xs text-muted-foreground">
+          Data em que o colaborador entrou na empresa.
         </p>
       </div>
       <div className="flex items-center gap-2">

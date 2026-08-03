@@ -347,6 +347,8 @@ model Colaborador {
   posicaoId      String
   posicao        Posicao  @relation(fields: [posicaoId], references: [id])
   telegramChatId String?
+  salarioFicha   Float?
+  dataAdmissao   DateTime?
   ativo          Boolean  @default(true)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
@@ -359,6 +361,8 @@ model Colaborador {
   @@index([empresaId])
   @@index([setorId])
   @@index([posicaoId])
+  @@index([salarioFicha])
+  @@index([dataAdmissao])
   @@schema("rh")
 }
 

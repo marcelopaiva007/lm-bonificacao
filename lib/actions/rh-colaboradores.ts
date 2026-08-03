@@ -18,6 +18,8 @@ const colaboradorSchema = z.object({
   setorId: z.string().trim().min(1, "Selecione o setor"),
   posicaoId: z.string().trim().min(1, "Selecione a posição"),
   telegramChatId: z.string().trim().optional(),
+  salarioFicha: z.coerce.number().positive().optional().or(z.literal("")),
+  dataAdmissao: z.string().datetime().optional().or(z.literal("")),
   ativo: z.coerce.boolean().default(true),
 });
 
@@ -44,6 +46,8 @@ export async function createColaborador(
     setorId: formData.get("setorId"),
     posicaoId: formData.get("posicaoId"),
     telegramChatId: formData.get("telegramChatId") || undefined,
+    salarioFicha: formData.get("salarioFicha") || undefined,
+    dataAdmissao: formData.get("dataAdmissao") ? new Date(formData.get("dataAdmissao") as string).toISOString() : undefined,
     ativo: formData.get("ativo") === "on" || formData.get("ativo") === "true",
   };
   const parsed = colaboradorSchema.safeParse(raw);
@@ -62,6 +66,8 @@ export async function createColaborador(
         setorId: parsed.data.setorId,
         posicaoId: parsed.data.posicaoId,
         telegramChatId: parsed.data.telegramChatId || null,
+        salarioFicha: parsed.data.salarioFicha || null,
+        dataAdmissao: parsed.data.dataAdmissao ? new Date(parsed.data.dataAdmissao) : null,
         ativo: parsed.data.ativo,
       },
     });
@@ -69,6 +75,7 @@ export async function createColaborador(
     return { ok: false, error: "Já existe um colaborador com esse CPF ou chat_id do Telegram." };
   }
   revalidatePath(`/rh/${empresaId}/colaboradores`);
+  revalidatePath(`/rh/${empresaId}`);
   return { ok: true };
 }
 
@@ -86,6 +93,8 @@ export async function updateColaborador(
     setorId: formData.get("setorId"),
     posicaoId: formData.get("posicaoId"),
     telegramChatId: formData.get("telegramChatId") || undefined,
+    salarioFicha: formData.get("salarioFicha") || undefined,
+    dataAdmissao: formData.get("dataAdmissao") ? new Date(formData.get("dataAdmissao") as string).toISOString() : undefined,
     ativo: formData.get("ativo") === "on" || formData.get("ativo") === "true",
   };
   const parsed = colaboradorSchema.safeParse(raw);
@@ -104,6 +113,8 @@ export async function updateColaborador(
         setorId: parsed.data.setorId,
         posicaoId: parsed.data.posicaoId,
         telegramChatId: parsed.data.telegramChatId || null,
+        salarioFicha: parsed.data.salarioFicha || null,
+        dataAdmissao: parsed.data.dataAdmissao ? new Date(parsed.data.dataAdmissao) : null,
         ativo: parsed.data.ativo,
       },
     });
@@ -111,6 +122,7 @@ export async function updateColaborador(
     return { ok: false, error: "Já existe um colaborador com esse CPF ou chat_id do Telegram." };
   }
   revalidatePath(`/rh/${empresaId}/colaboradores`);
+  revalidatePath(`/rh/${empresaId}`);
   return { ok: true };
 }
 
@@ -118,6 +130,7 @@ export async function toggleColaboradorAtivo(empresaId: string, id: string, ativ
   await requireEmpresaAccess(empresaId);
   await prisma.colaborador.update({ where: { id, empresaId }, data: { ativo } });
   revalidatePath(`/rh/${empresaId}/colaboradores`);
+  revalidatePath(`/rh/${empresaId}`);
   return { ok: true };
 }
 
@@ -135,5 +148,6 @@ export async function deleteColaborador(empresaId: string, id: string): Promise<
   }
   await prisma.colaborador.delete({ where: { id, empresaId } });
   revalidatePath(`/rh/${empresaId}/colaboradores`);
+  revalidatePath(`/rh/${empresaId}`);
   return { ok: true };
 }
