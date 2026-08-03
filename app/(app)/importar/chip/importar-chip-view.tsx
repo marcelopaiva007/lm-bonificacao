@@ -38,6 +38,12 @@ export function ImportarChipView({ periodoInicial }: { periodoInicial: string })
       const r = await previsualizarChipMovel(periodo);
       if (!r.ok) {
         setErroCarregar(r.error);
+        // Detectar erro de sessão/autenticação
+        if (r.error?.includes("redirect") || r.error?.includes("login")) {
+          toast.error("Sessão expirada. Por favor, faça login novamente.");
+          window.location.href = "/login";
+          return;
+        }
         toast.error("Erro ao carregar as vendas de chip.");
         return;
       }
@@ -46,7 +52,13 @@ export function ImportarChipView({ periodoInicial }: { periodoInicial: string })
       setTotalVendas(r.totalVendas);
       setUltimaSync(r.ultimaSync ? new Date(r.ultimaSync) : null);
     } catch (e) {
-      setErroCarregar(e instanceof Error ? e.message : String(e));
+      const msg = e instanceof Error ? e.message : String(e);
+      setErroCarregar(msg);
+      // Se for erro de redirect/auth, redirecionar para login
+      if (msg?.includes("redirect") || msg?.includes("REDIRECT")) {
+        window.location.href = "/login";
+        return;
+      }
       toast.error("Erro ao carregar as vendas de chip.");
     } finally {
       setCarregando(false);
@@ -62,6 +74,12 @@ export function ImportarChipView({ periodoInicial }: { periodoInicial: string })
     try {
       const r = await sincronizarChipMovelAgora(periodo);
       if (!r.ok) {
+        // Detectar erro de sessão/autenticação
+        if (r.error?.includes("redirect") || r.error?.includes("login")) {
+          toast.error("Sessão expirada. Por favor, faça login novamente.");
+          window.location.href = "/login";
+          return;
+        }
         toast.error(r.error);
       } else {
         const ap = r.resultado.aplicacao;
@@ -73,6 +91,14 @@ export function ImportarChipView({ periodoInicial }: { periodoInicial: string })
         );
         await carregar();
       }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      // Se for erro de redirect/auth, redirecionar para login
+      if (msg?.includes("redirect") || msg?.includes("REDIRECT")) {
+        window.location.href = "/login";
+        return;
+      }
+      toast.error("Erro ao sincronizar. Tente novamente.");
     } finally {
       setSincronizando(false);
     }
