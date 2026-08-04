@@ -156,18 +156,22 @@ export async function createFuncionario(_prev: ActionResult, formData: FormData)
   const parsed = funcionarioSchema.safeParse(raw);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
 
-  await prisma.funcionario.create({
-    data: {
-      nome: parsed.data.nome,
-      cpf: parsed.data.cpf || null,
-      cargo: parsed.data.cargo,
-      cidadeId: parsed.data.cidadeId || null,
-      equipeId: parsed.data.equipeId || null,
-      email: parsed.data.email || null,
-      telegramChatId: parsed.data.telegramChatId || null,
-      ativo: parsed.data.ativo,
-    },
-  });
+  try {
+    await prisma.funcionario.create({
+      data: {
+        nome: parsed.data.nome,
+        cpf: parsed.data.cpf || null,
+        cargo: parsed.data.cargo,
+        cidadeId: parsed.data.cidadeId || null,
+        equipeId: parsed.data.equipeId || null,
+        email: parsed.data.email || null,
+        telegramChatId: parsed.data.telegramChatId || null,
+        ativo: parsed.data.ativo,
+      },
+    });
+  } catch {
+    return { ok: false, error: "Já existe um funcionário com esse CPF." };
+  }
   revalidatePath("/cadastros/funcionarios");
   return { ok: true };
 }
@@ -187,19 +191,23 @@ export async function updateFuncionario(id: string, _prev: ActionResult, formDat
   const parsed = funcionarioSchema.safeParse(raw);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
 
-  await prisma.funcionario.update({
-    where: { id },
-    data: {
-      nome: parsed.data.nome,
-      cpf: parsed.data.cpf || null,
-      cargo: parsed.data.cargo,
-      cidadeId: parsed.data.cidadeId || null,
-      equipeId: parsed.data.equipeId || null,
-      email: parsed.data.email || null,
-      telegramChatId: parsed.data.telegramChatId || null,
-      ativo: parsed.data.ativo,
-    },
-  });
+  try {
+    await prisma.funcionario.update({
+      where: { id },
+      data: {
+        nome: parsed.data.nome,
+        cpf: parsed.data.cpf || null,
+        cargo: parsed.data.cargo,
+        cidadeId: parsed.data.cidadeId || null,
+        equipeId: parsed.data.equipeId || null,
+        email: parsed.data.email || null,
+        telegramChatId: parsed.data.telegramChatId || null,
+        ativo: parsed.data.ativo,
+      },
+    });
+  } catch {
+    return { ok: false, error: "Já existe um funcionário com esse CPF." };
+  }
   revalidatePath("/cadastros/funcionarios");
   return { ok: true };
 }
