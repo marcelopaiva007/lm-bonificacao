@@ -1,9 +1,11 @@
 import { requireCapacidade } from "@/lib/auth-guard";
 import { mudancasDesdeOntem } from "@/lib/retrato-vendas";
 import { montarConferencia } from "@/lib/conferencia";
+import { levantarPendencias } from "@/lib/pendencias";
 import { periodoAtual, periodoLabel } from "@/lib/periodo";
 import { BatimentoView } from "./batimento-view";
 import { ConferenciaView } from "./conferencia-view";
+import { PendenciasView } from "./pendencias-view";
 
 export const dynamic = "force-dynamic";
 
@@ -18,10 +20,12 @@ export default async function BatimentoPage({
     ? (params.periodo as string)
     : periodoAtual();
 
-  const [{ diaAtual, diaAnterior, mudancas }, conferencia] = await Promise.all([
-    mudancasDesdeOntem(periodo),
-    montarConferencia(periodo),
-  ]);
+  const [{ diaAtual, diaAnterior, mudancas }, conferencia, pendencias] =
+    await Promise.all([
+      mudancasDesdeOntem(periodo),
+      montarConferencia(periodo),
+      levantarPendencias(periodo),
+    ]);
 
   return (
     <div className="space-y-6">
@@ -46,6 +50,19 @@ export default async function BatimentoPage({
           totalFonte={conferencia.totalFonte}
           totalLancado={conferencia.totalLancado}
           semVendedorNaFonte={conferencia.semVendedorNaFonte}
+        />
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="text-lg font-medium">Pendências</h2>
+        <p className="text-sm text-muted-foreground">
+          Decisões que a importação tomou sozinha ou não conseguiu tomar. Nenhuma
+          é erro do sistema — todas precisam de alguém para confirmar.
+        </p>
+        <PendenciasView
+          aproximados={pendencias.aproximados}
+          vendasSemVendedor={pendencias.vendasSemVendedor}
+          semCadastro={pendencias.semCadastro}
         />
       </section>
 
