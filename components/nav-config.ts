@@ -13,6 +13,7 @@ import {
   History,
   GitCompare,
   Wallet,
+  LineChart,
   Send,
 } from "lucide-react";
 
@@ -33,6 +34,7 @@ const METAS: NavItem = { href: "/metas", label: "Metas", icon: Send };
 const REGISTRO: NavItem = { href: "/registro", label: "Registro de Alterações", icon: History };
 const BATIMENTO: NavItem = { href: "/batimento", label: "Batimento", icon: GitCompare };
 const PAGAMENTOS: NavItem = { href: "/pagamentos", label: "Pagamentos", icon: Wallet };
+const GESTAO: NavItem = { href: "/gestao", label: "Gestão", icon: LineChart };
 
 const OPERACAO: NavItem[] = [
   { href: "/cadastros/cidades", label: "Cidades", icon: Building2 },
@@ -46,6 +48,7 @@ const OPERACAO: NavItem[] = [
 
 export const adminNav: NavItem[] = [
   PAINEL,
+  GESTAO,
   ...OPERACAO,
   FECHAMENTO,
   PAGAMENTOS,
@@ -59,6 +62,7 @@ export const adminNav: NavItem[] = [
 // Gerente faz o trabalho do dia a dia e fecha o mês; não cria usuário.
 export const gerenteNav: NavItem[] = [
   PAINEL,
+  GESTAO,
   ...OPERACAO,
   FECHAMENTO,
   PAGAMENTOS,
@@ -72,6 +76,7 @@ export const gerenteNav: NavItem[] = [
 // o gerente definir a regra e fechar o mês.
 export const diretoriaNav: NavItem[] = [
   PAINEL,
+  GESTAO,
   RELATORIOS,
   FECHAMENTO,
   PAGAMENTOS,
