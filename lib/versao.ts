@@ -1,4 +1,5 @@
 import pacote from "../package.json";
+import { FUSO_BR } from "@/lib/periodo";
 
 /**
  * Versão exibida na tela — no rodapé do menu lateral e na tela de entrada.
@@ -18,14 +19,33 @@ import pacote from "../package.json";
 export function versaoDoSistema(): {
   numero: string;
   commit: string | null;
+  /** Data em que este build subiu, no formato dd/mm/aaaa (fuso de Brasília). */
+  data: string | null;
+  /** "v1.0.0 · 06/08/2026" — o que se lê em voz alta. */
   rotulo: string;
+  /** O sha, para conferência técnica. Fica em segundo plano na tela. */
+  detalhe: string;
 } {
   const numero = pacote.version;
   const sha = process.env.VERCEL_GIT_COMMIT_SHA;
   const commit = sha ? sha.slice(0, 7) : null;
+
+  // DATA_DO_BUILD é congelada em next.config.ts durante a compilação.
+  const bruta = process.env.DATA_DO_BUILD;
+  const data = bruta
+    ? new Intl.DateTimeFormat("pt-BR", {
+        timeZone: FUSO_BR,
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+      }).format(new Date(bruta))
+    : null;
+
   return {
     numero,
     commit,
-    rotulo: commit ? `v${numero} · ${commit}` : `v${numero} · local`,
+    data,
+    rotulo: data ? `v${numero} · ${data}` : `v${numero}`,
+    detalhe: commit ?? "local",
   };
 }
