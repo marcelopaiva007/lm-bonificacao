@@ -31,8 +31,29 @@ function createPrismaClient() {
   return new PrismaClient({ adapter: new PrismaPg({ connectionString: url }) });
 }
 
-export const prisma = globalThis.prismaGlobal ?? createPrismaClient();
-
-if (process.env.NODE_ENV !== "production") {
-  globalThis.prismaGlobal = prisma;
+function getPrisma(): PrismaClient {
+  if (!globalThis.prismaGlobal) {
+    globalThis.prismaGlobal = createPrismaClient();
+  }
+  return globalThis.prismaGlobal;
 }
+
+/**
+ * O cliente só é criado na PRIMEIRA consulta, não ao carregar o módulo.
+ *
+ * Sem isso, `next build` quebra em qualquer máquina sem DATABASE_URL: ele
+ * carrega as rotas para coletar dados das páginas, o módulo instancia o Prisma
+ * na importação e o erro estoura antes de qualquer código rodar. Na Vercel
+ * passava despercebido — lá a variável existe no build.
+ *
+ * Adiando a criação, o build funciona em qualquer lugar e a falta da variável
+ * aparece onde importa: na primeira consulta, com a mensagem que diz o que fazer.
+ */
+export const prisma = new Proxy({} as PrismaClient, {
+  get(_alvo, prop, receptor) {
+    return Reflect.get(getPrisma(), prop, receptor);
+  },
+  has(_alvo, prop) {
+    return Reflect.has(getPrisma(), prop);
+  },
+});
