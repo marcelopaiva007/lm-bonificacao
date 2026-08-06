@@ -1,5 +1,6 @@
 import "server-only";
 import { prisma } from "@/lib/prisma";
+import { garantirEstrutura } from "@/lib/ddl";
 import { registrarAlteracao } from "@/lib/auditoria";
 import { periodoLabel } from "@/lib/periodo";
 
@@ -30,8 +31,7 @@ export type Meta = {
 let tabelaGarantida = false;
 export async function ensureMetaTable(): Promise<void> {
   if (tabelaGarantida) return;
-  await prisma.$executeRawUnsafe(
-    `CREATE TABLE IF NOT EXISTS "bonificacao"."meta_periodo" (
+  await garantirEstrutura([`CREATE TABLE IF NOT EXISTS "bonificacao"."meta_periodo" (
       "id" SERIAL NOT NULL,
       "periodo" TEXT NOT NULL,
       "alvo" TEXT NOT NULL,
@@ -41,12 +41,9 @@ export async function ensureMetaTable(): Promise<void> {
       "observacao" TEXT,
       "criadoEm" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
       CONSTRAINT "meta_periodo_pkey" PRIMARY KEY ("id")
-    );`,
-  );
-  await prisma.$executeRawUnsafe(
-    `CREATE UNIQUE INDEX IF NOT EXISTS "meta_periodo_chave_key"
-     ON "bonificacao"."meta_periodo"("periodo", "alvo", "alvoId");`,
-  );
+    );`]);
+  await garantirEstrutura([`CREATE UNIQUE INDEX IF NOT EXISTS "meta_periodo_chave_key"
+     ON "bonificacao"."meta_periodo"("periodo", "alvo", "alvoId");`]);
   tabelaGarantida = true;
 }
 

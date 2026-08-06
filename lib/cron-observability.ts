@@ -1,5 +1,6 @@
 import "server-only";
 import { prisma } from "@/lib/prisma";
+import { garantirEstrutura } from "@/lib/ddl";
 import { enviarTelegram } from "@/lib/notificacoes";
 import { ensureFuncionarioContato } from "@/lib/ensure-schema";
 
@@ -26,8 +27,7 @@ export async function ensureCronRunTable(): Promise<void> {
   // Schema-qualificado desde o cutover de 24/07/2026: SQL cru não passa pelo
   // mapeamento do Prisma, e sem o prefixo o IF NOT EXISTS criaria uma tabela
   // duplicada no public em vez de usar a real em "bonificacao".
-  await prisma.$executeRawUnsafe(
-    `CREATE TABLE IF NOT EXISTS "bonificacao"."cron_run" (
+  await garantirEstrutura([`CREATE TABLE IF NOT EXISTS "bonificacao"."cron_run" (
       "id" SERIAL NOT NULL,
       "job" TEXT NOT NULL,
       "ok" BOOLEAN NOT NULL,
@@ -36,11 +36,8 @@ export async function ensureCronRunTable(): Promise<void> {
       "erro" TEXT,
       "finishedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
       CONSTRAINT "cron_run_pkey" PRIMARY KEY ("id")
-    );`,
-  );
-  await prisma.$executeRawUnsafe(
-    `CREATE INDEX IF NOT EXISTS "cron_run_job_finishedAt_idx" ON "bonificacao"."cron_run"("job", "finishedAt" DESC);`,
-  );
+    );`]);
+  await garantirEstrutura([`CREATE INDEX IF NOT EXISTS "cron_run_job_finishedAt_idx" ON "bonificacao"."cron_run"("job", "finishedAt" DESC);`]);
   cronRunTableEnsured = true;
 }
 
