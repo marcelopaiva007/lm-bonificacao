@@ -1,6 +1,7 @@
 import "server-only";
 import { prisma } from "@/lib/prisma";
 import { recalcularFechamento } from "@/lib/bonificacao";
+import { registrarRetrato } from "@/lib/retrato-vendas";
 import { matchFuncionario, somenteDigitos } from "@/lib/vendedor-match";
 
 // Importação automática das vendas de chip do L&M Movel
@@ -329,6 +330,10 @@ export async function aplicarLancamentosChip(
   });
 
   await recalcularFechamento(periodo);
+
+  // Fotografa o estado depois da regravação: é o que permite dizer,
+  // amanhã, o que mudou de hoje para lá.
+  await registrarRetrato(periodo);
 
   return {
     aplicado: true,
