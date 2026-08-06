@@ -66,7 +66,7 @@ export async function createUsuario(_prev: ActionResult, formData: FormData): Pr
 }
 
 export async function updateUsuario(id: string, _prev: ActionResult, formData: FormData): Promise<ActionResult> {
-  await requireAdmin();
+  const admin = await requireAdmin();
 
   const parsed = usuarioSchema.safeParse({
     nome: formData.get("nome"),
@@ -82,6 +82,32 @@ export async function updateUsuario(id: string, _prev: ActionResult, formData: F
       error:
         "Supervisor e vendedor precisam ser vinculados a um funcionário — é assim que o sistema sabe o que essa pessoa pode ver.",
     };
+  }
+
+  // Duas travas contra o beco sem saída: quem deixa de ser administrador perde
+  // justamente esta tela, a única onde o papel se altera. Já aconteceu em
+  // produção (06/08/2026) e só foi possível desfazer por linha de comando.
+  const alvo = await prisma.user.findUnique({ where: { id } });
+  if (!alvo) return { ok: false, error: "Usuário não encontrado." };
+
+  if (alvo.role === "ADMIN" && parsed.data.role !== "ADMIN") {
+    if (admin.id === id) {
+      return {
+        ok: false,
+        error:
+          "Você não pode tirar o próprio acesso de administrador — ficaria sem a tela de Usuários para desfazer. Peça a outro administrador.",
+      };
+    }
+    const outrosAdmins = await prisma.user.count({
+      where: { role: "ADMIN", NOT: { id } },
+    });
+    if (outrosAdmins === 0) {
+      return {
+        ok: false,
+        error:
+          "Este é o último administrador do sistema. Promova outra pessoa antes de mudar o papel deste usuário.",
+      };
+    }
   }
 
   try {

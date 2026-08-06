@@ -208,7 +208,14 @@ function UsuarioForm({
         <Label>Papel de acesso</Label>
         <Select
           value={role}
-          onValueChange={(v) => setRole(v ?? "DIRETORIA")}
+          // Valor vazio NÃO vira "DIRETORIA": o componente emite null em
+          // interações que não são escolha do usuário (fechar sem selecionar,
+          // por exemplo), e o fallback antigo rebaixava o papel em silêncio —
+          // inclusive o de quem estava editando o próprio usuário, que perdia
+          // o acesso à única tela onde daria para desfazer.
+          onValueChange={(v) => {
+            if (v) setRole(String(v));
+          }}
           name="role"
           items={Object.fromEntries(ROLES.map((r) => [r.value, r.label]))}
         >
