@@ -1,7 +1,9 @@
 import { requireCapacidade } from "@/lib/auth-guard";
 import { mudancasDesdeOntem } from "@/lib/retrato-vendas";
+import { montarConferencia } from "@/lib/conferencia";
 import { periodoAtual, periodoLabel } from "@/lib/periodo";
 import { BatimentoView } from "./batimento-view";
+import { ConferenciaView } from "./conferencia-view";
 
 export const dynamic = "force-dynamic";
 
@@ -16,7 +18,10 @@ export default async function BatimentoPage({
     ? (params.periodo as string)
     : periodoAtual();
 
-  const { diaAtual, diaAnterior, mudancas } = await mudancasDesdeOntem(periodo);
+  const [{ diaAtual, diaAnterior, mudancas }, conferencia] = await Promise.all([
+    mudancasDesdeOntem(periodo),
+    montarConferencia(periodo),
+  ]);
 
   return (
     <div className="space-y-6">
@@ -30,12 +35,29 @@ export default async function BatimentoPage({
           ninguém perceber — é isso que esta tela mostra.
         </p>
       </div>
-      <BatimentoView
-        periodo={periodo}
-        diaAtual={diaAtual}
-        diaAnterior={diaAnterior}
-        mudancas={mudancas}
-      />
+      <section className="space-y-3">
+        <h2 className="text-lg font-medium">Fonte × sistema × bonificação</h2>
+        <p className="text-sm text-muted-foreground">
+          Confere se o que o Elleven e o L&amp;M Móvel registraram chegou ao
+          sistema, e se virou bonificação.
+        </p>
+        <ConferenciaView
+          linhas={conferencia.linhas}
+          totalFonte={conferencia.totalFonte}
+          totalLancado={conferencia.totalLancado}
+          semVendedorNaFonte={conferencia.semVendedorNaFonte}
+        />
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="text-lg font-medium">O que mudou desde a última sincronização</h2>
+        <BatimentoView
+          periodo={periodo}
+          diaAtual={diaAtual}
+          diaAnterior={diaAnterior}
+          mudancas={mudancas}
+        />
+      </section>
     </div>
   );
 }
