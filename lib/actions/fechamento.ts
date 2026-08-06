@@ -2,14 +2,14 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { requireAdmin } from "@/lib/auth-guard";
+import { requireCapacidade } from "@/lib/auth-guard";
 import { recalcularFechamento } from "@/lib/bonificacao";
 import { registrarAlteracao } from "@/lib/auditoria";
 import { periodoLabel } from "@/lib/periodo";
 import type { ActionResult } from "@/lib/constants";
 
 export async function fecharMes(periodo: string): Promise<ActionResult> {
-  const user = await requireAdmin();
+  const user = await requireCapacidade("FECHAR_MES");
 
   await recalcularFechamento(periodo);
 
@@ -40,7 +40,7 @@ export async function fecharMes(periodo: string): Promise<ActionResult> {
 }
 
 export async function reabrirMes(periodo: string): Promise<ActionResult> {
-  const user = await requireAdmin();
+  const user = await requireCapacidade("FECHAR_MES");
 
   // Estado anterior lido ANTES da reabertura: depois do recálculo os valores
   // mudam, e o que interessa auditar é justamente o que estava congelado.
@@ -85,7 +85,7 @@ export async function reabrirMes(periodo: string): Promise<ActionResult> {
 }
 
 export async function recalcular(periodo: string): Promise<ActionResult> {
-  const user = await requireAdmin();
+  const user = await requireCapacidade("FECHAR_MES");
 
   const antes = await prisma.fechamentoMensal.findUnique({ where: { periodo } });
   await recalcularFechamento(periodo);

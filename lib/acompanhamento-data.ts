@@ -23,11 +23,15 @@ const CARGOS_REGRA = [
 // para o período. Reutilizado pela tela /metas e pelo cron de cobrança.
 export async function carregarAcompanhamento(
   periodo: string,
+  // Ids que quem pediu pode ver. `null`/ausente = todos — é o caso do cron de
+  // cobrança, que precisa alcançar o quadro inteiro para enviar as mensagens.
+  idsVisiveis?: string[] | null,
 ): Promise<AcompanhamentoFuncionario[]> {
   await ensureFuncionarioContato();
+  const recorte = idsVisiveis == null ? {} : { id: { in: idsVisiveis } };
   const [funcionarios, lancamentos, equipes] = await Promise.all([
     prisma.funcionario.findMany({
-      where: { ativo: true },
+      where: { ativo: true, ...recorte },
       select: {
         id: true,
         nome: true,

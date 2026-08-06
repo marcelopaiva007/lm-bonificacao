@@ -3,7 +3,7 @@
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { requireAdmin } from "@/lib/auth-guard";
+import { requireCapacidade } from "@/lib/auth-guard";
 import { recalcularFechamento } from "@/lib/bonificacao";
 import { registrarAlteracao } from "@/lib/auditoria";
 import { periodoLabel } from "@/lib/periodo";
@@ -67,7 +67,7 @@ async function assertFechamentoAberto(periodo: string): Promise<string | null> {
 }
 
 export async function createLancamento(_prev: ActionResult, formData: FormData): Promise<ActionResult> {
-  const user = await requireAdmin();
+  const user = await requireCapacidade("EDITAR_LANCAMENTO");
   const parsed = parseLancamentoForm(formData);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
 
@@ -96,7 +96,7 @@ export async function createLancamento(_prev: ActionResult, formData: FormData):
 }
 
 export async function updateLancamento(id: string, _prev: ActionResult, formData: FormData): Promise<ActionResult> {
-  const user = await requireAdmin();
+  const user = await requireCapacidade("EDITAR_LANCAMENTO");
   const parsed = parseLancamentoForm(formData);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
 
@@ -129,7 +129,7 @@ export async function updateLancamento(id: string, _prev: ActionResult, formData
 }
 
 export async function deleteLancamento(id: string): Promise<ActionResult> {
-  const user = await requireAdmin();
+  const user = await requireCapacidade("EDITAR_LANCAMENTO");
   const lancamento = await prisma.lancamentoVenda.findUnique({ where: { id } });
   if (!lancamento) return { ok: false, error: "Lançamento não encontrado." };
 
@@ -168,7 +168,7 @@ const ajusteSchema = z.object({
 });
 
 export async function createAjuste(_prev: ActionResult, formData: FormData): Promise<ActionResult> {
-  const user = await requireAdmin();
+  const user = await requireCapacidade("EDITAR_LANCAMENTO");
   const parsed = ajusteSchema.safeParse({
     funcionarioId: formData.get("funcionarioId"),
     periodo: formData.get("periodo"),
@@ -207,7 +207,7 @@ export async function createAjuste(_prev: ActionResult, formData: FormData): Pro
 }
 
 export async function deleteAjuste(id: string): Promise<ActionResult> {
-  const user = await requireAdmin();
+  const user = await requireCapacidade("EDITAR_LANCAMENTO");
   const ajuste = await prisma.ajuste.findUnique({ where: { id } });
   if (!ajuste) return { ok: false, error: "Ajuste não encontrado." };
 

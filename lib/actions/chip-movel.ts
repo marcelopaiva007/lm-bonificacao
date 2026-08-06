@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireAdmin } from "@/lib/auth-guard";
+import { requireCapacidade } from "@/lib/auth-guard";
 import {
   previewChipMovel,
   syncChipMovel,
@@ -39,7 +39,7 @@ export async function previsualizarChipMovel(periodo: string): Promise<
     // requireAdmin dentro do try: se a falha estiver na autenticação (ou em
     // qualquer passo), capturamos a mensagem real em vez de deixá-la cruzar a
     // fronteira do server action e ser redigida pelo Next.
-    await requireAdmin();
+    await requireCapacidade("IMPORTAR_VENDAS");
     const r = await previewChipMovel(periodo);
     return { ok: true, ...r };
   } catch (e) {
@@ -59,7 +59,7 @@ export async function sincronizarChipMovelAgora(
   periodo: string,
 ): Promise<{ ok: true; resultado: ResultadoSyncChip } | { ok: false; error: string }> {
   try {
-    await requireAdmin();
+    await requireCapacidade("IMPORTAR_VENDAS");
   } catch (e) {
     // Se a autenticação falhou (redirect/not found), propagar sem capturar
     if (isNextRedirect(e)) {

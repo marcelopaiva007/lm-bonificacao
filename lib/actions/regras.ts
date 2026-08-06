@@ -3,7 +3,7 @@
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { requireAdmin } from "@/lib/auth-guard";
+import { requireCapacidade } from "@/lib/auth-guard";
 import { registrarAlteracao } from "@/lib/auditoria";
 import { CARGOS } from "@/lib/constants";
 import type { ActionResult } from "@/lib/constants";
@@ -50,7 +50,7 @@ const regraSchema = z.object({
 });
 
 export async function createRegraBonificacao(_prev: ActionResult, formData: FormData): Promise<ActionResult> {
-  const user = await requireAdmin();
+  const user = await requireCapacidade("EDITAR_REGRA");
 
   const parsed = regraSchema.safeParse({
     cargo: formData.get("cargo"),

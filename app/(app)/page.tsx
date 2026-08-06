@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { requireUser } from "@/lib/auth-guard";
+import { idsVisiveisPara, filtroPorEscopo } from "@/lib/escopo";
 import { prisma } from "@/lib/prisma";
 import { periodoAtual, periodoAnterior } from "@/lib/periodo";
 import { DashboardView, type RankingLinha, type ResumoPeriodo } from "./dashboard-view";
@@ -22,6 +23,14 @@ export default async function HomePage({
   const anterior = periodoAnterior(periodo);
   const fechamentoSelecionado = fechamentos.find((f) => f.periodo === periodo) ?? null;
 
+  // O painel traz ranking, valores por pessoa e composição da bonificação —
+  // tudo recortado pelo que quem está logado pode ver. Supervisor enxerga a
+  // própria equipe; vendedor, só ele. `null` = sem recorte.
+  const idsVisiveis = await idsVisiveisPara(user);
+  const filtroFuncionario = filtroPorEscopo(idsVisiveis);
+  const filtroFuncionarioDireto =
+    idsVisiveis === null ? {} : { id: { in: idsVisiveis } };
+
   const [
     lancamentos,
     lancAnteriorAgg,
@@ -32,23 +41,23 @@ export default async function HomePage({
     totalCidades,
   ] = await Promise.all([
     prisma.lancamentoVenda.findMany({
-      where: { periodo },
+      where: { periodo, ...filtroFuncionario },
       include: { funcionario: { include: { cidade: true } } },
     }),
     prisma.lancamentoVenda.aggregate({
-      where: { periodo: anterior },
+      where: { periodo: anterior, ...filtroFuncionario },
       _sum: { valorInstalado: true, quantidade: true, aprovado: true, cancelado: true },
     }),
     prisma.bonificacaoCalculada.findMany({
-      where: { fechamento: { periodo } },
+      where: { fechamento: { periodo }, ...filtroFuncionario },
       include: { funcionario: { include: { cidade: true } } },
     }),
     prisma.bonificacaoCalculada.aggregate({
-      where: { fechamento: { periodo: anterior } },
+      where: { fechamento: { periodo: anterior }, ...filtroFuncionario },
       _sum: { valorTotal: true },
     }),
-    prisma.ajuste.aggregate({ where: { periodo }, _sum: { valor: true } }),
-    prisma.funcionario.count({ where: { ativo: true } }),
+    prisma.ajuste.aggregate({ where: { periodo, ...filtroFuncionario }, _sum: { valor: true } }),
+    prisma.funcionario.count({ where: { ativo: true, ...filtroFuncionarioDireto } }),
     prisma.cidade.count(),
   ]);
 

@@ -1,4 +1,4 @@
-import { requireAdmin } from "@/lib/auth-guard";
+import { requireCapacidade } from "@/lib/auth-guard";
 import { listarAlteracoes } from "@/lib/auditoria";
 import { periodoLabel } from "@/lib/periodo";
 import { RegistroView } from "./registro-view";
@@ -12,7 +12,7 @@ export default async function RegistroPage({
 }: {
   searchParams: Promise<{ periodo?: string }>;
 }) {
-  await requireAdmin();
+  await requireCapacidade("VER_REGISTRO_ALTERACOES");
   const params = await searchParams;
   const periodo = /^\d{4}-\d{2}$/.test(params.periodo ?? "") ? params.periodo : undefined;
 

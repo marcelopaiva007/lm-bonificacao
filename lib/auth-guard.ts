@@ -1,6 +1,7 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { ensureFuncionarioContato } from "@/lib/ensure-schema";
+import { pode, type Capacidade } from "@/lib/permissoes";
 
 export async function requireUser() {
   const session = await auth();
@@ -19,6 +20,27 @@ export async function requireUser() {
   return session.user;
 }
 
+/**
+ * Exige uma capacidade específica de escrita.
+ *
+ * Preferir isto a checar o papel na mão: quando um papel novo aparecer, muda-se
+ * a tabela em lib/permissoes.ts e todas as telas acompanham. Checagem espalhada
+ * por papel é como nasce a tela que alguém esqueceu de proteger.
+ */
+export async function requireCapacidade(capacidade: Capacidade) {
+  const user = await requireUser();
+  if (!pode(user.role, capacidade)) redirect("/");
+  return user;
+}
+
+/**
+ * Continua existindo para o que é genuinamente do administrador do sistema:
+ * criar usuário, mexer em integração.
+ *
+ * Para o trabalho do dia a dia — regra, lançamento, fechamento — use
+ * requireCapacidade. O gerente precisa fazer isso sem ser administrador total,
+ * que foi a decisão da diretoria em 06/08/2026.
+ */
 export async function requireAdmin() {
   const user = await requireUser();
   if (user.role !== "ADMIN") redirect("/");
