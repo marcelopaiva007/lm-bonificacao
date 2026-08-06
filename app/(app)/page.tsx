@@ -5,6 +5,10 @@ import { idsVisiveisPara, filtroPorEscopo } from "@/lib/escopo";
 import { prisma } from "@/lib/prisma";
 import { periodoAtual, periodoAnterior } from "@/lib/periodo";
 import { DashboardView, type RankingLinha, type ResumoPeriodo } from "./dashboard-view";
+import { PainelGestaoView } from "./painel-gestao-view";
+import { resumoGestao, quemPrecisaDeAtencao, desempenhoDasEquipes } from "@/lib/painel-gestao";
+import { getCronHealth } from "@/lib/cron-observability";
+import { escopoDoPapel } from "@/lib/permissoes";
 
 export default async function HomePage({
   searchParams,
@@ -149,6 +153,18 @@ export default async function HomePage({
     canceladas: lancAnteriorAgg._sum.cancelado ?? 0,
   };
 
+  // Painel de decisão: só para quem enxerga o quadro inteiro. Supervisor e
+  // vendedor veem o próprio desempenho abaixo, sem projeção e custo da empresa.
+  const veTudo = escopoDoPapel(user.role) === "TUDO";
+  const [gestao, atencao, equipes, saudeCrons] = veTudo
+    ? await Promise.all([
+        resumoGestao(periodo),
+        quemPrecisaDeAtencao(periodo),
+        desempenhoDasEquipes(periodo),
+        getCronHealth().catch(() => []),
+      ])
+    : [null, [], [], []];
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
@@ -164,6 +180,19 @@ export default async function HomePage({
           Ver relatórios completos
         </Button>
       </div>
+
+      {gestao && (
+        <PainelGestaoView
+          resumo={gestao}
+          atencao={atencao}
+          equipes={equipes}
+          crons={saudeCrons.map((c) => ({
+            label: c.label,
+            atrasado: c.atrasado,
+            erro: c.erro,
+          }))}
+        />
+      )}
 
       <DashboardView
         periodo={periodo}
