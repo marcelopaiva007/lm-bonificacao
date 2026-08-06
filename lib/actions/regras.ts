@@ -4,6 +4,8 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth-guard";
+import { registrarAlteracao } from "@/lib/auditoria";
+import { CARGOS } from "@/lib/constants";
 import type { ActionResult } from "@/lib/constants";
 import type { Prisma } from "@/app/generated/prisma/client";
 
@@ -48,7 +50,7 @@ const regraSchema = z.object({
 });
 
 export async function createRegraBonificacao(_prev: ActionResult, formData: FormData): Promise<ActionResult> {
-  await requireAdmin();
+  const user = await requireAdmin();
 
   const parsed = regraSchema.safeParse({
     cargo: formData.get("cargo"),
@@ -77,6 +79,13 @@ export async function createRegraBonificacao(_prev: ActionResult, formData: Form
   const diaAnterior = new Date(vigenciaInicio);
   diaAnterior.setUTCDate(diaAnterior.getUTCDate() - 1);
 
+  // A regra que está saindo de vigência, guardada para o registro: é ela que
+  // pagou os meses anteriores, e é o que uma contestação vai querer comparar.
+  const regraAnterior = await prisma.regraBonificacao.findFirst({
+    where: { cargo: parsed.data.cargo, vigenciaFim: null },
+    orderBy: { vigenciaInicio: "desc" },
+  });
+
   await prisma.$transaction(async (tx) => {
     await tx.regraBonificacao.updateMany({
       where: { cargo: parsed.data.cargo, vigenciaFim: null },
@@ -92,6 +101,22 @@ export async function createRegraBonificacao(_prev: ActionResult, formData: Form
         observacoes: parsed.data.observacoes || null,
       },
     });
+  });
+
+  const cargoLabel =
+    CARGOS.find((c) => c.value === parsed.data.cargo)?.label ?? parsed.data.cargo;
+
+  await registrarAlteracao({
+    acao: "REGRA_CRIADA",
+    usuarioId: user.id,
+    usuarioNome: user.name ?? user.username,
+    alvo: cargoLabel,
+    resumo:
+      `Nova regra de bonificação para ${cargoLabel}, valendo a partir de ` +
+      `${vigenciaInicio.toLocaleDateString("pt-BR", { timeZone: "UTC" })}` +
+      `${regraAnterior ? " (a anterior foi encerrada no dia anterior)" : ""}.`,
+    antes: regraAnterior?.config ?? null,
+    depois: configParsed.data,
   });
 
   revalidatePath("/regras");
