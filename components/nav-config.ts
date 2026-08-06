@@ -12,6 +12,7 @@ import {
   UserCog,
   History,
   GitCompare,
+  Wallet,
   Send,
 } from "lucide-react";
 
@@ -31,6 +32,7 @@ const FECHAMENTO: NavItem = { href: "/fechamento", label: "Fechamento Mensal", i
 const METAS: NavItem = { href: "/metas", label: "Metas", icon: Send };
 const REGISTRO: NavItem = { href: "/registro", label: "Registro de Alterações", icon: History };
 const BATIMENTO: NavItem = { href: "/batimento", label: "Batimento", icon: GitCompare };
+const PAGAMENTOS: NavItem = { href: "/pagamentos", label: "Pagamentos", icon: Wallet };
 
 const OPERACAO: NavItem[] = [
   { href: "/cadastros/cidades", label: "Cidades", icon: Building2 },
@@ -46,6 +48,7 @@ export const adminNav: NavItem[] = [
   PAINEL,
   ...OPERACAO,
   FECHAMENTO,
+  PAGAMENTOS,
   METAS,
   RELATORIOS,
   BATIMENTO,
@@ -58,6 +61,7 @@ export const gerenteNav: NavItem[] = [
   PAINEL,
   ...OPERACAO,
   FECHAMENTO,
+  PAGAMENTOS,
   METAS,
   RELATORIOS,
   BATIMENTO,
@@ -70,6 +74,7 @@ export const diretoriaNav: NavItem[] = [
   PAINEL,
   RELATORIOS,
   FECHAMENTO,
+  PAGAMENTOS,
   METAS,
   REGISTRO,
 ];
