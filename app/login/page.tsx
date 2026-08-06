@@ -13,13 +13,13 @@ export default function LoginPage() {
           <p className="text-sm text-muted-foreground">
             Sistema de Bonificação de Vendas
           </p>
+          {/* Logo abaixo da marca: quem não consegue entrar confere a versão
+              aqui, antes de abrir chamado. */}
+          <p className="text-sm font-medium tabular-nums text-muted-foreground">
+            {versao.rotulo}
+          </p>
         </div>
         <LoginForm />
-        {/* Na tela de entrada porque é onde alguém checa a versão sem
-            conseguir entrar — suporte pergunta isso antes de qualquer coisa. */}
-        <p className="text-center text-[11px] tabular-nums text-muted-foreground/70">
-          {versao.rotulo}
-        </p>
       </div>
     </div>
   );
