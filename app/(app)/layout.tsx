@@ -17,6 +17,7 @@ export default async function AppLayout({
           role={user.role}
           nome={user.name ?? user.username}
           versao={versaoDoSistema().rotulo}
+          versaoDetalhe={versaoDoSistema().detalhe}
         />
         <main className="flex-1 overflow-x-hidden p-6">{children}</main>
       </div>

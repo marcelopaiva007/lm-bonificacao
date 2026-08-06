@@ -18,6 +18,9 @@ export default function LoginPage() {
           <p className="text-sm font-medium tabular-nums text-muted-foreground">
             {versao.rotulo}
           </p>
+          <p className="text-[11px] tabular-nums text-muted-foreground/60">
+            {versao.detalhe}
+          </p>
         </div>
         <LoginForm />
       </div>
