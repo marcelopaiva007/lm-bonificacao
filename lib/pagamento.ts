@@ -1,5 +1,6 @@
 import "server-only";
 import { prisma } from "@/lib/prisma";
+import { garantirEstrutura } from "@/lib/ddl";
 import { registrarAlteracao } from "@/lib/auditoria";
 import { periodoLabel } from "@/lib/periodo";
 
@@ -24,8 +25,7 @@ export const SITUACAO_LABEL: Record<SituacaoPagamento, string> = {
 let tabelaGarantida = false;
 export async function ensurePagamentoTable(): Promise<void> {
   if (tabelaGarantida) return;
-  await prisma.$executeRawUnsafe(
-    `CREATE TABLE IF NOT EXISTS "bonificacao"."pagamento_bonificacao" (
+  await garantirEstrutura([`CREATE TABLE IF NOT EXISTS "bonificacao"."pagamento_bonificacao" (
       "id" SERIAL NOT NULL,
       "periodo" TEXT NOT NULL,
       "funcionarioId" TEXT NOT NULL,
@@ -36,12 +36,9 @@ export async function ensurePagamentoTable(): Promise<void> {
       "marcadoPorNome" TEXT,
       "marcadoEm" TIMESTAMP(3),
       CONSTRAINT "pagamento_bonificacao_pkey" PRIMARY KEY ("id")
-    );`,
-  );
-  await prisma.$executeRawUnsafe(
-    `CREATE UNIQUE INDEX IF NOT EXISTS "pagamento_bonificacao_chave_key"
-     ON "bonificacao"."pagamento_bonificacao"("periodo", "funcionarioId");`,
-  );
+    );`]);
+  await garantirEstrutura([`CREATE UNIQUE INDEX IF NOT EXISTS "pagamento_bonificacao_chave_key"
+     ON "bonificacao"."pagamento_bonificacao"("periodo", "funcionarioId");`]);
   tabelaGarantida = true;
 }
 

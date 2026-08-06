@@ -1,5 +1,6 @@
 import "server-only";
 import { prisma } from "@/lib/prisma";
+import { garantirEstrutura } from "@/lib/ddl";
 
 // Retrato diário das vendas: o que cada vendedor tinha, por período, a cada
 // sincronização.
@@ -23,8 +24,7 @@ import { FUSO_BR } from "@/lib/periodo";
 let tabelaGarantida = false;
 export async function ensureRetratoTable(): Promise<void> {
   if (tabelaGarantida) return;
-  await prisma.$executeRawUnsafe(
-    `CREATE TABLE IF NOT EXISTS "bonificacao"."retrato_vendas" (
+  await garantirEstrutura([`CREATE TABLE IF NOT EXISTS "bonificacao"."retrato_vendas" (
       "id" SERIAL NOT NULL,
       "periodo" TEXT NOT NULL,
       "dia" DATE NOT NULL,
@@ -37,16 +37,11 @@ export async function ensureRetratoTable(): Promise<void> {
       "origem" TEXT NOT NULL,
       "criadoEm" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
       CONSTRAINT "retrato_vendas_pkey" PRIMARY KEY ("id")
-    );`,
-  );
-  await prisma.$executeRawUnsafe(
-    `CREATE UNIQUE INDEX IF NOT EXISTS "retrato_vendas_chave_key"
-     ON "bonificacao"."retrato_vendas"("periodo", "dia", "funcionarioId", "origem");`,
-  );
-  await prisma.$executeRawUnsafe(
-    `CREATE INDEX IF NOT EXISTS "retrato_vendas_periodo_dia_idx"
-     ON "bonificacao"."retrato_vendas"("periodo", "dia" DESC);`,
-  );
+    );`]);
+  await garantirEstrutura([`CREATE UNIQUE INDEX IF NOT EXISTS "retrato_vendas_chave_key"
+     ON "bonificacao"."retrato_vendas"("periodo", "dia", "funcionarioId", "origem");`]);
+  await garantirEstrutura([`CREATE INDEX IF NOT EXISTS "retrato_vendas_periodo_dia_idx"
+     ON "bonificacao"."retrato_vendas"("periodo", "dia" DESC);`]);
   tabelaGarantida = true;
 }
 

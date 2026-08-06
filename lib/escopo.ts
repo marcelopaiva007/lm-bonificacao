@@ -1,5 +1,6 @@
 import "server-only";
 import { prisma } from "@/lib/prisma";
+import { garantirEstrutura } from "@/lib/ddl";
 import { escopoDoPapel } from "@/lib/permissoes";
 
 // Quem cada pessoa logada pode enxergar.
@@ -18,17 +19,13 @@ import { escopoDoPapel } from "@/lib/permissoes";
 let tabelaGarantida = false;
 export async function ensureVinculoTable(): Promise<void> {
   if (tabelaGarantida) return;
-  await prisma.$executeRawUnsafe(
-    `CREATE TABLE IF NOT EXISTS "bonificacao"."usuario_funcionario" (
+  await garantirEstrutura([`CREATE TABLE IF NOT EXISTS "bonificacao"."usuario_funcionario" (
       "usuarioId" TEXT NOT NULL,
       "funcionarioId" TEXT NOT NULL,
       "criadoEm" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
       CONSTRAINT "usuario_funcionario_pkey" PRIMARY KEY ("usuarioId")
-    );`,
-  );
-  await prisma.$executeRawUnsafe(
-    `CREATE INDEX IF NOT EXISTS "usuario_funcionario_funcionarioId_idx" ON "bonificacao"."usuario_funcionario"("funcionarioId");`,
-  );
+    );`]);
+  await garantirEstrutura([`CREATE INDEX IF NOT EXISTS "usuario_funcionario_funcionarioId_idx" ON "bonificacao"."usuario_funcionario"("funcionarioId");`]);
   tabelaGarantida = true;
 }
 

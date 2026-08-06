@@ -1,5 +1,6 @@
 import "server-only";
 import { prisma } from "@/lib/prisma";
+import { garantirEstrutura } from "@/lib/ddl";
 
 // Registro de alterações: quem mudou o quê, quando, e como estava antes.
 //
@@ -27,8 +28,7 @@ export async function ensureRegistroAlteracaoTable(): Promise<void> {
   if (tabelaGarantida) return;
   // Schema-qualificado: SQL cru não passa pelo mapeamento @@schema do Prisma e,
   // sem o prefixo, o Postgres criaria a tabela no `public` pelo search_path.
-  await prisma.$executeRawUnsafe(
-    `CREATE TABLE IF NOT EXISTS "bonificacao"."registro_alteracao" (
+  await garantirEstrutura([`CREATE TABLE IF NOT EXISTS "bonificacao"."registro_alteracao" (
       "id" SERIAL NOT NULL,
       "acao" TEXT NOT NULL,
       "usuarioId" TEXT,
@@ -40,14 +40,9 @@ export async function ensureRegistroAlteracaoTable(): Promise<void> {
       "depois" JSONB,
       "criadoEm" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
       CONSTRAINT "registro_alteracao_pkey" PRIMARY KEY ("id")
-    );`,
-  );
-  await prisma.$executeRawUnsafe(
-    `CREATE INDEX IF NOT EXISTS "registro_alteracao_criadoEm_idx" ON "bonificacao"."registro_alteracao"("criadoEm" DESC);`,
-  );
-  await prisma.$executeRawUnsafe(
-    `CREATE INDEX IF NOT EXISTS "registro_alteracao_periodo_idx" ON "bonificacao"."registro_alteracao"("periodo");`,
-  );
+    );`]);
+  await garantirEstrutura([`CREATE INDEX IF NOT EXISTS "registro_alteracao_criadoEm_idx" ON "bonificacao"."registro_alteracao"("criadoEm" DESC);`]);
+  await garantirEstrutura([`CREATE INDEX IF NOT EXISTS "registro_alteracao_periodo_idx" ON "bonificacao"."registro_alteracao"("periodo");`]);
   tabelaGarantida = true;
 }
 

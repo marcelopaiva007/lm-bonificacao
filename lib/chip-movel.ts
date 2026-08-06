@@ -1,5 +1,6 @@
 import "server-only";
 import { prisma } from "@/lib/prisma";
+import { garantirEstrutura } from "@/lib/ddl";
 import { recalcularFechamento } from "@/lib/bonificacao";
 import { registrarRetrato } from "@/lib/retrato-vendas";
 import { matchFuncionario, somenteDigitos } from "@/lib/vendedor-match";
@@ -62,8 +63,7 @@ export async function ensureVendaChipTable(): Promise<void> {
   // Schema-qualificado desde o cutover de 24/07/2026: sem o prefixo, o
   // IF NOT EXISTS checaria só o search_path (public) e criaria uma tabela
   // duplicada vazia lá, ignorando a real em "bonificacao".
-  await prisma.$executeRawUnsafe(
-    `CREATE TABLE IF NOT EXISTS "bonificacao"."venda_chip_movel" (
+  await garantirEstrutura([`CREATE TABLE IF NOT EXISTS "bonificacao"."venda_chip_movel" (
       "id" SERIAL NOT NULL,
       "vendaId" INTEGER NOT NULL,
       "periodo" TEXT NOT NULL,
@@ -82,14 +82,9 @@ export async function ensureVendaChipTable(): Promise<void> {
       "cancelledAt" TEXT,
       "syncedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
       CONSTRAINT "venda_chip_movel_pkey" PRIMARY KEY ("id")
-    );`,
-  );
-  await prisma.$executeRawUnsafe(
-    `CREATE UNIQUE INDEX IF NOT EXISTS "venda_chip_movel_vendaId_key" ON "bonificacao"."venda_chip_movel"("vendaId");`,
-  );
-  await prisma.$executeRawUnsafe(
-    `CREATE INDEX IF NOT EXISTS "venda_chip_movel_periodo_idx" ON "bonificacao"."venda_chip_movel"("periodo");`,
-  );
+    );`]);
+  await garantirEstrutura([`CREATE UNIQUE INDEX IF NOT EXISTS "venda_chip_movel_vendaId_key" ON "bonificacao"."venda_chip_movel"("vendaId");`]);
+  await garantirEstrutura([`CREATE INDEX IF NOT EXISTS "venda_chip_movel_periodo_idx" ON "bonificacao"."venda_chip_movel"("periodo");`]);
   vendaChipTableEnsured = true;
 }
 
