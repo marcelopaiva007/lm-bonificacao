@@ -1,6 +1,11 @@
 import "server-only";
 import { prisma } from "@/lib/prisma";
-import { agregarNegociacoesFunil, type LinhaFunil } from "@/lib/elleven-core";
+import {
+  acharFuncionario,
+  agregarNegociacoesFunil,
+  type LinhaFunil,
+} from "@/lib/elleven-core";
+import { normalizarTexto } from "@/lib/text";
 
 // Conferência entre as fontes: a fonte diz X, o sistema lançou Y, a bonificação
 // calculou sobre Z.
@@ -56,7 +61,8 @@ function normalizar(s: string): string {
  * sumir da conta.
  */
 export async function montarConferencia(periodo: string): Promise<ResumoConferencia> {
-  const [linhasFunil, vendasChip, lancamentos, bonificacoes] = await Promise.all([
+  const [linhasFunil, vendasChip, lancamentos, bonificacoes, funcionariosAtivos] =
+    await Promise.all([
     prisma.elevenRelatorioLinha.findMany({
       where: { relatorio: "funil-de-vendas", periodo },
       select: { dados: true },
@@ -71,9 +77,29 @@ export async function montarConferencia(periodo: string): Promise<ResumoConferen
     }),
     prisma.bonificacaoCalculada.findMany({
       where: { fechamento: { periodo } },
-      include: { funcionario: { select: { nome: true } } },
+      include: { funcionario: { select: { id: true, nome: true } } },
+    }),
+    prisma.funcionario.findMany({
+      where: { ativo: true },
+      select: { id: true, nome: true },
     }),
   ]);
+
+  // A chave de comparação é o FUNCIONÁRIO, não o texto do nome. O Elleven grava
+  // variações do mesmo nome — "(SERASA) VANILSON DOS SANTOS DELFINO",
+  // "DANIEL LIMA DE MELO" contra "DANIEL LIMA MELO" — e comparar texto fazia a
+  // mesma pessoa aparecer duas vezes: uma como "vendeu e não entrou", outra como
+  // "lançado sem fonte". A importação já resolvia isso corretamente; era a
+  // conferência que acusava divergência onde não havia.
+  const porNomeExato = new Map(funcionariosAtivos.map((f) => [normalizarTexto(f.nome), f]));
+  const resolver = (nomeNaFonte: string): { chave: string; nome: string } => {
+    const { funcionario } = acharFuncionario(nomeNaFonte, funcionariosAtivos, porNomeExato);
+    // Sem correspondência no cadastro, o próprio nome vira a chave — a pessoa
+    // continua aparecendo, como "vendeu e não entrou".
+    return funcionario
+      ? { chave: `id:${funcionario.id}`, nome: funcionario.nome }
+      : { chave: `nome:${normalizar(nomeNaFonte)}`, nome: nomeNaFonte };
+  };
 
   // --- Fonte: Elleven (mesma regra da importação, função compartilhada) ---
   const { porVendedor, negociacoesSemVendedor } = agregarNegociacoesFunil(
@@ -81,8 +107,8 @@ export async function montarConferencia(periodo: string): Promise<ResumoConferen
   );
 
   const fonte = new Map<string, { nome: string; vendas: number }>();
-  for (const [nome, ag] of porVendedor) {
-    const chave = normalizar(nome);
+  for (const [nomeNaFonte, ag] of porVendedor) {
+    const { chave, nome } = resolver(nomeNaFonte);
     const atual = fonte.get(chave) ?? { nome, vendas: 0 };
     atual.vendas += ag.quantidade;
     fonte.set(chave, atual);
@@ -91,9 +117,9 @@ export async function montarConferencia(periodo: string): Promise<ResumoConferen
   // --- Fonte: chip (venda cancelada não conta, como na importação) ---
   for (const v of vendasChip) {
     if (v.cancelledAt) continue;
-    const nome = (v.sellerNome ?? "").trim();
-    if (!nome) continue;
-    const chave = normalizar(nome);
+    const nomeNaFonte = (v.sellerNome ?? "").trim();
+    if (!nomeNaFonte) continue;
+    const { chave, nome } = resolver(nomeNaFonte);
     const atual = fonte.get(chave) ?? { nome, vendas: 0 };
     atual.vendas += 1;
     fonte.set(chave, atual);
@@ -102,7 +128,7 @@ export async function montarConferencia(periodo: string): Promise<ResumoConferen
   // --- Lançado e bonificado ---
   const lancado = new Map<string, { nome: string; vendas: number }>();
   for (const l of lancamentos) {
-    const chave = normalizar(l.funcionario.nome);
+    const chave = `id:${l.funcionarioId}`;
     const atual = lancado.get(chave) ?? { nome: l.funcionario.nome, vendas: 0 };
     atual.vendas += l.quantidade;
     lancado.set(chave, atual);
@@ -110,7 +136,7 @@ export async function montarConferencia(periodo: string): Promise<ResumoConferen
 
   const bonificado = new Map<string, { nome: string; valor: number }>();
   for (const b of bonificacoes) {
-    const chave = normalizar(b.funcionario.nome);
+    const chave = `id:${b.funcionarioId}`;
     const atual = bonificado.get(chave) ?? { nome: b.funcionario.nome, valor: 0 };
     atual.valor += b.valorTotal;
     bonificado.set(chave, atual);
