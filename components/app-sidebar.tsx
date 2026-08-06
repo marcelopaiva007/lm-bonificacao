@@ -32,6 +32,11 @@ export function AppSidebar({
       <div className="border-b px-4 py-4">
         <Logo width={180} height={44} className="h-9 w-auto" />
         <p className="mt-1 text-xs text-muted-foreground">Bonificação de Vendas</p>
+        {/* Logo abaixo da marca, e não no rodapé: é onde o olho já está quando
+            alguém pergunta "estou na versão nova?". */}
+        <p className="mt-1.5 text-sm font-medium tabular-nums text-muted-foreground">
+          {versao}
+        </p>
       </div>
 
       <nav className="flex-1 space-y-1 overflow-y-auto p-2">
@@ -82,10 +87,6 @@ export function AppSidebar({
           <LogOut className="size-4" />
           Sair
         </Button>
-        {/* Responde "estou vendo a versão nova ou a antiga?" sem abrir o GitHub. */}
-        <p className="mt-2 px-1 text-center text-[11px] tabular-nums text-muted-foreground/70">
-          {versao}
-        </p>
       </div>
     </aside>
   );
