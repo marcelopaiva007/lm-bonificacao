@@ -1,11 +1,19 @@
 import "server-only";
 import { prisma } from "@/lib/prisma";
 
-// Garante que as colunas de contato do Funcionário (email, telegramChatId)
-// existam antes de ler/gravar. Mesmo padrão do ensureRelatorioTable do
-// sync-elleven: o build não roda `prisma migrate deploy` e a migração não é
-// aplicada à mão, então criamos as colunas sob demanda (idempotente,
-// ADD COLUMN IF NOT EXISTS). Roda uma vez por processo.
+// Garante que as colunas extras do Funcionário existam antes de ler/gravar.
+// Mesmo padrão do ensureRelatorioTable do sync-elleven: o build não roda
+// `prisma migrate deploy` e a migração não é aplicada à mão, então criamos as
+// colunas sob demanda (idempotente, ADD COLUMN IF NOT EXISTS). Roda uma vez por
+// processo.
+//
+// ⚠️ REGRA: todo ponto de entrada que lê Funcionario SEM usuário logado precisa
+// chamar isto primeiro. Páginas autenticadas já ganham de graça pelo
+// requireUser; as rotas de cron NÃO — e o Prisma seleciona todas as colunas do
+// modelo em qualquer findMany, então uma coluna ausente derruba a query inteira,
+// não só o campo novo. Foi assim que a inclusão de `recebeAlertaTecnico` quebrou
+// a importação do funil em produção (06/08/2026): a coluna existia no schema,
+// não no banco, e o cron nunca passava por aqui.
 let funcionarioContatoEnsured = false;
 export async function ensureFuncionarioContato(): Promise<void> {
   if (funcionarioContatoEnsured) return;

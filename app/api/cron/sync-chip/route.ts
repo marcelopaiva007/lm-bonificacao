@@ -14,6 +14,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { syncChipMovel, type ResultadoSyncChip } from "@/lib/chip-movel";
 import { recordCronRun } from "@/lib/cron-observability";
 import { FUSO_BR, periodoAnterior, periodoAtual } from "@/lib/periodo";
+import { ensureFuncionarioContato } from "@/lib/ensure-schema";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -36,6 +37,9 @@ export async function GET(req: NextRequest) {
   if (!isAuthorized(req)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  // Cron não passa pelo requireUser — ver lib/ensure-schema.ts.
+  await ensureFuncionarioContato();
 
   // ?year=&month= permitem reprocessar um mês específico (ex.: backfill de um
   // período já fechado no L&M Movel para conferência).

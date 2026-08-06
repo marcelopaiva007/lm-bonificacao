@@ -34,6 +34,7 @@ import {
   type EnvioResultado,
 } from "@/lib/notificacoes";
 import { recordCronRun } from "@/lib/cron-observability";
+import { ensureFuncionarioContato } from "@/lib/ensure-schema";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
@@ -53,6 +54,9 @@ export async function GET(req: NextRequest) {
   if (!isAuthorized(req)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  // Cron não passa pelo requireUser — ver lib/ensure-schema.ts.
+  await ensureFuncionarioContato();
 
   const started = Date.now();
   try {

@@ -35,6 +35,7 @@ import {
 import { prisma } from "@/lib/prisma";
 import { importarLancamentosEllevenFunil } from "@/lib/importar-elleven-funil";
 import { recordCronRun } from "@/lib/cron-observability";
+import { ensureFuncionarioContato } from "@/lib/ensure-schema";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -623,6 +624,12 @@ async function fillDateLikeInputs(
 
 export async function GET(req: NextRequest) {
   if (!isAuthorized(req)) return unauthorized();
+
+  // Cron não passa pelo requireUser, que é quem cria as colunas extras do
+  // Funcionario sob demanda. Sem isto, qualquer leitura de Funcionario aqui
+  // dentro falha inteira quando o schema tem uma coluna que o banco ainda não
+  // tem (ver lib/ensure-schema.ts).
+  await ensureFuncionarioContato();
 
   const login = process.env.ELLEVEN_LOGIN;
   const password = process.env.ELLEVEN_PASSWORD;
