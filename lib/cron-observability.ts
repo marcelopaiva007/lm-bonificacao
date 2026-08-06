@@ -19,6 +19,8 @@ export const CRON_JOBS = [
   { job: "sync-elleven:pedidos-de-venda", label: "Elleven — Pedidos de Venda", maxIdadeHoras: 26 },
   { job: "sync-chip", label: "Vendas de Chip (L&M Móvel)", maxIdadeHoras: 26 },
   { job: "cobranca-metas", label: "Cobrança de Metas", maxIdadeHoras: 26 },
+  // Semanal: 8 dias de folga antes de considerar atrasada.
+  { job: "auditoria", label: "Auditoria dos dados", maxIdadeHoras: 192 },
 ] as const;
 
 let cronRunTableEnsured = false;
