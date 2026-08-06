@@ -13,7 +13,13 @@ export default async function TelegramPage() {
     prisma.funcionario.findMany({
       where: { ativo: true },
       orderBy: { nome: "asc" },
-      select: { id: true, nome: true, cargo: true, telegramChatId: true },
+      select: {
+        id: true,
+        nome: true,
+        cargo: true,
+        telegramChatId: true,
+        recebeAlertaTecnico: true,
+      },
     }),
     configurado
       ? buscarUpdatesTelegram()

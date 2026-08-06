@@ -19,5 +19,10 @@ export async function ensureFuncionarioContato(): Promise<void> {
   await prisma.$executeRawUnsafe(
     `ALTER TABLE "bonificacao"."Funcionario" ADD COLUMN IF NOT EXISTS "telegramChatId" TEXT;`,
   );
+  // Quem recebe aviso quando uma automação falha. Mesmo padrão das colunas
+  // acima: sem DEFAULT o Prisma leria NULL num campo Boolean não-anulável.
+  await prisma.$executeRawUnsafe(
+    `ALTER TABLE "bonificacao"."Funcionario" ADD COLUMN IF NOT EXISTS "recebeAlertaTecnico" BOOLEAN NOT NULL DEFAULT false;`,
+  );
   funcionarioContatoEnsured = true;
 }

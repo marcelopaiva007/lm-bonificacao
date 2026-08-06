@@ -1,6 +1,7 @@
 import "server-only";
 import { prisma } from "@/lib/prisma";
 import { enviarTelegram } from "@/lib/notificacoes";
+import { ensureFuncionarioContato } from "@/lib/ensure-schema";
 
 // Observabilidade dos crons: grava o resultado de cada execução em "cron_run" e
 // expõe um resumo de saúde por job. Segue o mesmo padrão do ensureRelatorioTable
@@ -83,13 +84,53 @@ export async function recordCronRun(input: CronRunInput): Promise<void> {
   }
 }
 
-// Chat que recebe os alertas de falha (ex.: o do Marcelo, o mesmo bot
-// @Marcelo_Paiva_07_bot já usado na cobrança). Sem a env var, o alerta fica
-// desligado em silêncio — o health check continua acusando a falha.
-//   CRON_ALERTA_TELEGRAM_CHAT_ID — chat_id numérico do destinatário
+// Quem recebe o aviso de falha. A fonte principal é o CADASTRO — os
+// funcionários marcados como "recebe alerta" na tela Vincular Telegram —, e não
+// uma variável de ambiente. Motivo: a versão anterior dependia só de
+// CRON_ALERTA_TELEGRAM_CHAT_ID, que nunca foi cadastrada em produção; o alerta
+// ficou desligado em silêncio e o Elleven passou dias falhando 3× por dia sem
+// ninguém saber. Configuração que só existe fora do sistema é configuração que
+// ninguém lembra de fazer.
+//
+// CRON_ALERTA_TELEGRAM_CHAT_ID continua valendo como reforço: soma ao cadastro,
+// para o aviso ainda sair caso o banco esteja fora do ar — que é justamente uma
+// das falhas que precisam ser avisadas.
+async function destinatariosDeAlerta(): Promise<string[]> {
+  const destinos = new Set<string>();
+
+  const daEnv = process.env.CRON_ALERTA_TELEGRAM_CHAT_ID;
+  if (daEnv) {
+    for (const parte of daEnv.split(",")) {
+      const limpo = parte.trim();
+      if (limpo) destinos.add(limpo);
+    }
+  }
+
+  try {
+    // O cron não passa pelo requireUser, que é quem normalmente garante as
+    // colunas sob demanda — sem isto, a primeira falha depois do deploy não
+    // seria avisada, que é exatamente quando o aviso importa.
+    await ensureFuncionarioContato();
+    const marcados = await prisma.funcionario.findMany({
+      where: { ativo: true, recebeAlertaTecnico: true, telegramChatId: { not: null } },
+      select: { telegramChatId: true },
+    });
+    for (const f of marcados) {
+      if (f.telegramChatId) destinos.add(f.telegramChatId);
+    }
+  } catch (e) {
+    // Banco indisponível é exatamente um cenário de alerta: seguimos com o que
+    // veio da env var em vez de perder o aviso inteiro.
+    console.error("[cron-observability] não consegui ler os destinatários no banco:", e);
+  }
+
+  return [...destinos];
+}
+
 async function alertarFalhaCron(input: CronRunInput): Promise<void> {
-  const chatId = process.env.CRON_ALERTA_TELEGRAM_CHAT_ID;
-  if (!chatId) return;
+  const destinos = await destinatariosDeAlerta();
+  if (destinos.length === 0) return;
+
   const def = CRON_JOBS.find((j) => j.job === input.job);
   const duracao =
     input.durationMs != null ? ` após ${Math.round(input.durationMs / 1000)}s` : "";
@@ -97,9 +138,14 @@ async function alertarFalhaCron(input: CronRunInput): Promise<void> {
     `⚠️ Cron FALHOU: ${def?.label ?? input.job}${duracao}\n` +
     `Erro: ${(input.erro ?? "sem mensagem").slice(0, 500)}\n` +
     `Detalhes: /api/health/crons`;
-  const r = await enviarTelegram(chatId, texto);
-  if (!r.ok) {
-    console.error(`[cron-observability] Telegram não entregou o alerta: ${r.erro}`);
+
+  for (const chatId of destinos) {
+    const r = await enviarTelegram(chatId, texto);
+    if (!r.ok) {
+      console.error(
+        `[cron-observability] Telegram não entregou o alerta para ${chatId}: ${r.erro}`,
+      );
+    }
   }
 }
 
