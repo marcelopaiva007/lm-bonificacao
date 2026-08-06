@@ -60,7 +60,8 @@ export type Capacidade =
   | "IMPORTAR_VENDAS"
   | "GERIR_USUARIOS"
   | "VER_REGISTRO_ALTERACOES"
-  | "MARCAR_PAGAMENTO";
+  | "MARCAR_PAGAMENTO"
+  | "DEFINIR_META";
 
 const CAPACIDADES_POR_PAPEL: Record<Papel, Capacidade[]> = {
   ADMIN: [
@@ -72,6 +73,7 @@ const CAPACIDADES_POR_PAPEL: Record<Papel, Capacidade[]> = {
     "GERIR_USUARIOS",
     "VER_REGISTRO_ALTERACOES",
     "MARCAR_PAGAMENTO",
+    "DEFINIR_META",
   ],
   // O gerente faz o trabalho do dia a dia e fecha o mês (decisão da diretoria,
   // 06/08/2026), mas não cria usuário — quem dá acesso é o administrador.
@@ -83,6 +85,7 @@ const CAPACIDADES_POR_PAPEL: Record<Papel, Capacidade[]> = {
     "IMPORTAR_VENDAS",
     "VER_REGISTRO_ALTERACOES",
     "MARCAR_PAGAMENTO",
+    "DEFINIR_META",
   ],
   // Diretoria confere: vê tudo, inclusive o histórico de alterações, e não
   // altera nada. É o contrapeso de o gerente definir a regra e fechar o mês.
