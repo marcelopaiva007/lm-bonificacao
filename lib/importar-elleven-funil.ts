@@ -17,6 +17,7 @@
 import { prisma } from "@/lib/prisma";
 import { normalizarTexto } from "@/lib/text";
 import { recalcularFechamento } from "@/lib/bonificacao";
+import { registrarRetrato } from "@/lib/retrato-vendas";
 import {
   acharFuncionario,
   agregarNegociacoesFunil,
@@ -125,6 +126,10 @@ export async function importarLancamentosEllevenFunil(
   // Recalcula a bonificação do mês, mantendo o fechamento ABERTO até o
   // fechamento manual pela diretoria.
   await recalcularFechamento(periodo);
+
+  // Fotografa o estado depois da regravação: é o que permite dizer,
+  // amanhã, o que mudou de hoje para lá.
+  await registrarRetrato(periodo);
 
   return resultado;
 }

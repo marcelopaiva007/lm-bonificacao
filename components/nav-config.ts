@@ -11,6 +11,7 @@ import {
   BarChart3,
   UserCog,
   History,
+  GitCompare,
   Send,
 } from "lucide-react";
 
@@ -29,6 +30,7 @@ const RELATORIOS: NavItem = { href: "/relatorios", label: "Relatórios", icon: B
 const FECHAMENTO: NavItem = { href: "/fechamento", label: "Fechamento Mensal", icon: Lock };
 const METAS: NavItem = { href: "/metas", label: "Metas", icon: Send };
 const REGISTRO: NavItem = { href: "/registro", label: "Registro de Alterações", icon: History };
+const BATIMENTO: NavItem = { href: "/batimento", label: "Batimento", icon: GitCompare };
 
 const OPERACAO: NavItem[] = [
   { href: "/cadastros/cidades", label: "Cidades", icon: Building2 },
@@ -46,6 +48,7 @@ export const adminNav: NavItem[] = [
   FECHAMENTO,
   METAS,
   RELATORIOS,
+  BATIMENTO,
   REGISTRO,
   { href: "/cadastros/usuarios", label: "Usuários", icon: UserCog },
 ];
@@ -57,6 +60,7 @@ export const gerenteNav: NavItem[] = [
   FECHAMENTO,
   METAS,
   RELATORIOS,
+  BATIMENTO,
   REGISTRO,
 ];
 
