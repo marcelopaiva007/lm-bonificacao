@@ -10,6 +10,7 @@ import {
   Lock,
   BarChart3,
   UserCog,
+  History,
 } from "lucide-react";
 
 export type NavItem = {
@@ -29,6 +30,7 @@ export const adminNav: NavItem[] = [
   { href: "/importar/elleven", label: "Importar do elleven", icon: Upload },
   { href: "/fechamento", label: "Fechamento Mensal", icon: Lock },
   { href: "/relatorios", label: "Relatórios", icon: BarChart3 },
+  { href: "/registro", label: "Registro de Alterações", icon: History },
   { href: "/cadastros/usuarios", label: "Usuários", icon: UserCog },
 ];
 
