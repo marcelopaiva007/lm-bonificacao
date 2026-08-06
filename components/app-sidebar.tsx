@@ -17,9 +17,12 @@ const ROLE_LABELS: Record<string, string> = {
 export function AppSidebar({
   role,
   nome,
+  versao,
 }: {
   role: string;
   nome: string;
+  /** Etiqueta "v<versão> · <commit>" (ver lib/versao.ts). */
+  versao: string;
 }) {
   const pathname = usePathname();
   const items = navByRole[role] ?? diretoriaNav;
@@ -79,6 +82,10 @@ export function AppSidebar({
           <LogOut className="size-4" />
           Sair
         </Button>
+        {/* Responde "estou vendo a versão nova ou a antiga?" sem abrir o GitHub. */}
+        <p className="mt-2 px-1 text-center text-[11px] tabular-nums text-muted-foreground/70">
+          {versao}
+        </p>
       </div>
     </aside>
   );

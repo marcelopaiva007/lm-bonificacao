@@ -237,6 +237,23 @@ export async function vincularTelegramChatId(
   return { ok: true };
 }
 
+// Liga/desliga o recebimento de aviso de falha das automações. Fica no
+// cadastro, e não numa variável de ambiente, porque quem precisa ser avisado
+// muda com o time — e configuração fora do sistema é a que ninguém lembra de
+// fazer (foi assim que o alerta ficou desligado enquanto o Elleven caía).
+export async function alternarAlertaTecnico(
+  funcionarioId: string,
+  recebe: boolean,
+): Promise<ActionResult> {
+  await requireAdmin();
+  await prisma.funcionario.update({
+    where: { id: funcionarioId },
+    data: { recebeAlertaTecnico: recebe },
+  });
+  revalidatePath("/cadastros/telegram");
+  return { ok: true };
+}
+
 export async function deleteFuncionario(id: string): Promise<ActionResult> {
   await requireAdmin();
   const [lancamentos, bonificacoes] = await Promise.all([

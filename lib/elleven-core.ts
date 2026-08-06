@@ -26,11 +26,16 @@ export function parseDataBr(raw: string | null): Date | null {
 // "R$ 99,90").
 export function parseValorBr(raw: string | null): number {
   if (!raw) return 0;
-  const limpo = raw
-    .replace(/[^\d,.-]/g, "")
-    .replace(/\.(?=\d{3}(,|$))/g, "")
-    .replace(",", ".");
-  const n = parseFloat(limpo);
+  const limpo = raw.replace(/[^\d,.-]/g, "");
+  // Com vírgula presente ela é o separador decimal, então TODO ponto é milhar.
+  // (A regra antiga só tirava o ponto seguido de 3 dígitos + vírgula/fim, que
+  // não casa no primeiro grupo de "1.234.567,89" — o valor virava 1,23.)
+  // Sem vírgula, o ponto só é milhar quando separa grupos de 3 dígitos:
+  // "1.234" -> 1234, mas "1234.56" continua sendo 1234.56.
+  const normalizado = limpo.includes(",")
+    ? limpo.replace(/\./g, "").replace(",", ".")
+    : limpo.replace(/\.(?=\d{3}(\.|$))/g, "");
+  const n = parseFloat(normalizado);
   return Number.isNaN(n) ? 0 : n;
 }
 

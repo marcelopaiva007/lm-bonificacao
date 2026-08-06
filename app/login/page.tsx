@@ -1,7 +1,10 @@
 import { LoginForm } from "./login-form";
 import { Logo } from "@/components/logo";
+import { versaoDoSistema } from "@/lib/versao";
 
 export default function LoginPage() {
+  const versao = versaoDoSistema();
+
   return (
     <div className="flex flex-1 items-center justify-center p-4">
       <div className="w-full max-w-sm space-y-6">
@@ -12,6 +15,11 @@ export default function LoginPage() {
           </p>
         </div>
         <LoginForm />
+        {/* Na tela de entrada porque é onde alguém checa a versão sem
+            conseguir entrar — suporte pergunta isso antes de qualquer coisa. */}
+        <p className="text-center text-[11px] tabular-nums text-muted-foreground/70">
+          {versao.rotulo}
+        </p>
       </div>
     </div>
   );
