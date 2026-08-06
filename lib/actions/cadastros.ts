@@ -3,7 +3,7 @@
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { requireAdmin } from "@/lib/auth-guard";
+import { requireCapacidade } from "@/lib/auth-guard";
 import type { ActionResult } from "@/lib/constants";
 
 // ---------- Cidade ----------
@@ -13,7 +13,7 @@ const cidadeSchema = z.object({
 });
 
 export async function createCidade(_prev: ActionResult, formData: FormData): Promise<ActionResult> {
-  await requireAdmin();
+  await requireCapacidade("EDITAR_CADASTRO");
   const parsed = cidadeSchema.safeParse({ nome: formData.get("nome") });
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
 
@@ -27,7 +27,7 @@ export async function createCidade(_prev: ActionResult, formData: FormData): Pro
 }
 
 export async function updateCidade(id: string, _prev: ActionResult, formData: FormData): Promise<ActionResult> {
-  await requireAdmin();
+  await requireCapacidade("EDITAR_CADASTRO");
   const parsed = cidadeSchema.safeParse({ nome: formData.get("nome") });
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
 
@@ -41,7 +41,7 @@ export async function updateCidade(id: string, _prev: ActionResult, formData: Fo
 }
 
 export async function deleteCidade(id: string): Promise<ActionResult> {
-  await requireAdmin();
+  await requireCapacidade("EDITAR_CADASTRO");
   const emUso = await prisma.funcionario.count({ where: { cidadeId: id } });
   if (emUso > 0) {
     return { ok: false, error: `Não é possível excluir: ${emUso} funcionário(s) vinculado(s) a essa cidade.` };
@@ -60,7 +60,7 @@ const equipeSchema = z.object({
 });
 
 export async function createEquipe(_prev: ActionResult, formData: FormData): Promise<ActionResult> {
-  await requireAdmin();
+  await requireCapacidade("EDITAR_CADASTRO");
   const raw = {
     nome: formData.get("nome"),
     supervisorId: formData.get("supervisorId") || undefined,
@@ -81,7 +81,7 @@ export async function createEquipe(_prev: ActionResult, formData: FormData): Pro
 }
 
 export async function updateEquipe(id: string, _prev: ActionResult, formData: FormData): Promise<ActionResult> {
-  await requireAdmin();
+  await requireCapacidade("EDITAR_CADASTRO");
   const raw = {
     nome: formData.get("nome"),
     supervisorId: formData.get("supervisorId") || undefined,
@@ -103,7 +103,7 @@ export async function updateEquipe(id: string, _prev: ActionResult, formData: Fo
 }
 
 export async function deleteEquipe(id: string): Promise<ActionResult> {
-  await requireAdmin();
+  await requireCapacidade("EDITAR_CADASTRO");
   const emUso = await prisma.funcionario.count({ where: { equipeId: id } });
   if (emUso > 0) {
     return { ok: false, error: `Não é possível excluir: ${emUso} funcionário(s) vinculado(s) a essa equipe.` };
@@ -142,7 +142,7 @@ const funcionarioSchema = z.object({
 });
 
 export async function createFuncionario(_prev: ActionResult, formData: FormData): Promise<ActionResult> {
-  await requireAdmin();
+  await requireCapacidade("EDITAR_CADASTRO");
   const raw = {
     nome: formData.get("nome"),
     cpf: formData.get("cpf") || undefined,
@@ -177,7 +177,7 @@ export async function createFuncionario(_prev: ActionResult, formData: FormData)
 }
 
 export async function updateFuncionario(id: string, _prev: ActionResult, formData: FormData): Promise<ActionResult> {
-  await requireAdmin();
+  await requireCapacidade("EDITAR_CADASTRO");
   const raw = {
     nome: formData.get("nome"),
     cpf: formData.get("cpf") || undefined,
@@ -213,7 +213,7 @@ export async function updateFuncionario(id: string, _prev: ActionResult, formDat
 }
 
 export async function toggleFuncionarioAtivo(id: string, ativo: boolean): Promise<ActionResult> {
-  await requireAdmin();
+  await requireCapacidade("EDITAR_CADASTRO");
   await prisma.funcionario.update({ where: { id }, data: { ativo } });
   revalidatePath("/cadastros/funcionarios");
   return { ok: true };
@@ -226,7 +226,7 @@ export async function vincularTelegramChatId(
   funcionarioId: string,
   chatId: string,
 ): Promise<ActionResult> {
-  await requireAdmin();
+  await requireCapacidade("EDITAR_CADASTRO");
   const limpo = chatId.replace(/[^\d-]/g, "");
   await prisma.funcionario.update({
     where: { id: funcionarioId },
@@ -245,7 +245,7 @@ export async function alternarAlertaTecnico(
   funcionarioId: string,
   recebe: boolean,
 ): Promise<ActionResult> {
-  await requireAdmin();
+  await requireCapacidade("EDITAR_CADASTRO");
   await prisma.funcionario.update({
     where: { id: funcionarioId },
     data: { recebeAlertaTecnico: recebe },
@@ -255,7 +255,7 @@ export async function alternarAlertaTecnico(
 }
 
 export async function deleteFuncionario(id: string): Promise<ActionResult> {
-  await requireAdmin();
+  await requireCapacidade("EDITAR_CADASTRO");
   const [lancamentos, bonificacoes] = await Promise.all([
     prisma.lancamentoVenda.count({ where: { funcionarioId: id } }),
     prisma.bonificacaoCalculada.count({ where: { funcionarioId: id } }),

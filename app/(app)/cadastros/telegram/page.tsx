@@ -1,4 +1,4 @@
-import { requireAdmin } from "@/lib/auth-guard";
+import { requireCapacidade } from "@/lib/auth-guard";
 import { prisma } from "@/lib/prisma";
 import { buscarUpdatesTelegram, telegramConfigurado } from "@/lib/notificacoes";
 import { TelegramView } from "./telegram-view";
@@ -6,7 +6,7 @@ import { TelegramView } from "./telegram-view";
 export const dynamic = "force-dynamic";
 
 export default async function TelegramPage() {
-  await requireAdmin();
+  await requireCapacidade("EDITAR_CADASTRO");
 
   const configurado = telegramConfigurado();
   const [funcionarios, updates] = await Promise.all([

@@ -33,6 +33,7 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { createUsuario, updateUsuario, deleteUsuario } from "@/lib/actions/usuarios";
 import { ROLES, type ActionResult } from "@/lib/constants";
+import { escopoDoPapel } from "@/lib/permissoes";
 
 type Usuario = {
   id: string;
@@ -40,7 +41,10 @@ type Usuario = {
   username: string;
   role: string;
   createdAt: string;
+  funcionarioId: string | null;
 };
+
+type FuncionarioOpcao = { id: string; nome: string; cargo: string };
 
 const initialState: ActionResult = { ok: true };
 
@@ -48,9 +52,11 @@ const roleLabel = (role: string) => ROLES.find((r) => r.value === role)?.label ?
 
 export function UsuariosTable({
   usuarios,
+  funcionarios,
   currentUserId,
 }: {
   usuarios: Usuario[];
+  funcionarios: FuncionarioOpcao[];
   currentUserId: string;
 }) {
   const [createOpen, setCreateOpen] = useState(false);
@@ -66,6 +72,7 @@ export function UsuariosTable({
           </DialogTrigger>
           <DialogContent>
             <UsuarioForm
+              funcionarios={funcionarios}
               action={createUsuario}
               title="Novo Usuário"
               onSuccess={() => setCreateOpen(false)}
@@ -124,6 +131,7 @@ export function UsuariosTable({
         <DialogContent>
           {editUsuario && (
             <UsuarioForm
+              funcionarios={funcionarios}
               action={updateUsuario.bind(null, editUsuario.id)}
               title="Editar Usuário"
               defaultValues={editUsuario}
@@ -140,15 +148,21 @@ function UsuarioForm({
   action,
   title,
   defaultValues,
+  funcionarios,
   onSuccess,
 }: {
   action: (prev: ActionResult, formData: FormData) => Promise<ActionResult>;
   title: string;
   defaultValues?: Usuario;
+  funcionarios: FuncionarioOpcao[];
   onSuccess: () => void;
 }) {
   const isEdit = !!defaultValues;
   const [role, setRole] = useState(defaultValues?.role ?? "DIRETORIA");
+  const [funcionarioId, setFuncionarioId] = useState(defaultValues?.funcionarioId ?? "");
+  // Só quem tem visão limitada precisa apontar para alguém do cadastro: é o
+  // vínculo que responde "qual equipe é a dele".
+  const precisaVinculo = escopoDoPapel(role) !== "TUDO";
 
   const [state, formAction, isPending] = useActionState(async (prev: ActionResult, fd: FormData) => {
     const result = await action(prev, fd);
@@ -194,7 +208,14 @@ function UsuarioForm({
         <Label>Papel de acesso</Label>
         <Select
           value={role}
-          onValueChange={(v) => setRole(v ?? "DIRETORIA")}
+          // Valor vazio NÃO vira "DIRETORIA": o componente emite null em
+          // interações que não são escolha do usuário (fechar sem selecionar,
+          // por exemplo), e o fallback antigo rebaixava o papel em silêncio —
+          // inclusive o de quem estava editando o próprio usuário, que perdia
+          // o acesso à única tela onde daria para desfazer.
+          onValueChange={(v) => {
+            if (v) setRole(String(v));
+          }}
           name="role"
           items={Object.fromEntries(ROLES.map((r) => [r.value, r.label]))}
         >
@@ -209,7 +230,36 @@ function UsuarioForm({
             ))}
           </SelectContent>
         </Select>
+        <p className="text-xs text-muted-foreground">
+          {ROLES.find((r) => r.value === role)?.descricao}
+        </p>
       </div>
+      {precisaVinculo && (
+        <div className="space-y-2">
+          <Label>Funcionário correspondente</Label>
+          <Select
+            value={funcionarioId}
+            onValueChange={(v) => setFuncionarioId(v ?? "")}
+            name="funcionarioId"
+            items={Object.fromEntries(funcionarios.map((f) => [f.id, f.nome]))}
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Selecione o funcionário" />
+            </SelectTrigger>
+            <SelectContent>
+              {funcionarios.map((f) => (
+                <SelectItem key={f.id} value={f.id}>
+                  {f.nome}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground">
+            É por aqui que o sistema sabe o que esta pessoa pode ver. Sem o vínculo,
+            ela entra e não encontra nada.
+          </p>
+        </div>
+      )}
       {!state.ok && (
         <Alert variant="destructive">
           <AlertDescription>{state.error}</AlertDescription>

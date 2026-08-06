@@ -1,12 +1,12 @@
 import Link from "next/link";
 import { RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { requireAdmin } from "@/lib/auth-guard";
+import { requireCapacidade } from "@/lib/auth-guard";
 import { prisma } from "@/lib/prisma";
 import { FuncionariosTable } from "./funcionarios-table";
 
 export default async function FuncionariosPage() {
-  await requireAdmin();
+  await requireCapacidade("EDITAR_CADASTRO");
 
   const [funcionarios, cidades, equipes] = await Promise.all([
     prisma.funcionario.findMany({

@@ -5,15 +5,24 @@ import bcrypt from "bcryptjs";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth-guard";
+import { PAPEIS } from "@/lib/permissoes";
+import { escopoDoPapel } from "@/lib/permissoes";
+import { vincularUsuarioAFuncionario } from "@/lib/escopo";
 import type { ActionResult } from "@/lib/constants";
-
-const ROLES = ["ADMIN", "DIRETORIA"] as const;
 
 const usuarioSchema = z.object({
   nome: z.string().trim().min(2, "Informe o nome"),
   username: z.string().trim().min(3, "Informe o usuário de login"),
-  role: z.enum(ROLES),
+  role: z.enum(PAPEIS),
+  // Quem esta pessoa é no cadastro de vendas. Obrigatório para supervisor e
+  // vendedor: sem isso não há como saber qual equipe é "a dela", e o sistema
+  // não mostraria nada — o que pareceria erro em vez de configuração faltando.
+  funcionarioId: z.string().trim().optional(),
 });
+
+function exigeVinculo(role: string): boolean {
+  return escopoDoPapel(role) !== "TUDO";
+}
 
 export async function createUsuario(_prev: ActionResult, formData: FormData): Promise<ActionResult> {
   await requireAdmin();
@@ -25,12 +34,21 @@ export async function createUsuario(_prev: ActionResult, formData: FormData): Pr
     nome: formData.get("nome"),
     username: formData.get("username"),
     role: formData.get("role"),
+    funcionarioId: formData.get("funcionarioId") || undefined,
   });
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
 
+  if (exigeVinculo(parsed.data.role) && !parsed.data.funcionarioId) {
+    return {
+      ok: false,
+      error:
+        "Supervisor e vendedor precisam ser vinculados a um funcionário — é assim que o sistema sabe o que essa pessoa pode ver.",
+    };
+  }
+
   const passwordHash = await bcrypt.hash(senha, 10);
   try {
-    await prisma.user.create({
+    const novo = await prisma.user.create({
       data: {
         nome: parsed.data.nome,
         username: parsed.data.username,
@@ -38,6 +56,7 @@ export async function createUsuario(_prev: ActionResult, formData: FormData): Pr
         passwordHash,
       },
     });
+    await vincularUsuarioAFuncionario(novo.id, parsed.data.funcionarioId ?? null);
   } catch {
     return { ok: false, error: "Já existe um usuário com esse login." };
   }
@@ -47,14 +66,49 @@ export async function createUsuario(_prev: ActionResult, formData: FormData): Pr
 }
 
 export async function updateUsuario(id: string, _prev: ActionResult, formData: FormData): Promise<ActionResult> {
-  await requireAdmin();
+  const admin = await requireAdmin();
 
   const parsed = usuarioSchema.safeParse({
     nome: formData.get("nome"),
     username: formData.get("username"),
     role: formData.get("role"),
+    funcionarioId: formData.get("funcionarioId") || undefined,
   });
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
+
+  if (exigeVinculo(parsed.data.role) && !parsed.data.funcionarioId) {
+    return {
+      ok: false,
+      error:
+        "Supervisor e vendedor precisam ser vinculados a um funcionário — é assim que o sistema sabe o que essa pessoa pode ver.",
+    };
+  }
+
+  // Duas travas contra o beco sem saída: quem deixa de ser administrador perde
+  // justamente esta tela, a única onde o papel se altera. Já aconteceu em
+  // produção (06/08/2026) e só foi possível desfazer por linha de comando.
+  const alvo = await prisma.user.findUnique({ where: { id } });
+  if (!alvo) return { ok: false, error: "Usuário não encontrado." };
+
+  if (alvo.role === "ADMIN" && parsed.data.role !== "ADMIN") {
+    if (admin.id === id) {
+      return {
+        ok: false,
+        error:
+          "Você não pode tirar o próprio acesso de administrador — ficaria sem a tela de Usuários para desfazer. Peça a outro administrador.",
+      };
+    }
+    const outrosAdmins = await prisma.user.count({
+      where: { role: "ADMIN", NOT: { id } },
+    });
+    if (outrosAdmins === 0) {
+      return {
+        ok: false,
+        error:
+          "Este é o último administrador do sistema. Promova outra pessoa antes de mudar o papel deste usuário.",
+      };
+    }
+  }
 
   try {
     await prisma.user.update({
@@ -65,6 +119,7 @@ export async function updateUsuario(id: string, _prev: ActionResult, formData: F
         role: parsed.data.role,
       },
     });
+    await vincularUsuarioAFuncionario(id, parsed.data.funcionarioId ?? null);
   } catch {
     return { ok: false, error: "Já existe um usuário com esse login." };
   }

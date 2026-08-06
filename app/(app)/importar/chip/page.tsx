@@ -1,9 +1,9 @@
-import { requireAdmin } from "@/lib/auth-guard";
+import { requireCapacidade } from "@/lib/auth-guard";
 import { periodoAtual } from "@/lib/periodo";
 import { ImportarChipView } from "./importar-chip-view";
 
 export default async function ImportarChipPage() {
-  await requireAdmin();
+  await requireCapacidade("IMPORTAR_VENDAS");
 
   return (
     <div className="space-y-6">

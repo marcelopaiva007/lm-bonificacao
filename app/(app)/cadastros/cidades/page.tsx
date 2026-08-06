@@ -1,9 +1,9 @@
-import { requireAdmin } from "@/lib/auth-guard";
+import { requireCapacidade } from "@/lib/auth-guard";
 import { prisma } from "@/lib/prisma";
 import { CidadesTable } from "./cidades-table";
 
 export default async function CidadesPage() {
-  await requireAdmin();
+  await requireCapacidade("EDITAR_CADASTRO");
 
   const cidades = await prisma.cidade.findMany({
     orderBy: { nome: "asc" },

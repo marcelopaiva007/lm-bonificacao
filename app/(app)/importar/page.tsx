@@ -1,10 +1,10 @@
-import { requireAdmin } from "@/lib/auth-guard";
+import { requireCapacidade } from "@/lib/auth-guard";
 import { prisma } from "@/lib/prisma";
 import { periodoAtual } from "@/lib/periodo";
 import { ImportarView } from "./importar-view";
 
 export default async function ImportarPage() {
-  await requireAdmin();
+  await requireCapacidade("IMPORTAR_VENDAS");
 
   const funcionarios = await prisma.funcionario.findMany({
     where: { ativo: true },

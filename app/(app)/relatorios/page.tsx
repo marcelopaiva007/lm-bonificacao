@@ -1,4 +1,5 @@
 import { requireUser } from "@/lib/auth-guard";
+import { idsVisiveisPara, filtroPorEscopo } from "@/lib/escopo";
 import { prisma } from "@/lib/prisma";
 import { periodoAtual, periodoLabel } from "@/lib/periodo";
 import { Logo } from "@/components/logo";
@@ -9,7 +10,9 @@ export default async function RelatoriosPage({
 }: {
   searchParams: Promise<{ periodo?: string }>;
 }) {
-  await requireUser();
+  const user = await requireUser();
+  // Relatório exporta valor por pessoa — mesmo recorte do fechamento.
+  const filtroFuncionario = filtroPorEscopo(await idsVisiveisPara(user));
   const params = await searchParams;
 
   const fechamentos = await prisma.fechamentoMensal.findMany({
@@ -21,12 +24,12 @@ export default async function RelatoriosPage({
 
   const [bonificacoes, lancamentos] = await Promise.all([
     prisma.bonificacaoCalculada.findMany({
-      where: { fechamento: { periodo } },
+      where: { fechamento: { periodo }, ...filtroFuncionario },
       include: { funcionario: { include: { cidade: true } } },
       orderBy: { valorTotal: "desc" },
     }),
     prisma.lancamentoVenda.findMany({
-      where: { periodo },
+      where: { periodo, ...filtroFuncionario },
       include: { funcionario: { include: { cidade: true } } },
     }),
   ]);

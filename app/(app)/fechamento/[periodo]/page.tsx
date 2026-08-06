@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/auth-guard";
+import { idsVisiveisPara, filtroPorEscopo } from "@/lib/escopo";
 import { prisma } from "@/lib/prisma";
 import { periodoLabel } from "@/lib/periodo";
 import { FechamentoDetailView } from "./fechamento-detail-view";
@@ -14,19 +15,36 @@ export default async function FechamentoDetailPage({
 
   if (!/^\d{4}-\d{2}$/.test(periodo)) notFound();
 
+  // Esta é a tela que mostra quanto cada pessoa vai receber. Sem o recorte
+  // abaixo, um supervisor abria aqui e lia o bônus de todos os colegas.
+  // `null` = vê tudo (diretoria, gerente, administrador).
+  const idsVisiveis = await idsVisiveisPara(user);
+  const filtroFuncionario = filtroPorEscopo(idsVisiveis);
+
   const [fechamento, funcionarios] = await Promise.all([
     prisma.fechamentoMensal.findUnique({
       where: { periodo },
       include: {
         bonificacoes: {
+          where: filtroFuncionario,
           include: { funcionario: { include: { cidade: true } } },
           orderBy: { valorTotal: "desc" },
         },
-        ajustes: { include: { funcionario: true }, orderBy: { createdAt: "desc" } },
+        ajustes: {
+          where: filtroFuncionario,
+          include: { funcionario: true },
+          orderBy: { createdAt: "desc" },
+        },
         fechadoPor: true,
       },
     }),
-    prisma.funcionario.findMany({ where: { ativo: true }, orderBy: { nome: "asc" } }),
+    prisma.funcionario.findMany({
+      where: {
+        ativo: true,
+        ...(idsVisiveis === null ? {} : { id: { in: idsVisiveis } }),
+      },
+      orderBy: { nome: "asc" },
+    }),
   ]);
 
   return (

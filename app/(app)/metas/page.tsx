@@ -1,4 +1,5 @@
 import { requireUser } from "@/lib/auth-guard";
+import { idsVisiveisPara } from "@/lib/escopo";
 import { periodoAtual } from "@/lib/periodo";
 import { carregarAcompanhamento } from "@/lib/acompanhamento-data";
 import { MetasView } from "./metas-view";
@@ -8,11 +9,15 @@ export default async function MetasPage({
 }: {
   searchParams: Promise<{ periodo?: string }>;
 }) {
-  await requireUser();
+  const user = await requireUser();
   const { periodo: periodoParam } = await searchParams;
   const periodo = periodoParam?.match(/^\d{4}-\d{2}$/) ? periodoParam : periodoAtual();
 
-  const acompanhamentos = await carregarAcompanhamento(periodo);
+  // Supervisor acompanha a própria equipe; vendedor, só ele.
+  const acompanhamentos = await carregarAcompanhamento(
+    periodo,
+    await idsVisiveisPara(user),
+  );
 
   return (
     <div className="space-y-6">
