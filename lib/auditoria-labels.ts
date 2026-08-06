@@ -15,7 +15,8 @@ export type AcaoAuditada =
   | "MES_FECHADO"
   | "MES_REABERTO"
   | "RECALCULO_MANUAL"
-  | "PAGAMENTO_MARCADO";
+  | "PAGAMENTO_MARCADO"
+  | "META_DEFINIDA";
 
 export const ACAO_LABEL: Record<AcaoAuditada, string> = {
   REGRA_CRIADA: "Regra de bonificação alterada",
@@ -28,4 +29,5 @@ export const ACAO_LABEL: Record<AcaoAuditada, string> = {
   MES_REABERTO: "Mês reaberto",
   RECALCULO_MANUAL: "Recálculo disparado à mão",
   PAGAMENTO_MARCADO: "Pagamento marcado",
+  META_DEFINIDA: "Meta definida",
 };
