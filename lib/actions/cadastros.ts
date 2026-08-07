@@ -115,15 +115,16 @@ export async function deleteEquipe(id: string): Promise<ActionResult> {
 
 // ---------- Funcionario ----------
 
-const funcionarioSchema = z.object({
-  nome: z.string().trim().min(2, "Informe o nome do funcionário"),
-  cpf: z
-    .string()
-    .trim()
-    .transform((v) => v.replace(/\D/g, ""))
-    .refine((v) => v === "" || v.length === 11, "CPF deve ter 11 dígitos")
-    .optional(),
-  cargo: z.enum(["VENDEDOR_EXTERNO", "ATENDIMENTO_ADM", "SUPERVISOR", "OUTRO_SETOR"]),
+const funcionarioSchema = z
+  .object({
+    nome: z.string().trim().min(2, "Informe o nome do funcionário"),
+    cpf: z
+      .string()
+      .trim()
+      .transform((v) => v.replace(/\D/g, ""))
+      .refine((v) => v === "" || v.length === 11, "CPF deve ter 11 dígitos")
+      .optional(),
+    cargo: z.enum(["VENDEDOR_EXTERNO", "ATENDIMENTO_ADM", "SUPERVISOR", "OUTRO_SETOR"]),
   cidadeId: z.string().trim().optional(),
   equipeId: z.string().trim().optional(),
   // Contato para as cobranças de meta (Telegram/e-mail).
