@@ -139,6 +139,63 @@ export async function GET(req: NextRequest) {
 
     registrar(`CADASTRO: ${funcionariosAtivos} funcionário(s) ativo(s)`);
 
+    // --- Saúde do cadastro ---------------------------------------------
+    // Cadastro duplicado é o suspeito número um quando fonte e sistema
+    // divergem: a mesma pessoa em duas fichas recebe de fontes diferentes e
+    // ninguém percebe. Pior, cada ficha ativa numa equipe soma 20 vendas à meta
+    // do supervisor — duplicata custa bônus a quem não tem culpa.
+    const todos = await prisma.funcionario.findMany({
+      where: { ativo: true },
+      select: {
+        id: true,
+        nome: true,
+        cpf: true,
+        cargo: true,
+        equipeId: true,
+        _count: { select: { lancamentos: true } },
+      },
+    });
+
+    const chaveNome = (nome: string) =>
+      nome
+        .normalize("NFD")
+        .replace(/[̀-ͯ]/g, "")
+        .toUpperCase()
+        .replace(/(DE|DA|DO|DAS|DOS|E)/g, "")
+        .replace(/[^A-Z0-9]/g, "");
+
+    const porChave = new Map<string, typeof todos>();
+    for (const f of todos) {
+      const k = chaveNome(f.nome);
+      porChave.set(k, [...(porChave.get(k) ?? []), f]);
+    }
+
+    const duplicados = [...porChave.values()].filter((g) => g.length > 1);
+    registrar(`DUPLICADOS: ${duplicados.length} nome(s) com mais de um cadastro ativo`);
+    for (const grupo of duplicados) {
+      const detalhe = grupo
+        .map(
+          (f) =>
+            `${f.nome} [${f.cargo}${f.cpf ? ", CPF" : ", sem CPF"}, ` +
+            `${f._count.lancamentos} lançamento(s)]`,
+        )
+        .join(" | ");
+      registrar(`  [DUPLICADO] ${detalhe}`);
+    }
+
+    // Gente ativa que nunca vendeu nada, em nenhum mês: candidata a desligada
+    // que ficou marcada como ativa.
+    const semNenhumaVenda = todos.filter((f) => f._count.lancamentos === 0);
+    const emEquipe = semNenhumaVenda.filter((f) => f.equipeId).length;
+    registrar(
+      `INATIVOS DE FATO: ${semNenhumaVenda.length} ativo(s) sem NENHUM lançamento ` +
+        `em todo o histórico — ${emEquipe} deles em alguma equipe ` +
+        `(cada um soma 20 à meta do supervisor)`,
+    );
+
+    const semCpf = todos.filter((f) => !f.cpf).length;
+    registrar(`SEM CPF: ${semCpf} de ${todos.length} ativo(s)`);
+
     const resumo = {
       periodo,
       fonte: { linhasFunil, chipTotal, chipCancelado },
