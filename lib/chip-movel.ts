@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { garantirEstrutura } from "@/lib/ddl";
 import { recalcularFechamento } from "@/lib/bonificacao";
 import { registrarRetrato } from "@/lib/retrato-vendas";
+import { preencherCpfsDoChip } from "@/lib/preencher-cpf";
 import { matchFuncionario, somenteDigitos } from "@/lib/vendedor-match";
 
 // Importação automática das vendas de chip do L&M Movel
@@ -278,6 +279,26 @@ export async function previewChipMovel(periodo: string) {
 export async function aplicarLancamentosChip(
   periodo: string,
 ): Promise<ResumoAplicacaoChip> {
+  // Antes de casar vendedores, aproveita o CPF que a fonte traz para
+  // preencher quem está sem. A partir daí o casamento passa a ser por
+  // documento, não por nome escrito igual.
+  try {
+    const cpfs = await preencherCpfsDoChip(periodo);
+    if (cpfs.preenchidos.length > 0) {
+      console.log(
+        `[chip] CPF preenchido para ${cpfs.preenchidos.length} funcionário(s): ` +
+          cpfs.preenchidos.map((c) => c.nome).join(', '),
+      );
+    }
+    for (const c of cpfs.conflitos) {
+      console.warn(`[chip] CONFLITO de CPF em ${c.nome}: cadastro ${c.cpfNoCadastro}, fonte ${c.cpfNaFonte}`);
+    }
+  } catch (e) {
+    // Preencher CPF é melhoria; falhar aqui não pode impedir a venda de
+    // ser lançada.
+    console.error('[chip] falha ao preencher CPFs:', e);
+  }
+
   const linhas = await agregarPorVendedor(periodo);
   const naoMapeados = linhas
     .filter((l) => !l.funcionarioId)
