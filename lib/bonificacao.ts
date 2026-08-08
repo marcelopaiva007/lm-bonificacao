@@ -72,9 +72,22 @@ export async function recalcularFechamento(periodo: string) {
     "GESTOR",
     "OUTRO_SETOR",
   ];
-  for (const cargo of todosCargos) {
-    const regra = await getRegraVigente(cargo, periodo);
-    configPorCargo.set(cargo, asRegraConfig(regra?.config));
+  await Promise.all(
+    todosCargos.map(async (cargo) => {
+      const regra = await getRegraVigente(cargo, periodo);
+      configPorCargo.set(cargo, asRegraConfig(regra?.config));
+    })
+  );
+
+  const todasEquipes = await prisma.equipe.findMany({
+    include: { membros: { where: { ativo: true }, select: { id: true, cargo: true } } },
+  });
+  const equipesPorSupervisor = new Map<string, typeof todasEquipes>();
+  for (const eq of todasEquipes) {
+    if (!eq.supervisorId) continue;
+    const lista = equipesPorSupervisor.get(eq.supervisorId) ?? [];
+    lista.push(eq);
+    equipesPorSupervisor.set(eq.supervisorId, lista);
   }
 
   let valorTotalVendido = 0;
@@ -92,11 +105,8 @@ export async function recalcularFechamento(periodo: string) {
         pagamento: config?.pagamento ?? (f.cargo === "TECNICO" ? "SEMANAL" : "MENSAL"),
       };
 
-      // Cálculo de bônus de supervisor/responsável de equipe
-      const equipesSupervisionadas = await tx.equipe.findMany({
-        where: { supervisorId: f.id },
-        include: { membros: { where: { ativo: true }, select: { id: true, cargo: true } } },
-      });
+      // Cálculo de bônus de supervisor/responsável de equipe (usando o mapa pré-carregado)
+      const equipesSupervisionadas = equipesPorSupervisor.get(f.id) ?? [];
 
       if (equipesSupervisionadas.length > 0) {
         const detalhesEquipes: BonificacaoSupervisor[] = [];
