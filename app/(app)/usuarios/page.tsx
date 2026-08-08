@@ -2,7 +2,7 @@ import { requireAdmin } from "@/lib/auth-guard";
 import { prisma } from "@/lib/prisma";
 import { ensureAuthAndUserSchema } from "@/lib/ensure-schema";
 import { UsuariosTable } from "./usuarios-table";
-import { Shield, Building2, UserCheck } from "lucide-react";
+import { UserCheck } from "lucide-react";
 
 export default async function UsuariosPage() {
   await requireAdmin();
@@ -14,6 +14,11 @@ export default async function UsuariosPage() {
       include: {
         empresa: true,
         setor: true,
+        scopes: {
+          include: {
+            empresa: true,
+          },
+        },
       },
     }),
     prisma.empresa.findMany({ where: { ativo: true }, orderBy: { nome: "asc" } }),
