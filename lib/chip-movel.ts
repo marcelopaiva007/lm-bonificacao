@@ -55,37 +55,9 @@ type SellerApi = {
 
 // Mesmo padrão do ensureRelatorioTable do sync-elleven: o build não roda
 // `prisma migrate deploy`, então a tabela é criada sob demanda (idempotente).
-let vendaChipTableEnsured = false;
+let vendaChipTableEnsured = true;
 export async function ensureVendaChipTable(): Promise<void> {
   if (vendaChipTableEnsured) return;
-  await prisma.$executeRawUnsafe(
-    `CREATE TABLE IF NOT EXISTS "venda_chip_movel" (
-      "id" SERIAL NOT NULL,
-      "vendaId" INTEGER NOT NULL,
-      "periodo" TEXT NOT NULL,
-      "sellerIdMovel" INTEGER,
-      "sellerNome" TEXT,
-      "sellerCpf" TEXT,
-      "clienteNome" TEXT,
-      "clienteCpf" TEXT,
-      "msisdn" TEXT,
-      "iccid" TEXT,
-      "planoNome" TEXT,
-      "planoPreco" TEXT,
-      "status" TEXT,
-      "soldAt" TEXT,
-      "activatedAt" TEXT,
-      "cancelledAt" TEXT,
-      "syncedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      CONSTRAINT "venda_chip_movel_pkey" PRIMARY KEY ("id")
-    );`,
-  );
-  await prisma.$executeRawUnsafe(
-    `CREATE UNIQUE INDEX IF NOT EXISTS "venda_chip_movel_vendaId_key" ON "venda_chip_movel"("vendaId");`,
-  );
-  await prisma.$executeRawUnsafe(
-    `CREATE INDEX IF NOT EXISTS "venda_chip_movel_periodo_idx" ON "venda_chip_movel"("periodo");`,
-  );
   vendaChipTableEnsured = true;
 }
 
