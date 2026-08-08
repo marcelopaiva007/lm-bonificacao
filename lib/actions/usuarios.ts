@@ -5,7 +5,6 @@ import bcrypt from "bcryptjs";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin, requireUser } from "@/lib/auth-guard";
-import { ensureAuthAndUserSchema } from "@/lib/ensure-schema";
 import { registrarAuditoria } from "@/lib/auditoria";
 import type { ActionResult } from "@/lib/constants";
 
