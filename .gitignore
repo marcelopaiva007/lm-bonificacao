@@ -55,3 +55,7 @@ relatorio_lm_movel.pdf
 
 # dumps de extracao do elleven (dados pessoais - nao commitar)
 scripts/elleven-discovery/
+
+# scripts temporarios de diagnostico desta sessao
+_watch.mjs
+_*.mjs
