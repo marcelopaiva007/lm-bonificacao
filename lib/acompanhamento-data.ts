@@ -10,7 +10,6 @@ import {
   calcularAcompanhamento,
   type AcompanhamentoFuncionario,
 } from "@/lib/acompanhamento";
-import { ensureFuncionarioContato } from "@/lib/ensure-schema";
 
 const CARGOS_REGRA = [
   "VENDEDOR_EXTERNO",
@@ -24,7 +23,6 @@ const CARGOS_REGRA = [
 export async function carregarAcompanhamento(
   periodo: string,
 ): Promise<AcompanhamentoFuncionario[]> {
-  await ensureFuncionarioContato();
   const [funcionarios, lancamentos, equipes] = await Promise.all([
     prisma.funcionario.findMany({
       where: { ativo: true },
