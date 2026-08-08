@@ -147,54 +147,44 @@ export default async function HomePage({
   };
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">
-          Painel do Sistema de Vendas da LM
-        </h1>
-        <p className="text-sm text-slate-400">
-          Bem-vindo(a), <span className="font-semibold text-slate-200">{user.name ?? user.username}</span>. Acompanhe a performance em tempo real.
-        </p>
-      </div>
-
-      <DashboardView
-        periodo={periodo}
-        periodoAnterior={anterior}
-        statusFechamento={fechamentoSelecionado?.status ?? null}
-        totalFuncionarios={totalFuncionarios}
-        totalCidades={totalCidades}
-        vendedoresComVenda={vendedoresComVenda.size}
-        resumo={resumo}
-        resumoAnterior={resumoAnterior}
-        totalAjustes={ajustesAgg._sum.valor ?? 0}
-        tendencia={fechamentos.slice(-12).map((f) => ({
-          periodo: f.periodo,
-          vendido: f.valorTotalVendido,
-          bonificacao: f.valorTotalBonificacao,
-        }))}
-        porCidade={Array.from(porCidadeMap.entries())
-          .map(([cidade, v]) => ({ cidade, ...v }))
-          .sort((a, b) => b.valor - a.valor)}
-        mixProdutos={[
-          { produto: "Internet", qtd: mix.internet },
-          { produto: "Chip", qtd: mix.chip },
-          { produto: "GPS", qtd: mix.gps },
-          { produto: "TV", qtd: mix.tv },
-          { produto: "Streaming", qtd: mix.streaming },
-          { produto: "Telefonia Fixa", qtd: mix.telefoniaFixa },
-        ]}
-        composicao={[
-          { componente: "Internet", valor: composicao.internet },
-          { componente: "Chip", valor: composicao.chip },
-          { componente: "Demais serviços", valor: composicao.demais },
-          { componente: "Supervisor", valor: composicao.supervisor },
-          { componente: "Ajustes", valor: ajustesAgg._sum.valor ?? 0 },
-        ]}
-        porCargo={Array.from(porCargoMap.entries())
-          .map(([cargo, v]) => ({ cargo, ...v }))
-          .sort((a, b) => b.vendido - a.vendido)}
-        ranking={Array.from(rankingMap.values())}
-      />
-    </div>
+    <DashboardView
+      userName={user.name ?? user.username}
+      periodo={periodo}
+      periodoAnterior={anterior}
+      statusFechamento={fechamentoSelecionado?.status ?? null}
+      totalFuncionarios={totalFuncionarios}
+      totalCidades={totalCidades}
+      vendedoresComVenda={vendedoresComVenda.size}
+      resumo={resumo}
+      resumoAnterior={resumoAnterior}
+      totalAjustes={ajustesAgg._sum.valor ?? 0}
+      tendencia={fechamentos.slice(-12).map((f) => ({
+        periodo: f.periodo,
+        vendido: f.valorTotalVendido,
+        bonificacao: f.valorTotalBonificacao,
+      }))}
+      porCidade={Array.from(porCidadeMap.entries())
+        .map(([cidade, v]) => ({ cidade, ...v }))
+        .sort((a, b) => b.valor - a.valor)}
+      mixProdutos={[
+        { produto: "Internet", qtd: mix.internet },
+        { produto: "Chip", qtd: mix.chip },
+        { produto: "GPS", qtd: mix.gps },
+        { produto: "TV", qtd: mix.tv },
+        { produto: "Streaming", qtd: mix.streaming },
+        { produto: "Telefonia Fixa", qtd: mix.telefoniaFixa },
+      ]}
+      composicao={[
+        { componente: "Internet", valor: composicao.internet },
+        { componente: "Chip", valor: composicao.chip },
+        { componente: "Demais serviços", valor: composicao.demais },
+        { componente: "Supervisor", valor: composicao.supervisor },
+        { componente: "Ajustes", valor: ajustesAgg._sum.valor ?? 0 },
+      ]}
+      porCargo={Array.from(porCargoMap.entries())
+        .map(([cargo, v]) => ({ cargo, ...v }))
+        .sort((a, b) => b.vendido - a.vendido)}
+      ranking={Array.from(rankingMap.values())}
+    />
   );
 }

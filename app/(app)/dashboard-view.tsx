@@ -157,19 +157,19 @@ function KpiCard({
   };
 
   return (
-    <Card className="glass-card relative overflow-hidden border border-slate-800/80 bg-slate-900/60 p-5 shadow-lg backdrop-blur-xl transition-all duration-300 hover:border-cyan-500/30 hover:shadow-cyan-500/10">
+    <Card className="glass-card relative overflow-hidden border border-slate-800/80 bg-slate-900/60 p-3.5 sm:p-4 shadow-lg backdrop-blur-xl transition-all duration-300 hover:border-cyan-500/30 hover:shadow-cyan-500/10">
       <div className="flex items-start justify-between">
-        <div className="space-y-1">
-          <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">{titulo}</p>
-          <p className="text-2xl font-extrabold tracking-tight text-slate-100">{valor}</p>
+        <div className="space-y-0.5">
+          <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">{titulo}</p>
+          <p className="text-xl sm:text-2xl font-extrabold tracking-tight text-slate-100">{valor}</p>
         </div>
-        <div className={`flex size-10 shrink-0 items-center justify-center rounded-xl border shadow-sm ${colorStyles[accentColor]}`}>
-          <Icon className="size-5" />
+        <div className={`flex size-8 sm:size-9 shrink-0 items-center justify-center rounded-xl border shadow-sm ${colorStyles[accentColor]}`}>
+          <Icon className="size-4 sm:size-4.5" />
         </div>
       </div>
       {(sub || delta) && (
-        <div className="mt-3 space-y-1 border-t border-slate-800/60 pt-2.5">
-          {sub && <p className="text-xs text-slate-400">{sub}</p>}
+        <div className="mt-2 space-y-0.5 border-t border-slate-800/60 pt-2">
+          {sub && <p className="text-[11px] text-slate-400">{sub}</p>}
           {delta}
         </div>
       )}
@@ -202,6 +202,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 };
 
 export function DashboardView({
+  userName,
   periodo,
   periodoAnterior,
   statusFechamento,
@@ -218,6 +219,7 @@ export function DashboardView({
   porCargo,
   ranking,
 }: {
+  userName?: string;
   periodo: string;
   periodoAnterior: string;
   statusFechamento: string | null;
@@ -280,18 +282,29 @@ export function DashboardView({
   const semDados = resumo.lancadas === 0 && resumo.vendido === 0;
 
   return (
-    <div className="space-y-6">
-      {/* Control Header Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-cyan-500/20 bg-slate-900/80 p-4 shadow-xl backdrop-blur-xl">
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-2 rounded-xl bg-slate-950 border border-slate-800 px-3 py-1.5 shadow-inner">
-            <Calendar className="size-4 text-cyan-400" />
-            <span className="text-xs font-semibold text-slate-300">Período:</span>
+    <div className="space-y-4">
+      {/* Streamlined Combined Header Bar */}
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-cyan-500/20 bg-slate-900/80 px-4 py-3 shadow-lg backdrop-blur-xl">
+        <div>
+          <h1 className="text-lg font-bold tracking-tight bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">
+            Painel do Sistema de Vendas da LM
+          </h1>
+          {userName && (
+            <p className="text-xs text-slate-400">
+              Bem-vindo(a), <span className="font-semibold text-slate-200">{userName}</span>. Performance em tempo real.
+            </p>
+          )}
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2.5">
+          <div className="flex items-center gap-1.5 rounded-lg bg-slate-950 border border-slate-800 px-2.5 py-1 shadow-inner">
+            <Calendar className="size-3.5 text-cyan-400" />
+            <span className="text-[11px] font-semibold text-slate-300">Período:</span>
             <Input
               type="month"
               value={periodo}
               onChange={(e) => e.target.value && router.push(`/?periodo=${e.target.value}`)}
-              className="h-7 w-36 border-none bg-transparent p-0 text-xs font-bold text-cyan-400 focus:ring-0 cursor-pointer"
+              className="h-6 w-32 border-none bg-transparent p-0 text-xs font-bold text-cyan-400 focus:ring-0 cursor-pointer"
             />
           </div>
 
@@ -300,37 +313,37 @@ export function DashboardView({
               variant={statusFechamento === "ABERTO" ? "outline" : "secondary"}
               className={
                 statusFechamento === "ABERTO"
-                  ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-400 font-semibold px-3 py-1 text-xs"
-                  : "bg-slate-800 text-slate-300 px-3 py-1 text-xs"
+                  ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-400 font-semibold px-2.5 py-0.5 text-[11px]"
+                  : "bg-slate-800 text-slate-300 px-2.5 py-0.5 text-[11px]"
               }
             >
-              <span className={`mr-1.5 inline-block size-2 rounded-full ${statusFechamento === "ABERTO" ? "bg-emerald-400 animate-pulse" : "bg-slate-400"}`} />
+              <span className={`mr-1.5 inline-block size-1.5 rounded-full ${statusFechamento === "ABERTO" ? "bg-emerald-400 animate-pulse" : "bg-slate-400"}`} />
               Fechamento {statusFechamento === "ABERTO" ? "aberto" : "congelado"}
             </Badge>
           ) : (
-            <Badge variant="ghost" className="text-slate-400 text-xs">
-              Sem fechamento neste período
+            <Badge variant="ghost" className="text-slate-400 text-[11px]">
+              Sem fechamento
             </Badge>
           )}
 
           {semDados && (
-            <span className="text-xs text-amber-400 font-medium flex items-center gap-1">
-              ⚠️ Sem lançamentos registrados em {periodoLabel(periodo)}.
+            <span className="text-[11px] text-amber-400 font-medium flex items-center gap-1">
+              ⚠️ Sem lançamentos em {periodoLabel(periodo)}.
             </span>
           )}
-        </div>
 
-        <div className="flex items-center gap-2">
-          <Link href="/lancamentos">
-            <Button size="sm" variant="outline" className="border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/10 text-xs font-semibold">
-              <Plus className="size-3.5 mr-1" /> Novo Lançamento
-            </Button>
-          </Link>
-          <Link href="/relatorios">
-            <Button size="sm" className="bg-gradient-to-r from-blue-600 to-cyan-500 text-slate-950 font-semibold text-xs shadow-md">
-              <FileText className="size-3.5 mr-1" /> Relatórios
-            </Button>
-          </Link>
+          <div className="flex items-center gap-1.5 ml-1">
+            <Link href="/lancamentos">
+              <Button size="sm" variant="outline" className="h-7 border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/10 text-xs font-semibold px-2.5">
+                <Plus className="size-3.5 mr-1" /> Novo Lançamento
+              </Button>
+            </Link>
+            <Link href="/relatorios">
+              <Button size="sm" className="h-7 bg-gradient-to-r from-blue-600 to-cyan-500 text-slate-950 font-semibold text-xs shadow-md px-2.5">
+                <FileText className="size-3.5 mr-1" /> Relatórios
+              </Button>
+            </Link>
+          </div>
         </div>
       </div>
 
@@ -394,63 +407,63 @@ export function DashboardView({
       </div>
 
       {/* Secondary Operational Metrics Bar */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <div className="flex items-center gap-3 rounded-xl border border-slate-800 bg-slate-900/40 p-3 backdrop-blur-md">
-          <div className="flex size-9 items-center justify-center rounded-lg bg-blue-500/10 text-blue-400 border border-blue-500/20">
-            <Receipt className="size-4.5" />
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+        <div className="flex items-center gap-2.5 rounded-xl border border-slate-800 bg-slate-900/40 p-2.5 backdrop-blur-md">
+          <div className="flex size-8 items-center justify-center rounded-lg bg-blue-500/10 text-blue-400 border border-blue-500/20">
+            <Receipt className="size-4" />
           </div>
           <div>
-            <p className="text-[11px] uppercase tracking-wider text-slate-400 font-semibold">Ticket Médio</p>
-            <p className="text-sm font-bold text-slate-200">{fmtMoeda(ticketMedio)} <span className="text-[10px] font-normal text-slate-400">/ venda</span></p>
+            <p className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Ticket Médio</p>
+            <p className="text-xs sm:text-sm font-bold text-slate-200">{fmtMoeda(ticketMedio)} <span className="text-[10px] font-normal text-slate-400">/ venda</span></p>
           </div>
         </div>
 
-        <div className="flex items-center gap-3 rounded-xl border border-slate-800 bg-slate-900/40 p-3 backdrop-blur-md">
-          <div className="flex size-9 items-center justify-center rounded-lg bg-purple-500/10 text-purple-400 border border-purple-500/20">
-            <Users className="size-4.5" />
+        <div className="flex items-center gap-2.5 rounded-xl border border-slate-800 bg-slate-900/40 p-2.5 backdrop-blur-md">
+          <div className="flex size-8 items-center justify-center rounded-lg bg-purple-500/10 text-purple-400 border border-purple-500/20">
+            <Users className="size-4" />
           </div>
           <div>
-            <p className="text-[11px] uppercase tracking-wider text-slate-400 font-semibold">Vendedores Ativos</p>
-            <p className="text-sm font-bold text-slate-200">{fmtNum(vendedoresComVenda)} <span className="text-[10px] font-normal text-slate-400">de {totalFuncionarios} cadastrados</span></p>
+            <p className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Vendedores Ativos</p>
+            <p className="text-xs sm:text-sm font-bold text-slate-200">{fmtNum(vendedoresComVenda)} <span className="text-[10px] font-normal text-slate-400">de {totalFuncionarios} cadastrados</span></p>
           </div>
         </div>
 
-        <div className="flex items-center gap-3 rounded-xl border border-slate-800 bg-slate-900/40 p-3 backdrop-blur-md">
-          <div className="flex size-9 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-            <MapPin className="size-4.5" />
+        <div className="flex items-center gap-2.5 rounded-xl border border-slate-800 bg-slate-900/40 p-2.5 backdrop-blur-md">
+          <div className="flex size-8 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+            <MapPin className="size-4" />
           </div>
           <div>
-            <p className="text-[11px] uppercase tracking-wider text-slate-400 font-semibold">Cidades Atendidas</p>
-            <p className="text-sm font-bold text-slate-200">{fmtNum(porCidade.length)} <span className="text-[10px] font-normal text-slate-400">com vendas neste mês</span></p>
+            <p className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Cidades Atendidas</p>
+            <p className="text-xs sm:text-sm font-bold text-slate-200">{fmtNum(porCidade.length)} <span className="text-[10px] font-normal text-slate-400">com vendas neste mês</span></p>
           </div>
         </div>
       </div>
 
       {/* Structured Tabbed Dashboard Layout */}
-      <Tabs defaultValue="overview" className="w-full space-y-6">
+      <Tabs defaultValue="overview" className="w-full space-y-4">
         <TabsList className="grid grid-cols-2 md:grid-cols-4 bg-slate-950/90 border border-slate-800 p-1.5 rounded-xl shadow-lg">
-          <TabsTrigger value="overview" className="data-[state=active]:bg-cyan-500/20 data-[state=active]:text-cyan-400 font-bold text-xs py-2">
-            <BarChart3 className="size-4 mr-1.5" /> Visão Geral
+          <TabsTrigger value="overview" className="data-[state=active]:bg-cyan-500/20 data-[state=active]:text-cyan-400 font-bold text-xs py-1.5">
+            <BarChart3 className="size-3.5 mr-1.5" /> Visão Geral
           </TabsTrigger>
-          <TabsTrigger value="distribution" className="data-[state=active]:bg-cyan-500/20 data-[state=active]:text-cyan-400 font-bold text-xs py-2">
-            <MapPin className="size-4 mr-1.5" /> Cidades & Produtos
+          <TabsTrigger value="distribution" className="data-[state=active]:bg-cyan-500/20 data-[state=active]:text-cyan-400 font-bold text-xs py-1.5">
+            <MapPin className="size-3.5 mr-1.5" /> Cidades & Produtos
           </TabsTrigger>
-          <TabsTrigger value="financial" className="data-[state=active]:bg-cyan-500/20 data-[state=active]:text-cyan-400 font-bold text-xs py-2">
-            <Briefcase className="size-4 mr-1.5" /> Bonificação & Cargos
+          <TabsTrigger value="financial" className="data-[state=active]:bg-cyan-500/20 data-[state=active]:text-cyan-400 font-bold text-xs py-1.5">
+            <Briefcase className="size-3.5 mr-1.5" /> Bonificação & Cargos
           </TabsTrigger>
-          <TabsTrigger value="ranking" className="data-[state=active]:bg-cyan-500/20 data-[state=active]:text-cyan-400 font-bold text-xs py-2">
-            <Trophy className="size-4 mr-1.5" /> Ranking Completo
+          <TabsTrigger value="ranking" className="data-[state=active]:bg-cyan-500/20 data-[state=active]:text-cyan-400 font-bold text-xs py-1.5">
+            <Trophy className="size-3.5 mr-1.5" /> Ranking Completo
           </TabsTrigger>
         </TabsList>
 
         {/* TAB 1: VISÃO GERAL */}
-        <TabsContent value="overview" className="space-y-6 mt-0">
-          <div className="grid gap-6 lg:grid-cols-3">
+        <TabsContent value="overview" className="space-y-4 mt-0">
+          <div className="grid gap-4 lg:grid-cols-3">
             {/* Main Trend Line (2 cols) */}
-            <Card className="glass-card border border-slate-800/80 bg-slate-900/60 p-5 shadow-xl lg:col-span-2">
-              <CardHeader className="px-0 pt-0 pb-4 flex flex-row items-center justify-between">
+            <Card className="glass-card border border-slate-800/80 bg-slate-900/60 p-4 shadow-xl lg:col-span-2">
+              <CardHeader className="px-0 pt-0 pb-3 flex flex-row items-center justify-between">
                 <div>
-                  <CardTitle className="text-base font-bold text-slate-100 flex items-center gap-2">
+                  <CardTitle className="text-sm font-bold text-slate-100 flex items-center gap-2">
                     <TrendingUp className="size-4 text-cyan-400" />
                     Evolução Mensal de Vendas & Bonificação
                   </CardTitle>
@@ -459,7 +472,7 @@ export function DashboardView({
                   </CardDescription>
                 </div>
               </CardHeader>
-              <CardContent className="h-80 px-0">
+              <CardContent className="h-64 px-0">
                 {tendenciaData.length === 0 ? (
                   <p className="text-sm text-slate-400 py-10 text-center">Sem histórico suficiente ainda.</p>
                 ) : (
@@ -475,7 +488,7 @@ export function DashboardView({
                       <XAxis dataKey="label" tick={{ fontSize: 11, fill: "#94a3b8" }} />
                       <YAxis tick={{ fontSize: 11, fill: "#94a3b8" }} tickFormatter={(v) => fmtMoeda(Number(v))} width={85} />
                       <Tooltip content={<CustomTooltip />} />
-                      <Legend wrapperStyle={{ paddingTop: 10, fontSize: 12 }} />
+                      <Legend wrapperStyle={{ paddingTop: 6, fontSize: 11 }} />
                       <Line
                         type="monotone"
                         dataKey="vendido"
@@ -502,8 +515,8 @@ export function DashboardView({
             </Card>
 
             {/* Sales Funnel / Aproveitamento (1 col) */}
-            <Card className="glass-card border border-slate-800/80 bg-slate-900/60 p-5 shadow-xl">
-              <CardHeader className="px-0 pt-0 pb-4">
+            <Card className="glass-card border border-slate-800/80 bg-slate-900/60 p-4 shadow-xl">
+              <CardHeader className="px-0 pt-0 pb-3">
                 <CardTitle className="text-sm font-bold text-slate-200">
                   Funil de Aproveitamento
                 </CardTitle>
@@ -511,7 +524,7 @@ export function DashboardView({
                   Eficiência das vendas no período
                 </CardDescription>
               </CardHeader>
-              <CardContent className="h-80 px-0 flex flex-col justify-between">
+              <CardContent className="h-64 px-0 flex flex-col justify-between">
                 {semDados ? (
                   <p className="text-sm text-slate-400 py-10 text-center">Sem lançamentos no período.</p>
                 ) : (
@@ -558,11 +571,11 @@ export function DashboardView({
         </TabsContent>
 
         {/* TAB 2: CIDADES & PRODUTOS */}
-        <TabsContent value="distribution" className="space-y-6 mt-0">
-          <div className="grid gap-6 lg:grid-cols-2">
+        <TabsContent value="distribution" className="space-y-4 mt-0">
+          <div className="grid gap-4 lg:grid-cols-2">
             {/* Sales by City */}
-            <Card className="glass-card border border-slate-800/80 bg-slate-900/60 p-5 shadow-xl">
-              <CardHeader className="px-0 pt-0 pb-4">
+            <Card className="glass-card border border-slate-800/80 bg-slate-900/60 p-4 shadow-xl">
+              <CardHeader className="px-0 pt-0 pb-3">
                 <CardTitle className="text-sm font-bold text-slate-200">
                   Valor Vendido por Cidade — {periodoLabel(periodo)}
                 </CardTitle>
@@ -570,7 +583,7 @@ export function DashboardView({
                   Volume financeiro instalado por praça de atendimento
                 </CardDescription>
               </CardHeader>
-              <CardContent className="h-80 px-0">
+              <CardContent className="h-64 px-0">
                 {porCidade.length === 0 ? (
                   <p className="text-sm text-slate-400 py-10 text-center">Sem lançamentos neste período.</p>
                 ) : (
@@ -592,8 +605,8 @@ export function DashboardView({
             </Card>
 
             {/* Product Mix */}
-            <Card className="glass-card border border-slate-800/80 bg-slate-900/60 p-5 shadow-xl">
-              <CardHeader className="px-0 pt-0 pb-4">
+            <Card className="glass-card border border-slate-800/80 bg-slate-900/60 p-4 shadow-xl">
+              <CardHeader className="px-0 pt-0 pb-3">
                 <CardTitle className="text-sm font-bold text-slate-200">
                   Mix de Produtos Vendidos — {periodoLabel(periodo)}
                 </CardTitle>
@@ -601,7 +614,7 @@ export function DashboardView({
                   Quantidade total ativada por categoria de serviço
                 </CardDescription>
               </CardHeader>
-              <CardContent className="h-80 px-0">
+              <CardContent className="h-64 px-0">
                 {semDados ? (
                   <p className="text-sm text-slate-400 py-10 text-center">Sem lançamentos neste período.</p>
                 ) : (
@@ -628,11 +641,11 @@ export function DashboardView({
         </TabsContent>
 
         {/* TAB 3: BONIFICAÇÃO & CARGOS */}
-        <TabsContent value="financial" className="space-y-6 mt-0">
-          <div className="grid gap-6 lg:grid-cols-2">
+        <TabsContent value="financial" className="space-y-4 mt-0">
+          <div className="grid gap-4 lg:grid-cols-2">
             {/* Bonus Composition */}
-            <Card className="glass-card border border-slate-800/80 bg-slate-900/60 p-5 shadow-xl">
-              <CardHeader className="px-0 pt-0 pb-4">
+            <Card className="glass-card border border-slate-800/80 bg-slate-900/60 p-4 shadow-xl">
+              <CardHeader className="px-0 pt-0 pb-3">
                 <CardTitle className="text-sm font-bold text-slate-200">
                   Composição da Bonificação — {periodoLabel(periodo)}
                 </CardTitle>
@@ -640,7 +653,7 @@ export function DashboardView({
                   Distribuição dos valores por modalidade de bônus
                 </CardDescription>
               </CardHeader>
-              <CardContent className="h-80 px-0">
+              <CardContent className="h-64 px-0">
                 {composicaoVisivel.length === 0 ? (
                   <p className="text-sm text-slate-400 py-10 text-center">
                     Sem bonificações calculadas neste período.
@@ -675,8 +688,8 @@ export function DashboardView({
             </Card>
 
             {/* Performance by Cargo */}
-            <Card className="glass-card border border-slate-800/80 bg-slate-900/60 p-5 shadow-xl">
-              <CardHeader className="px-0 pt-0 pb-4">
+            <Card className="glass-card border border-slate-800/80 bg-slate-900/60 p-4 shadow-xl">
+              <CardHeader className="px-0 pt-0 pb-3">
                 <CardTitle className="text-sm font-bold text-slate-200">
                   Desempenho por Cargo — {periodoLabel(periodo)}
                 </CardTitle>
@@ -684,7 +697,7 @@ export function DashboardView({
                   Vendas e bonificação agrupadas por função
                 </CardDescription>
               </CardHeader>
-              <CardContent className="h-80 px-0">
+              <CardContent className="h-64 px-0">
                 {porCargoData.length === 0 ? (
                   <p className="text-sm text-slate-400 py-10 text-center">Sem dados neste período.</p>
                 ) : (
@@ -694,7 +707,7 @@ export function DashboardView({
                       <XAxis dataKey="label" tick={{ fontSize: 11, fill: "#94a3b8" }} />
                       <YAxis tick={{ fontSize: 11, fill: "#94a3b8" }} tickFormatter={(v) => fmtMoeda(Number(v))} width={85} />
                       <Tooltip content={<CustomTooltip />} />
-                      <Legend wrapperStyle={{ paddingTop: 10, fontSize: 12 }} />
+                      <Legend wrapperStyle={{ paddingTop: 6, fontSize: 11 }} />
                       <Bar dataKey="vendido" name="Valor Vendido" fill="#0ea5e9" radius={[4, 4, 0, 0]} />
                       <Bar dataKey="bonificacao" name="Bonificação" fill="#f59e0b" radius={[4, 4, 0, 0]} />
                     </BarChart>
@@ -706,8 +719,8 @@ export function DashboardView({
         </TabsContent>
 
         {/* TAB 4: RANKING COMPLETO */}
-        <TabsContent value="ranking" className="space-y-6 mt-0">
-          <Card className="glass-card border border-slate-800/80 bg-slate-900/60 p-5 shadow-xl">
+        <TabsContent value="ranking" className="space-y-4 mt-0">
+          <Card className="glass-card border border-slate-800/80 bg-slate-900/60 p-4 shadow-xl">
             <CardHeader className="px-0 pt-0 pb-4 space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-4">
                 <CardTitle className="text-base font-bold text-slate-100 flex items-center gap-2">
