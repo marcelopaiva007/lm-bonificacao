@@ -334,7 +334,7 @@ export async function importarCancelamentosElleven(periodo: string, csvText: str
   for (const c of cancelamentos) {
     if (!c.contrato) continue;
     const chave = c.contrato.trim();
-    await prisma.ellevenRelatorioLinha.upsert({
+    await prisma.elevenRelatorioLinha.upsert({
       where: {
         relatorio_periodo_chave: {
           relatorio: "cancelamentos-mes-claude",
