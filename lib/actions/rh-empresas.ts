@@ -4,7 +4,6 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth-guard";
-import { ensureAuthAndUserSchema } from "@/lib/ensure-schema";
 import type { ActionResult } from "@/lib/constants";
 
 const empresaSchema = z.object({
