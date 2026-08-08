@@ -16,7 +16,6 @@ const empresaSchema = z.object({
 
 export async function createEmpresa(_prev: ActionResult, formData: FormData): Promise<ActionResult> {
   await requireAdmin();
-  await ensureAuthAndUserSchema();
 
   const parsed = empresaSchema.safeParse({
     nome: formData.get("nome"),
@@ -38,7 +37,6 @@ export async function createEmpresa(_prev: ActionResult, formData: FormData): Pr
 
 export async function updateEmpresa(id: string, _prev: ActionResult, formData: FormData): Promise<ActionResult> {
   await requireAdmin();
-  await ensureAuthAndUserSchema();
 
   const parsed = empresaSchema.safeParse({
     nome: formData.get("nome"),
@@ -60,7 +58,6 @@ export async function updateEmpresa(id: string, _prev: ActionResult, formData: F
 
 export async function toggleEmpresaAtiva(id: string, ativo: boolean): Promise<ActionResult> {
   await requireAdmin();
-  await ensureAuthAndUserSchema();
   await prisma.empresa.update({ where: { id }, data: { ativo } });
   revalidatePath("/rh/empresas");
   return { ok: true };
@@ -68,7 +65,6 @@ export async function toggleEmpresaAtiva(id: string, ativo: boolean): Promise<Ac
 
 export async function deleteEmpresa(id: string): Promise<ActionResult> {
   await requireAdmin();
-  await ensureAuthAndUserSchema();
   const [setores, colaboradores, pesquisas] = await Promise.all([
     prisma.setor.count({ where: { empresaId: id } }),
     prisma.colaborador.count({ where: { empresaId: id } }),
