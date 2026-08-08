@@ -6,7 +6,6 @@ import { Plus, Pencil, Trash2, KeyRound, Building2, Mail, ShieldAlert, Search, U
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -52,11 +51,6 @@ const roleLabel = (role: string) => ROLES.find((r) => r.value === role)?.label ?
 
 type Empresa = { id: string; nome: string; cnpj?: string | null; marca?: string | null };
 type Setor = { id: string; nome: string; empresaId: string };
-type UserScope = {
-  empresaId: string;
-  nivelAcesso?: string;
-  empresa?: Empresa;
-};
 
 type Usuario = {
   id: string;
@@ -72,7 +66,6 @@ type Usuario = {
   empresa: Empresa | null;
   setorId: string | null;
   setor: Setor | null;
-  scopes?: UserScope[];
 };
 
 const initialState: ActionResult = { ok: true };
@@ -165,7 +158,7 @@ export function UsuariosTable({
               Novo Usuário
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto border-slate-800 bg-slate-950/95 backdrop-blur-xl">
+          <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto border-slate-800 bg-slate-950/95 backdrop-blur-xl">
             <UsuarioForm
               action={createUsuario}
               title="Novo Usuário do Sistema"
@@ -307,7 +300,7 @@ export function UsuariosTable({
 
       {/* Edit User Modal */}
       <Dialog open={!!editUsuario} onOpenChange={(open) => !open && setEditUsuario(null)}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto border-slate-800 bg-slate-950/95 backdrop-blur-xl">
+        <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto border-slate-800 bg-slate-950/95 backdrop-blur-xl">
           {editUsuario && (
             <UsuarioForm
               action={updateUsuario.bind(null, editUsuario.id)}

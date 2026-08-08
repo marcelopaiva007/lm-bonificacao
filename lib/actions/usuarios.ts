@@ -58,14 +58,6 @@ export async function createUsuario(_prev: ActionResult, formData: FormData): Pr
   });
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
 
-  const scopesRaw = formData.get("scopesJson") ? String(formData.get("scopesJson")) : "[]";
-  let scopes: Array<{ empresaId: string; nivelAcesso?: string }> = [];
-  try {
-    scopes = JSON.parse(scopesRaw);
-  } catch {
-    scopes = [];
-  }
-
   const passwordHash = await bcrypt.hash(senha, 10);
   try {
     const novoUsuario = await prisma.user.create({
@@ -110,8 +102,6 @@ export async function updateUsuario(id: string, _prev: ActionResult, formData: F
     setorId: formData.get("setorId") || undefined,
   });
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
-
-  const scopesRaw = formData.get("scopesJson") ? String(formData.get("scopesJson")) : null;
 
   try {
     await prisma.user.update({

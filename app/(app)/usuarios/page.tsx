@@ -14,11 +14,6 @@ export default async function UsuariosPage() {
       include: {
         empresa: true,
         setor: true,
-        scopes: {
-          include: {
-            empresa: true,
-          },
-        },
       },
     }),
     prisma.empresa.findMany({ where: { ativo: true }, orderBy: { nome: "asc" } }),
@@ -42,12 +37,6 @@ export default async function UsuariosPage() {
             <UserCheck className="size-4 text-emerald-400" />
             <div className="text-xs font-medium text-slate-300">
               <span className="font-bold text-slate-100">{usuarios.length}</span> Usuários Cadastrados
-            </div>
-          </div>
-          <div className="flex items-center gap-2 rounded-lg bg-slate-900/80 border border-slate-800 px-3 py-1.5 backdrop-blur-md">
-            <Building2 className="size-4 text-cyan-400" />
-            <div className="text-xs font-medium text-slate-300">
-              <span className="font-bold text-slate-100">{empresas.length}</span> Marcas / CNPJs
             </div>
           </div>
         </div>
