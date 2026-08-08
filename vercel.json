@@ -22,7 +22,7 @@
     },
     {
       "path": "/api/cron/sync-elleven?report=mapa-menus",
-      "schedule": "40 17 * * *"
+      "schedule": "15 18 * * *"
     },
     {
       "path": "/api/cron/sync-chip",

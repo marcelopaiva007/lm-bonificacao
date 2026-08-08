@@ -1042,40 +1042,64 @@ export async function GET(req: NextRequest) {
       // do Exportador de Dados; o menu-fonte responde de uma vez, com os
       // endereços exatos.
       if (slug === "mapa-menus") {
-        const mapa = await withTimeout(
-          page.evaluate(async () => {
-            const tentativas: Record<string, unknown> = {};
-            for (const url of [
-              "/api/general/me/menus",
-              "/api/v1/general/me/menus",
-              "/general/me/menus",
-            ]) {
-              try {
-                const res = await fetch(url, { credentials: "include" });
-                const corpo = await res.text();
-                tentativas[url] = {
-                  status: res.status,
-                  corpo: corpo.slice(0, 60000),
-                };
-                if (res.ok) break;
-              } catch (e) {
-                tentativas[url] = { erro: String(e) };
-              }
-            }
-            return tentativas;
-          }),
-          30000,
-          "mapa-menus",
-        );
+        // Chamar a API por fora deu 401 (rodada 17:41 de 08/08/2026): ela
+        // exige o Authorization que só a SPA tem. Então ninguém chama nada —
+        // um recarregamento faz a SPA buscar o próprio menu, e a resposta é
+        // capturada da rede, como capturarBearerToken já faz com o token dos
+        // relatórios.
+        let corpoMenus: string | null = null;
+        let tokenCapturado: string | null = null;
+        page.on("response", (res) => {
+          if (corpoMenus) return;
+          if (!/elleven\.assinelm\.com\.br.*\/api\/.*menu/i.test(res.url())) return;
+          res
+            .text()
+            .then((t) => {
+              if (!corpoMenus && t && t.trim().startsWith("[")) corpoMenus = t;
+              else if (!corpoMenus && t && t.trim().startsWith("{")) corpoMenus = t;
+            })
+            .catch(() => {});
+        });
+        page.on("request", (req) => {
+          if (tokenCapturado) return;
+          const u = req.url();
+          if (!u.includes("elleven.assinelm.com.br") || !u.includes("/api/")) return;
+          const auth = req.headers()["authorization"];
+          if (auth?.startsWith("Bearer ")) tokenCapturado = auth.slice("Bearer ".length);
+        });
+
+        await page.reload({ waitUntil: "load", timeout: 45000 }).catch(() => {});
+        const inicioEspera = Date.now();
+        while (!corpoMenus && Date.now() - inicioEspera < 30000) {
+          await page.waitForTimeout(500);
+        }
+
+        // A SPA pode ter o menu em cache e não repetir a chamada — nesse caso,
+        // com o token capturado de qualquer outra chamada /api/, a consulta é
+        // feita por dentro da página, com o mesmo Authorization.
+        if (!corpoMenus && tokenCapturado) {
+          corpoMenus = await withTimeout(
+            page.evaluate(async (tk) => {
+              const r = await fetch("/api/general/me/menus", {
+                headers: { Authorization: `Bearer ${tk}` },
+                credentials: "include",
+              });
+              const t = await r.text();
+              return r.ok ? t : `HTTP ${r.status}: ${t.slice(0, 200)}`;
+            }, tokenCapturado),
+            20000,
+            "fetch-menus-com-token",
+          ).catch((e) => `erro: ${e}`);
+        }
 
         // Só as entradas que interessam vão para o registro: o menu inteiro
         // não cabe no JSONB com folga, e o que se procura tem nome conhecido.
-        const bruto = JSON.stringify(mapa);
+        const bruto = String(corpoMenus ?? "(sem resposta de menu capturada)");
         const relevantes: string[] = [];
         try {
-          for (const tent of Object.values(mapa as Record<string, unknown>)) {
-            const corpo = (tent as { corpo?: string }).corpo;
-            if (!corpo) continue;
+          {
+            const corpo = corpoMenus;
+            if (!corpo) throw new Error("sem corpo");
             const json = JSON.parse(corpo) as unknown;
             const pilha: unknown[] = [json];
             while (pilha.length) {
@@ -1113,14 +1137,9 @@ export async function GET(req: NextRequest) {
           detalhes: {
             reportNome: "Mapa de menus (descoberta)",
             entradasRelevantes: relevantes.slice(0, 30),
-            statusDasTentativas: Object.fromEntries(
-              Object.entries(mapa as Record<string, unknown>).map(([k, v]) => [
-                k,
-                (v as { status?: number; erro?: string }).status ??
-                  (v as { erro?: string }).erro ??
-                  "?",
-              ]),
-            ),
+            capturouResposta: corpoMenus != null,
+            capturouToken: tokenCapturado != null,
+            amostraBruta: bruto.slice(0, 1500),
           },
         });
         return NextResponse.json({ ok: true, mapa: relevantes });
