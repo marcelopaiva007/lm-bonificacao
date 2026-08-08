@@ -22,11 +22,11 @@
     },
     {
       "path": "/api/cron/sync-elleven?report=cancelamentos",
-      "schedule": "3 17 * * *"
+      "schedule": "20 17 * * *"
     },
     {
       "path": "/api/cron/sync-elleven?report=solicitacoes-andamento",
-      "schedule": "9 17 * * *"
+      "schedule": "26 17 * * *"
     },
     {
       "path": "/api/cron/sync-chip",

@@ -1054,6 +1054,16 @@ export async function GET(req: NextRequest) {
           // uma rodada por erro; a busca acha a tela pelo nome, onde estiver.
           if (texto.startsWith("buscar:")) {
             const alvoBusca = texto.slice("buscar:".length);
+            // A lupa NÃO existe na tela base — ela vive no cabeçalho do painel
+            // de menu (rodada 17:03 de 08/08/2026: busca com 0 candidatos na
+            // tela limpa; a rodada 16:42 mostrou "search" presente com o painel
+            // aberto). Abrir qualquer item do menu primeiro, então.
+            let abriuPainel = await clicarPorTexto(page.mainFrame(), "Utilitários");
+            for (let t = 0; !abriuPainel.ok && t < 3; t++) {
+              await page.waitForTimeout(2000);
+              abriuPainel = await clicarPorTexto(page.mainFrame(), "Utilitários");
+            }
+            await page.waitForTimeout(2000);
             await clicarPorTexto(page.mainFrame(), "search");
             await page.waitForTimeout(1500);
             await page.keyboard.type(alvoBusca, { delay: 50 });
