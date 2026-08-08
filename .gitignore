@@ -52,3 +52,5 @@ next-env.d.ts
 # local-only Claude Code settings and unrelated scratch files
 .claude/settings.local.json
 relatorio_lm_movel.pdf
+autopush-debug.log
+auto-push*.log
