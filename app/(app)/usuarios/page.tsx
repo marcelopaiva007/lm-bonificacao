@@ -1,12 +1,10 @@
 import { requireAdmin } from "@/lib/auth-guard";
 import { prisma } from "@/lib/prisma";
-import { ensureAuthAndUserSchema } from "@/lib/ensure-schema";
 import { UsuariosTable } from "./usuarios-table";
 import { UserCheck } from "lucide-react";
 
 export default async function UsuariosPage() {
   await requireAdmin();
-  await ensureAuthAndUserSchema();
 
   const [usuarios, empresas, setores] = await Promise.all([
     prisma.user.findMany({

@@ -1,15 +1,13 @@
 import "server-only";
 
-// O schema é gerenciado exclusivamente via Prisma (prisma/schema.prisma),
-// aplicado manualmente com `npm run db:push` ou `prisma migrate deploy`.
-// NUNCA reative DDLs (ALTER/CREATE TABLE) em tempo de execução: cada cold start
-// executava os ALTERs em tabelas quentes (User, Empresa, Funcionario), pegando
-// locks ACCESS EXCLUSIVE no PostgreSQL que enfileiravam todas as queries e
-// derrubavam o site inteiro sob tráfego simultâneo.
+// Migrações de schema devem ser gerenciadas via Prisma Migrations (`prisma migrate`)
+// ou scripts isolados de setup, e NUNCA executadas síncronamente a cada requisição
+// de usuário ou servidor, pois causam Access Exclusive Locks e extrema lentidão no banco.
+
 export async function ensureAuthAndUserSchema(): Promise<void> {
-  return Promise.resolve();
+  return;
 }
 
 export async function ensureFuncionarioContato(): Promise<void> {
-  return Promise.resolve();
+  return;
 }

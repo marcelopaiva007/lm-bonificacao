@@ -4,7 +4,6 @@ import { z } from "zod";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
-import { ensureAuthAndUserSchema } from "@/lib/ensure-schema";
 import { registrarAuditoria } from "@/lib/auditoria";
 import type { ActionResult } from "@/lib/constants";
 
@@ -27,8 +26,6 @@ export async function solicitarRecuperacaoSenha(
   _prev: ActionResult,
   formData: FormData
 ): Promise<ActionResult & { resetLink?: string }> {
-  await ensureAuthAndUserSchema();
-
   const parsed = solicitarSchema.safeParse({
     identificador: formData.get("identificador"),
   });
@@ -85,8 +82,6 @@ export async function redefinirSenhaComToken(
   _prev: ActionResult,
   formData: FormData
 ): Promise<ActionResult> {
-  await ensureAuthAndUserSchema();
-
   const parsed = redefinirSchema.safeParse({
     token: formData.get("token"),
     novaSenha: formData.get("novaSenha"),

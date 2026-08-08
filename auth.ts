@@ -3,7 +3,6 @@ import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { authConfig } from "@/auth.config";
 import { prisma } from "@/lib/prisma";
-import { ensureAuthAndUserSchema } from "@/lib/ensure-schema";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
@@ -17,8 +16,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const loginInput = credentials?.username as string | undefined;
         const password = credentials?.password as string | undefined;
         if (!loginInput || !password) return null;
-
-        await ensureAuthAndUserSchema();
 
         const user = await prisma.user.findFirst({
           where: {
