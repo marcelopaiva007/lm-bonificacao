@@ -17,9 +17,8 @@
       "schedule": "50 6 * * *"
     },
     {
-      "_comment": "TEMPORARIO 08/08/2026 — primeira execução do relatório de cancelamentos hoje, para conferir se a tela de 'utilities' abre no mesmo wizard. Remover depois da primeira rodada.",
       "path": "/api/cron/sync-elleven?report=cancelamentos",
-      "schedule": "35 13 * * *"
+      "schedule": "45 13 * * *"
     },
     {
       "path": "/api/cron/sync-chip",
