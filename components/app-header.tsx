@@ -75,15 +75,8 @@ export function AppHeader({
         </div>
       </div>
 
-      {/* Right Controls: Brand Switcher + User Profile Menu */}
+      {/* Right Controls: User Profile Menu */}
       <div className="flex items-center gap-3">
-        {/* CNPJ / Brand Selector */}
-        <div className="hidden md:block min-w-[200px]">
-          <EmpresaMarcaSwitcher />
-        </div>
-
-        <div className="h-6 w-px bg-border/60 hidden sm:block" />
-
         {/* User Menu Dropdown */}
         <DropdownMenu>
           <DropdownMenuTrigger className="flex items-center gap-2.5 rounded-full border border-cyan-500/20 bg-slate-900/60 p-1.5 pr-3 text-left transition-all hover:border-cyan-500/40 hover:bg-slate-800/80 focus:outline-none">
