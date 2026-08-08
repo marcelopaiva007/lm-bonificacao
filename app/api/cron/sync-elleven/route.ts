@@ -1042,7 +1042,23 @@ export async function GET(req: NextRequest) {
         });
         await page.waitForTimeout(5000);
         for (const texto of report.viaMenu) {
-          const clique = await clicarPorTexto(page.mainFrame(), texto);
+          let clique = await clicarPorTexto(page.mainFrame(), texto);
+          if (!clique.ok) {
+            // O menu lateral abre RECOLHIDO na tela inicial (rodada 15:50 de
+            // 08/08/2026: "Utilitários" com 0 candidatos) — o hambúrguer tem
+            // "menu" como texto do ícone. Abre e tenta de novo.
+            await clicarPorTexto(page.mainFrame(), "menu");
+            await page.waitForTimeout(1500);
+            clique = await clicarPorTexto(page.mainFrame(), texto);
+          }
+          if (!clique.ok) {
+            // Itens da tela final (o nome do relatório no Exportador) vivem
+            // DENTRO do quadro do legado, não na página React.
+            const frameLegado = acharFrameDoLegado(page);
+            if (frameLegado) {
+              clique = await clicarPorTexto(frameLegado, texto);
+            }
+          }
           wizardSteps.push({
             name: `menu-${texto}`,
             ...clique,
