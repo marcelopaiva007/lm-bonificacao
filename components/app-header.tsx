@@ -4,7 +4,6 @@ import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { User, Bell, ChevronRight, KeyRound, LogOut, Building2 } from "lucide-react";
 import { signOut } from "next-auth/react";
-import { EmpresaMarcaSwitcher } from "@/components/empresa-marca-switcher";
 import {
   DropdownMenu,
   DropdownMenuContent,
