@@ -1,0 +1,28 @@
+# Rede de segurança para quem empurra código sem passar pela máquina do time.
+#
+# O hook de pre-push (husky) só existe onde alguém rodou `npm install`. Push
+# feito de outra máquina, de um agente na nuvem ou pela interface do GitHub
+# passa direto por ele — foi exatamente assim que sete deploys quebrados
+# chegaram em produção em 07/08/2026. Esta verificação roda no servidor do
+# GitHub, então ninguém escapa dela.
+#
+# Node 24.x para bater com a versão que a Vercel usa no build.
+name: verificação
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  tipos:
+    name: erro de tipo
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.x
+          cache: npm
+      - run: npm ci
+      - run: npm run type-check
