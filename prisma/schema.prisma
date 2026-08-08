@@ -2,26 +2,13 @@
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
 generator client {
-  provider = "prisma-client"
+  provider = "prisma-client-js"
   output   = "../app/generated/prisma"
 }
 
 datasource db {
   provider = "postgresql"
 }
-
-// Enums are kept as plain String columns (not Prisma `enum`) so the schema
-// works unchanged on both SQLite (local dev) and Postgres (production),
-// since SQLite does not support native enums.
-// Role: "ADMIN" | "DIRETORIA" | "RH_MANAGER" | "GESTOR_SETOR"
-// Cargo: "VENDEDOR_EXTERNO" | "ATENDIMENTO_ADM" | "SUPERVISOR" | "OUTRO_SETOR"
-// Origem: "MANUAL" | "IMPORTADO"
-// StatusFechamento: "ABERTO" | "FECHADO"
-// StatusPesquisa: "DRAFT" | "ACTIVE" | "FINISHED" | "ARCHIVED"
-// TipoPergunta: "LIKERT_5" | "NPS_10" | "MULTIPLE_CHOICE" | "TEXT"
-// DimensaoGPTW: "CREDIBILIDADE" | "RESPEITO" | "IMPARCIALIDADE" | "ORGULHO" | "CAMARADAGEM" | "GERAL"
-// CanalToken: "TELEGRAM" | "LINK_PUBLICO"
-// StatusToken: "PENDING" | "SENT" | "DELIVERED" | "FAILED" | "RESPONDED"
 
 model User {
   id                 String   @id @default(cuid())
@@ -36,8 +23,6 @@ model User {
   lastLoginAt        DateTime?
   createdAt          DateTime @default(now())
 
-  // Escopo do módulo de RH: preenchido apenas para RH_MANAGER (empresaId) e
-  // GESTOR_SETOR (empresaId + setorId). ADMIN/DIRETORIA ficam nulos.
   empresaId String?
   empresa   Empresa? @relation(fields: [empresaId], references: [id], onDelete: SetNull)
   setorId   String?
@@ -95,8 +80,6 @@ model RegraBonificacao {
   cargo          String
   vigenciaInicio DateTime
   vigenciaFim    DateTime?
-  // Configuração do motor de bonificação (faixas/metas por serviço + regra de
-  // supervisor). Formato definido em lib/bonificacao.ts (RegraConfig).
   config         Json?
   observacoes    String?
   createdAt      DateTime  @default(now())
@@ -113,8 +96,6 @@ model LancamentoVenda {
   aprovado         Int          @default(0)
   cancelado        Int          @default(0)
   valorInstalado   Float        @default(0)
-  // Valor monetário total dos serviços não-internet do lançamento — base para a
-  // regra de 50% do Atendimento/Administrativo (OS §4).
   valorDemaisServicos Float     @default(0)
   qtdInternet      Int          @default(0)
   qtdChip          Int          @default(0)
@@ -194,8 +175,6 @@ model Ajuste {
   @@index([funcionarioId, periodo])
 }
 
-// Linhas do relatório "Ativação Contratos" do elleven (sync-elleven).
-// Colunas confirmadas a partir de uma extração real do CSV (scripts/ativacao-contratos.csv).
 model ContratoAtivacaoElleven {
   id                       Int      @id @default(autoincrement())
   contrato                 String   @unique
@@ -223,9 +202,6 @@ model ContratoAtivacaoElleven {
   @@map("contrato_ativacao_elleven")
 }
 
-// Linhas genéricas de relatórios do elleven (sync-elleven), armazenadas como
-// JSON por relatório/período/chave — usado pelos relatórios além de
-// "Ativação Contratos" (que tem seu próprio modelo tipado acima).
 model ElevenRelatorioLinha {
   id        Int      @id @default(autoincrement())
   relatorio String
@@ -239,20 +215,12 @@ model ElevenRelatorioLinha {
   @@map("elleven_relatorio_linha")
 }
 
-// ------------------------------------------------------
-// MÓDULO DE RH — CLIMA ORGANIZACIONAL (multi-empresa)
-// ------------------------------------------------------
-// Totalmente aditivo e isolado do motor de bonificação de vendas acima:
-// nenhuma relação com Funcionario/Equipe/Cidade. Cada empresa (LM Telecom,
-// Centrysol, VAPT, ...) tem seus próprios Setor/Posicao/Colaborador/Pesquisa,
-// sempre filtrados por empresaId nas queries e nas server actions.
-
 model Empresa {
   id          String   @id @default(cuid())
   nome        String   @unique
   cnpj        String?  @unique
   razaoSocial String?
-  marca       String?  // Nome fantasia / Marca do grupo
+  marca       String?
   logoUrl     String?
   ativo       Boolean  @default(true)
   createdAt   DateTime @default(now())
@@ -271,8 +239,8 @@ model UserEmpresaScope {
   user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   empresaId         String
   empresa           Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
-  nivelAcesso       String   @default("OPERADOR") // "ADMIN_EMPRESA" | "OPERADOR" | "LEITURA" | "RH_GESTOR"
-  modulosPermitidos Json?    // ex: ["VENDAS", "RH", "FECHAMENTO", "RELATORIOS"]
+  nivelAcesso       String   @default("OPERADOR")
+  modulosPermitidos Json?
   createdAt         DateTime @default(now())
 
   @@unique([userId, empresaId])
@@ -333,9 +301,6 @@ model Colaborador {
   setor          Setor    @relation(fields: [setorId], references: [id])
   posicaoId      String
   posicao        Posicao  @relation(fields: [posicaoId], references: [id])
-  // Chat ID numérico do Telegram do colaborador, obtido manualmente (RH pede
-  // pro colaborador dar /start no bot e lê o chat_id via Bot API getUpdates).
-  // Sem isso, o convite da pesquisa não pode ser enviado automaticamente.
   telegramChatId String?
   ativo          Boolean  @default(true)
   createdAt      DateTime @default(now())
@@ -357,7 +322,6 @@ model Pesquisa {
   empresa     Empresa   @relation(fields: [empresaId], references: [id])
   titulo      String
   descricao   String?
-  // Regra de Ouro do Anonimato: quando true, Resposta nunca grava colaboradorId.
   anonima     Boolean   @default(true)
   status      String    @default("DRAFT")
   criadoPorId String?
@@ -409,8 +373,6 @@ model SurveyToken {
   pesquisa      Pesquisa    @relation(fields: [pesquisaId], references: [id], onDelete: Cascade)
   colaboradorId String
   colaborador   Colaborador @relation(fields: [colaboradorId], references: [id])
-  // Gerado com crypto.randomBytes(24).toString("base64url") — imprevisível,
-  // não apenas único, já que é a única "autenticação" da rota pública /responder.
   token         String    @unique
   canal         String    @default("TELEGRAM")
   status        String    @default("PENDING")
@@ -423,13 +385,6 @@ model SurveyToken {
   @@index([status])
 }
 
-// Nota: quando Pesquisa.anonima = true, Resposta NUNCA grava colaboradorId —
-// só um snapshot de setor/posição no momento do envio, para o RH filtrar
-// agregados sem identificar quem respondeu. Deliberadamente não há relação
-// com SurveyToken aqui: saber "que alguém respondeu" (no token) é mantido
-// separado de "o que essa pessoa respondeu" (aqui). Consultas de agregados
-// por GESTOR_SETOR devem exigir amostra mínima de 3 respostas por
-// (setor × pesquisa) antes de exibir qualquer número.
 model Resposta {
   id                  String   @id @default(uuid())
   pesquisaId          String
@@ -460,18 +415,15 @@ model RespostaItem {
   @@index([perguntaId])
 }
 
-// ------------------------------------------------------
-// MÓDULO DE AUDITORIA (Trilha de auditoria append-only)
-// ------------------------------------------------------
 model AuditLog {
   id           String   @id @default(cuid())
   usuarioId    String?
-  usuarioNome  String   // Snapshot do nome no momento da ação (sobrevive a deleções de usuário)
+  usuarioNome  String
   usuarioRole  String?
-  acao         String   // "CRIAR" | "EDITAR" | "EXCLUIR" | "FECHAR_MES" | "REABRIR_MES" | "MESCLAR" | "IMPORTAR"
-  modulo       String   // "FUNCIONARIOS" | "LANCAMENTOS" | "REGRAS" | "FECHAMENTO" | "IMPORTACAO" | "ELLEVEN"
-  detalhes     String   // Descrição legível e detalhada da ação executada
-  metadataJson Json?    // Snapshot dos dados antes/depois
+  acao         String
+  modulo       String
+  detalhes     String
+  metadataJson Json?
   ip           String?
   createdAt    DateTime @default(now())
 
