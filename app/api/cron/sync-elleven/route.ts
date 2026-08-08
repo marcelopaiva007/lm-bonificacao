@@ -97,10 +97,11 @@ const REPORTS: Record<
     path: "/ui/04a36939-b7cb-4e54-83e1-6d92444f98c8/legacy/utilities/9cd32fd1-d070-1569-453a-c8cba6505d66",
     nome: "Cancelamentos por Mês - Claude",
     generico: true,
-    // A entrada direta pela URL abre a aba mas o conteúdo nunca monta, e
-    // "Utilitários" no menu abre um painel de suítes com a tela um nível
-    // abaixo (rodada 16:42 de 08/08/2026). A busca global acha pelo nome.
-    viaMenu: ["buscar:Exportador de Dados", "Cancelamentos por Mês - Claude"],
+    // A URL da diretoria carrega o workspace da sessão DELA — o uuid muda a
+    // cada login, e navegar com uuid alheio abre a tela vazia (descoberta da
+    // rodada 18:16 de 08/08/2026, via mapa de menus). A navegação direta agora
+    // reescreve o prefixo /ui/<uuid>/ com o workspace da sessão atual; o
+    // caminho legacy/utilities/<id> é o que identifica a tela.
   },
   // Vendas fechadas que ainda não foram instaladas ("Solicitações - Em
   // andamento", filtrando ativação e pré-contrato). A diretoria descartou tirar
@@ -116,9 +117,8 @@ const REPORTS: Record<
     nome: "Solicitações - Em andamento",
     generico: true,
     // Caminho descrito pela diretoria: "Solicitações - Em andamento > por
-    // tipo". Mesma situação do Exportador: o menu abre painel de suítes;
-    // a busca global acha a tela pelo nome, onde ela estiver.
-    viaMenu: ["buscar:Solicitações - Em Andamento"],
+    // tipo". Mesmo caso do Exportador: o prefixo de workspace da URL é
+    // reescrito para o da sessão atual na navegação direta.
   },
   // Modo de DESCOBERTA (?report=mapa-menus): loga e consulta a API interna de
   // menus da SPA em vez de extrair relatório. O path não é navegado. Ver o
@@ -1266,8 +1266,21 @@ export async function GET(req: NextRequest) {
           await page.waitForTimeout(4000);
         }
       } else {
+        // URLs copiadas da barra de endereço carregam o WORKSPACE da sessão de
+        // quem copiou (/ui/<uuid>/legacy/...), e esse uuid muda a cada login —
+        // navegar com o uuid alheio abre a moldura da tela com o conteúdo
+        // eternamente vazio (todas as tentativas de 08/08/2026 com as telas do
+        // Exportador de Dados e de analytics). O uuid da sessão ATUAL está na
+        // URL pós-login; o caminho /legacy/... é o que identifica a tela.
+        let destino = report.path;
+        const legado = report.path.match(/^\/ui\/[0-9a-f-]{36}\/(legacy\/.+)$/i);
+        const workspaceAtual = page.url().match(/\/ui\/([0-9a-f-]{36})\//i);
+        if (legado && workspaceAtual) {
+          destino = `/ui/${workspaceAtual[1]}/${legado[1]}`;
+          step(`Workspace da sessão: ${workspaceAtual[1]} — destino reescrito.`);
+        }
         step(`Navegando até o relatório ${report.nome}...`);
-        await page.goto(`${ELLEVEN_BASE}${report.path}`, {
+        await page.goto(`${ELLEVEN_BASE}${destino}`, {
           waitUntil: "load",
           timeout: 30000,
         });
