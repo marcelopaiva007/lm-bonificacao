@@ -20,9 +20,15 @@ export default function RedefinirSenhaPage({ params }: { params: Promise<{ token
   const [showSenha, setShowSenha] = useState(false);
   const [showConfirmar, setShowConfirmar] = useState(false);
 
+  const [submitted, setSubmitted] = useState(false);
+
   const [state, formAction, isPending] = useActionState(async (prev: ActionResult, fd: FormData) => {
     fd.append("token", token);
-    return await redefinirSenhaComToken(prev, fd);
+    const result = await redefinirSenhaComToken(prev, fd);
+    if (result.ok) {
+      setSubmitted(true);
+    }
+    return result;
   }, initialState);
 
   return (
@@ -40,7 +46,7 @@ export default function RedefinirSenhaPage({ params }: { params: Promise<{ token
 
         <Card className="border-cyan-500/30 bg-gradient-to-br from-slate-900/60 to-slate-950/60 backdrop-blur-md shadow-2xl">
           <CardContent className="pt-6">
-            {state.ok && state.error === undefined && isPending === false && (state as any).success ? (
+            {submitted && state.ok ? (
               <div className="space-y-4 text-center">
                 <div className="flex justify-center text-cyan-400">
                   <CheckCircle2 className="size-12" />
