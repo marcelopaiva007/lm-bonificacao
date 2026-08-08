@@ -81,6 +81,21 @@ const REPORTS: Record<string, { path: string; nome: string; generico?: boolean }
     nome: "Listagem Pedidos de Venda",
     generico: true,
   },
+  // "Cancelamentos por Mês - Claude", do Exportador de Dados. É a fonte que
+  // falta para o sistema saber que uma venda Ganha foi cancelada depois — hoje
+  // importar-elleven-funil grava cancelado: 0 fixo, porque o Funil de Vendas
+  // não tem esse conceito, e venda cancelada segue contando para bonificação.
+  //
+  // Atenção: o endereço veio como "legacy/utilities", não "legacy/reports"
+  // como os três acima (URL informada pela diretoria em 08/08/2026). Se a tela
+  // não montar o mesmo iframe reports_exec do wizard, este sync falha sozinho
+  // e aparece em /api/health/crons com o passo exato em wizardSteps — sem
+  // afetar os outros relatórios, que rodam em execuções separadas.
+  cancelamentos: {
+    path: "/ui/04a36939-b7cb-4e54-83e1-6d92444f98c8/legacy/utilities/9cd32fd1-d070-1569-453a-c8cba6505d66",
+    nome: "Cancelamentos por Mês - Claude",
+    generico: true,
+  },
   // Faturamento por Vendedor (modal JS legado, sem iframe de relatório) e
   // CRE - Títulos Recebidos (exige campo obrigatório extra) NÃO são usados para
   // comissão — removidos da sincronização a pedido do usuário.

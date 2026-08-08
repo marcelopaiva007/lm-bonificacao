@@ -13,6 +13,10 @@
       "schedule": "45 6 * * *"
     },
     {
+      "path": "/api/cron/sync-elleven?report=cancelamentos",
+      "schedule": "50 6 * * *"
+    },
+    {
       "path": "/api/cron/sync-chip",
       "schedule": "0 7 * * *"
     },
