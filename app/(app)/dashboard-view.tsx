@@ -665,7 +665,7 @@ export function DashboardView({
                           dataKey="valor"
                           position="right"
                           className="fill-slate-300 font-mono text-[11px]"
-                          formatter={(v) => fmtMoeda(Number(v))}
+                          formatter={(v: any) => fmtMoeda(Number(v))}
                         />
                       </Bar>
                     </BarChart>
