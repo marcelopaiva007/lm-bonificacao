@@ -126,26 +126,6 @@ export async function updateUsuario(id: string, _prev: ActionResult, formData: F
       },
     });
 
-    if (scopesRaw !== null) {
-      let scopes: Array<{ empresaId: string; nivelAcesso?: string }> = [];
-      try {
-        scopes = JSON.parse(scopesRaw);
-      } catch {
-        scopes = [];
-      }
-
-      await prisma.userEmpresaScope.deleteMany({ where: { userId: id } });
-      if (scopes.length > 0) {
-        await prisma.userEmpresaScope.createMany({
-          data: scopes.map((s) => ({
-            userId: id,
-            empresaId: s.empresaId,
-            nivelAcesso: s.nivelAcesso || "OPERADOR",
-          })),
-        });
-      }
-    }
-
     await registrarAuditoria({
       acao: "EDITAR",
       modulo: "USUARIOS",
