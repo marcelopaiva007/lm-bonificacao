@@ -41,7 +41,7 @@ export async function importarLancamentosEllevenAuto(
   const contratos = await prisma.contratoAtivacaoElleven.findMany();
 
   // Busca relatórios de cancelamentos do Elleven ("Cancelamentos por Mês - Claude") salvos
-  const cancelamentosLinhas = await prisma.ellevenRelatorioLinha.findMany({
+  const cancelamentosLinhas = await prisma.elevenRelatorioLinha.findMany({
     where: { relatorio: "cancelamentos-mes-claude", periodo },
   });
   const contratosCanceladosSet = new Set<string>();
