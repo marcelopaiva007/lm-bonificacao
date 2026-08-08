@@ -1,7 +1,5 @@
 #!/bin/bash
 # Script de instalação da automação de Auto-Push do macOS
-# Dá dois cliques neste arquivo no Finder para ativar a automação em segundo plano.
-
 PLIST_PATH="$HOME/Library/LaunchAgents/com.marcelopaiva.softvendas.autopush.plist"
 SCRIPT_PATH="/Users/marcelopaiva/SOFT VENDAS/auto-push.sh"
 WATCH_DIR="/Users/marcelopaiva/SOFT VENDAS"
@@ -26,11 +24,11 @@ cat <<EOF > "$PLIST_PATH"
         <string>$WATCH_DIR</string>
     </array>
     <key>ThrottleInterval</key>
-    <integer>15</integer>
+    <integer>10</integer>
     <key>StandardOutPath</key>
-    <string>/tmp/softvendas-autopush.log</string>
+    <string>$WATCH_DIR/autopush-debug.log</string>
     <key>StandardErrorPath</key>
-    <string>/tmp/softvendas-autopush-error.log</string>
+    <string>$WATCH_DIR/autopush-debug.log</string>
 </dict>
 </plist>
 EOF
@@ -39,10 +37,9 @@ launchctl unload "$PLIST_PATH" 2>/dev/null
 launchctl load "$PLIST_PATH"
 
 echo "--------------------------------------------------------"
-echo " SUCCESS! Automação de Deploy Automático Corrigida!"
+echo " SUCCESS! Automação de Deploy Automático Atualizada!"
 echo "--------------------------------------------------------"
 echo "Sempre que o Claude alterar arquivos neste projeto,"
-echo "seu Mac enviará automaticamente a branch atual para o GitHub"
-echo "e a Vercel fará o Deploy em https://vendas.assinelm.com"
+echo "seu Mac enviará automaticamente para o GitHub."
 echo "--------------------------------------------------------"
 read -p "Pressione Enter para fechar..."
