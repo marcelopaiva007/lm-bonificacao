@@ -2,7 +2,7 @@ import "dotenv/config";
 import crypto from "node:crypto";
 import bcrypt from "bcryptjs";
 import { prisma } from "../lib/prisma";
-import { Prisma } from "../app/generated/prisma/client";
+import { Prisma } from "../app/generated/prisma";
 import { REGRAS_DEFAULT } from "../lib/regras-defaults";
 
 function gerarSenhaAleatoria(): string {

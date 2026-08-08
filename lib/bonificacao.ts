@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import type { Prisma } from "@/app/generated/prisma/client";
+import type { Prisma } from "@/app/generated/prisma";
 import {
   asRegraConfig,
   calcularBonificacaoIndividual,

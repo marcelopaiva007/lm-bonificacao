@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth-guard";
 import type { ActionResult } from "@/lib/constants";
-import type { Prisma } from "@/app/generated/prisma/client";
+import type { Prisma } from "@/app/generated/prisma";
 import { registrarAuditoria } from "@/lib/auditoria";
 
 const SERVICO_KEYS = [
