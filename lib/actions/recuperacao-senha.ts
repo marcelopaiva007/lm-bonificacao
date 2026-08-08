@@ -45,7 +45,6 @@ export async function solicitarRecuperacaoSenha(
   if (!user || user.ativo === false) {
     return {
       ok: true,
-      error: undefined,
     };
   }
 
