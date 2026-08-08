@@ -116,3 +116,17 @@ upstream, see 'push.autoSetupRemote' in 'git help config'.
 
 [2026-08-07 22:29:42] Push concluído com sucesso! Deploy automático na Vercel acionado.
 [2026-08-07 22:29:52] Alterações detectadas. Salvando e enviando para o GitHub...
+[master 33f2070] Auto-update via Claude [2026-08-07 22:29:52]
+ 1 file changed, 14 insertions(+)
+error: src refspec main does not match any
+error: failed to push some refs to 'https://github.com/marcelopaiva007/lm-bonificacao.git'
+fatal: The current branch master has no upstream branch.
+To push the current branch and set the remote as upstream, use
+
+    git push --set-upstream origin master
+
+To have this happen automatically for branches without a tracking
+upstream, see 'push.autoSetupRemote' in 'git help config'.
+
+[2026-08-07 22:29:52] Push concluído com sucesso! Deploy automático na Vercel acionado.
+[2026-08-07 22:30:02] Alterações detectadas. Salvando e enviando para o GitHub...
