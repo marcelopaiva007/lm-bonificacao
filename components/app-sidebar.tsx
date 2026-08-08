@@ -7,7 +7,7 @@ import { LogOut, KeyRound, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { navByRole, diretoriaNav } from "@/components/nav-config";
-import { logo } from "@/components/logo";
+import { Logo } from "@/components/logo";
 
 const ROLE_LABELS: Record<string, string> = {
   ADMIN: "Administrativo/Financeiro",

@@ -30,10 +30,10 @@ export default async function UsuariosPage() {
       <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
         <div>
           <h1 className="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-cyan-400 via-sky-300 to-blue-500 bg-clip-text text-transparent">
-            Usuários & Matriz de Permissões
+            Gestão de Usuários
           </h1>
           <p className="text-xs font-semibold text-slate-400 mt-1">
-            Gerenciamento de contas de acesso ao sistema, controle de acesso e definição de poderes por CNPJ e Marca.
+            Gerenciamento de contas de acesso ao sistema e atribuição de perfis de usuário.
           </p>
         </div>
 
