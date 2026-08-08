@@ -233,23 +233,10 @@ export function UsuariosTable({
                   </Badge>
                 </TableCell>
                 <TableCell>
-                  {u.role === "ADMIN" ? (
-                    <Badge variant="outline" className="border-cyan-500/40 bg-cyan-500/10 text-cyan-300 text-[11px] font-semibold">
-                      Acesso Total (Todos os CNPJs)
-                    </Badge>
-                  ) : u.scopes && u.scopes.length > 0 ? (
-                    <div className="flex flex-wrap gap-1">
-                      {u.scopes.map((s) => (
-                        <Badge key={s.empresaId} variant="outline" className="border-slate-800 bg-slate-900 text-slate-300 text-[10px]">
-                          <Building2 className="size-2.5 mr-1 text-cyan-400" />
-                          {s.empresa?.marca || s.empresa?.nome || s.empresaId}
-                        </Badge>
-                      ))}
-                    </div>
-                  ) : u.empresa ? (
-                    <span className="text-xs text-slate-400">{u.empresa.nome}</span>
+                  {u.empresa ? (
+                    <span className="text-xs text-slate-300 font-medium">{u.empresa.nome} {u.setor ? `(${u.setor.nome})` : ""}</span>
                   ) : (
-                    <span className="text-xs text-slate-500">—</span>
+                    <span className="text-xs text-slate-500">Global</span>
                   )}
                 </TableCell>
                 <TableCell className="text-xs text-slate-400 font-mono">
