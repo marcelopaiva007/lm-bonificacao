@@ -10,20 +10,31 @@ cd "$PROJECT_DIR" || exit 1
 
 CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "master")
 
-# Verifica alterações ignorando os próprios logs da automação
-UNCOMMITTED=$(git status --porcelain 2>/dev/null | grep -v "autopush-debug.log" | grep -v "auto-push")
+# Adiciona todas as edições ao staging do Git
+git add -A >> "$LOG_FILE" 2>&1
 
-if [ -n "$UNCOMMITTED" ]; then
+# Se houver algo novo para commitar, faz o commit
+if ! git diff-index --quiet HEAD -- 2>/dev/null; then
     echo "========================================================" >> "$LOG_FILE"
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] Alterações detectadas no branch $CURRENT_BRANCH." >> "$LOG_FILE"
-    git add . >> "$LOG_FILE" 2>&1
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] Novas alterações detectadas. Salvando commit..." >> "$LOG_FILE"
     git commit -m "Auto-update via Claude [$(date '+%Y-%m-%d %H:%M:%S')]" >> "$LOG_FILE" 2>&1
+fi
+
+# Verifica se o branch local está à frente do remoto ou precisa de sync
+UNPUSHED=$(git log "origin/$CURRENT_BRANCH..HEAD" --oneline 2>/dev/null)
+
+if [ -n "$UNPUSHED" ]; then
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] Sincronizando repositório remoto (pull --rebase)..." >> "$LOG_FILE"
+    git pull --rebase origin "$CURRENT_BRANCH" >> "$LOG_FILE" 2>&1
+
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] Enviando commits para o GitHub (push)..." >> "$LOG_FILE"
     git push -u origin "$CURRENT_BRANCH" >> "$LOG_FILE" 2>&1
     PUSH_RESULT=$?
+
     if [ $PUSH_RESULT -eq 0 ]; then
-        echo "[$(date '+%Y-%m-%d %H:%M:%S')] SUCESSO! Push realizado para $CURRENT_BRANCH." >> "$LOG_FILE"
+        echo "[$(date '+%Y-%m-%d %H:%M:%S')] SUCESSO COMPLETO! Push e Deploy acionados para $CURRENT_BRANCH." >> "$LOG_FILE"
     else
-        echo "[$(date '+%Y-%m-%d %H:%M:%S')] ERRO no Git Push. Código de saída: $PUSH_RESULT" >> "$LOG_FILE"
+        echo "[$(date '+%Y-%m-%d %H:%M:%S')] ERRO no Git Push (Código: $PUSH_RESULT)." >> "$LOG_FILE"
     fi
     echo "========================================================" >> "$LOG_FILE"
 fi
