@@ -93,111 +93,118 @@ export async function recalcularFechamento(periodo: string) {
   let valorTotalVendido = 0;
   let valorTotalBonificacao = 0;
 
-  await prisma.$transaction(async (tx) => {
-    for (const f of funcionarios) {
-      const agregado = somaLancamentos(lancamentosPorFuncionario.get(f.id) ?? []);
-      const config = configPorCargo.get(f.cargo) ?? null;
-      const individual = calcularBonificacaoIndividual(agregado, config);
+  // As linhas são montadas em memória primeiro: o cálculo não toca o banco, então
+  // manter isso fora da transação deixa dentro dela apenas as 3 escritas abaixo.
+  // Antes havia um upsert por funcionário dentro da transação — em meses com venda
+  // real isso passava dos 5s de timeout default do Prisma e estourava P2028.
+  const linhas: Prisma.BonificacaoCalculadaCreateManyInput[] = [];
 
-      let valorSupervisor = 0;
-      const detalhes: Record<string, unknown> = {
-        servicos: individual.detalhes,
-        pagamento: config?.pagamento ?? (f.cargo === "TECNICO" ? "SEMANAL" : "MENSAL"),
-      };
+  for (const f of funcionarios) {
+    const agregado = somaLancamentos(lancamentosPorFuncionario.get(f.id) ?? []);
+    const config = configPorCargo.get(f.cargo) ?? null;
+    const individual = calcularBonificacaoIndividual(agregado, config);
 
-      // Cálculo de bônus de supervisor/responsável de equipe (usando o mapa pré-carregado)
-      const equipesSupervisionadas = equipesPorSupervisor.get(f.id) ?? [];
+    let valorSupervisor = 0;
+    const detalhes: Record<string, unknown> = {
+      servicos: individual.detalhes,
+      pagamento: config?.pagamento ?? (f.cargo === "TECNICO" ? "SEMANAL" : "MENSAL"),
+    };
 
-      if (equipesSupervisionadas.length > 0) {
-        const detalhesEquipes: BonificacaoSupervisor[] = [];
-        let totalBonusTecnicos = 0;
+    // Cálculo de bônus de supervisor/responsável de equipe (usando o mapa pré-carregado)
+    const equipesSupervisionadas = equipesPorSupervisor.get(f.id) ?? [];
 
-        for (const equipe of equipesSupervisionadas) {
-          // Bônus padrão de supervisor comercial (OS §3.2) se configurado
-          if (config?.supervisor) {
-            const ids = new Set(equipe.membros.map((m) => m.id));
-            ids.add(f.id);
-            const tamanhoEquipe = ids.size;
+    if (equipesSupervisionadas.length > 0) {
+      const detalhesEquipes: BonificacaoSupervisor[] = [];
+      let totalBonusTecnicos = 0;
 
-            let totalInternet = internetPorEquipe.get(equipe.id) ?? 0;
-            if (!equipe.membros.some((m) => m.id === f.id)) {
-              totalInternet += agregado.qtdInternet;
-            }
+      for (const equipe of equipesSupervisionadas) {
+        // Bônus padrão de supervisor comercial (OS §3.2) se configurado
+        if (config?.supervisor) {
+          const ids = new Set(equipe.membros.map((m) => m.id));
+          ids.add(f.id);
+          const tamanhoEquipe = ids.size;
 
-            const bonus = calcularBonificacaoSupervisor(
-              config.supervisor,
-              totalInternet,
-              tamanhoEquipe
-            );
-            valorSupervisor += bonus.valor;
-            detalhesEquipes.push(bonus);
+          let totalInternet = internetPorEquipe.get(equipe.id) ?? 0;
+          if (!equipe.membros.some((m) => m.id === f.id)) {
+            totalInternet += agregado.qtdInternet;
           }
 
-          // Bônus do responsável de técnicos: R$ 10 por cada venda de internet dos técnicos da equipe
-          const membrosTecnicos = equipe.membros.filter((m) => m.cargo === "TECNICO");
-          if (membrosTecnicos.length > 0) {
-            const valorPorVendaTecnico = config?.bonusPorVendaTecnicoEquipe ?? 10;
-            for (const tec of membrosTecnicos) {
-              const agTec = somaLancamentos(lancamentosPorFuncionario.get(tec.id) ?? []);
-              const bonusTec = agTec.qtdInternet * valorPorVendaTecnico;
-              totalBonusTecnicos += bonusTec;
-            }
-          }
+          const bonus = calcularBonificacaoSupervisor(
+            config.supervisor,
+            totalInternet,
+            tamanhoEquipe
+          );
+          valorSupervisor += bonus.valor;
+          detalhesEquipes.push(bonus);
         }
 
-        if (detalhesEquipes.length > 0) {
-          detalhes.supervisor = detalhesEquipes;
-        }
-        if (totalBonusTecnicos > 0) {
-          valorSupervisor += totalBonusTecnicos;
-          detalhes.bonusSupervisaoTecnica = totalBonusTecnicos;
+        // Bônus do responsável de técnicos: R$ 10 por cada venda de internet dos técnicos da equipe
+        const membrosTecnicos = equipe.membros.filter((m) => m.cargo === "TECNICO");
+        if (membrosTecnicos.length > 0) {
+          const valorPorVendaTecnico = config?.bonusPorVendaTecnicoEquipe ?? 10;
+          for (const tec of membrosTecnicos) {
+            const agTec = somaLancamentos(lancamentosPorFuncionario.get(tec.id) ?? []);
+            const bonusTec = agTec.qtdInternet * valorPorVendaTecnico;
+            totalBonusTecnicos += bonusTec;
+          }
         }
       }
 
-      const valorTotal =
-        individual.valorInternet +
-        individual.valorChip +
-        individual.valorDemais +
-        valorSupervisor;
-      if (valorTotal === 0 && agregado.quantidade === 0) continue;
-
-      valorTotalVendido += agregado.valorInstalado;
-      valorTotalBonificacao += valorTotal;
-
-      await tx.bonificacaoCalculada.upsert({
-        where: { fechamentoId_funcionarioId: { fechamentoId: fechamento.id, funcionarioId: f.id } },
-        update: {
-          valorInternet: individual.valorInternet,
-          valorChip: individual.valorChip,
-          valorDemais: individual.valorDemais,
-          valorSupervisor,
-          valorTotal,
-          detalhesJson: detalhes as Prisma.InputJsonValue,
-        },
-        create: {
-          fechamentoId: fechamento.id,
-          funcionarioId: f.id,
-          valorInternet: individual.valorInternet,
-          valorChip: individual.valorChip,
-          valorDemais: individual.valorDemais,
-          valorSupervisor,
-          valorTotal,
-          detalhesJson: detalhes as Prisma.InputJsonValue,
-        },
-      });
+      if (detalhesEquipes.length > 0) {
+        detalhes.supervisor = detalhesEquipes;
+      }
+      if (totalBonusTecnicos > 0) {
+        valorSupervisor += totalBonusTecnicos;
+        detalhes.bonusSupervisaoTecnica = totalBonusTecnicos;
+      }
     }
 
-    const ajustes = await tx.ajuste.findMany({ where: { periodo } });
-    const totalAjustes = ajustes.reduce((acc, a) => acc + a.valor, 0);
+    const valorTotal =
+      individual.valorInternet +
+      individual.valorChip +
+      individual.valorDemais +
+      valorSupervisor;
+    if (valorTotal === 0 && agregado.quantidade === 0) continue;
 
-    await tx.fechamentoMensal.update({
-      where: { id: fechamento.id },
-      data: {
-        valorTotalVendido,
-        valorTotalBonificacao: valorTotalBonificacao + totalAjustes,
-      },
+    valorTotalVendido += agregado.valorInstalado;
+    valorTotalBonificacao += valorTotal;
+
+    linhas.push({
+      fechamentoId: fechamento.id,
+      funcionarioId: f.id,
+      valorInternet: individual.valorInternet,
+      valorChip: individual.valorChip,
+      valorDemais: individual.valorDemais,
+      valorSupervisor,
+      valorTotal,
+      detalhesJson: detalhes as Prisma.InputJsonValue,
     });
-  });
+  }
+
+  const ajustes = await prisma.ajuste.findMany({ where: { periodo } });
+  const totalAjustes = ajustes.reduce((acc, a) => acc + a.valor, 0);
+
+  await prisma.$transaction(
+    async (tx) => {
+      // Recalcular substitui o resultado do período por inteiro. Apagar antes de
+      // reinserir também elimina linhas de funcionários que zeraram no recálculo —
+      // com o upsert anterior elas ficavam para trás com o valor antigo.
+      await tx.bonificacaoCalculada.deleteMany({ where: { fechamentoId: fechamento.id } });
+
+      if (linhas.length > 0) {
+        await tx.bonificacaoCalculada.createMany({ data: linhas });
+      }
+
+      await tx.fechamentoMensal.update({
+        where: { id: fechamento.id },
+        data: {
+          valorTotalVendido,
+          valorTotalBonificacao: valorTotalBonificacao + totalAjustes,
+        },
+      });
+    },
+    { timeout: 30_000, maxWait: 10_000 }
+  );
 
   return fechamento;
 }

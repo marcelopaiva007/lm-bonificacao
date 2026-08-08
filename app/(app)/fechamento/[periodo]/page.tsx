@@ -4,6 +4,11 @@ import { prisma } from "@/lib/prisma";
 import { periodoLabel } from "@/lib/periodo";
 import { FechamentoDetailView } from "./fechamento-detail-view";
 
+// Fechar/reabrir/recalcular rodam como server actions desta rota e percorrem todos
+// os funcionários ativos do período. O default da Vercel mata a function antes de
+// meses cheios terminarem.
+export const maxDuration = 60;
+
 export default async function FechamentoDetailPage({
   params,
 }: {
