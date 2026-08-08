@@ -20,33 +20,21 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         await ensureAuthAndUserSchema();
 
-        let user;
-        try {
-          user = await prisma.user.findFirst({
-            where: {
-              OR: [
-                { username: loginInput },
-                { email: loginInput },
-              ],
-            },
-            include: {
-              scopes: {
-                include: {
-                  empresa: true,
-                },
+        const user = await prisma.user.findFirst({
+          where: {
+            OR: [
+              { username: loginInput },
+              { email: loginInput },
+            ],
+          },
+          include: {
+            scopes: {
+              include: {
+                empresa: true,
               },
             },
-          });
-        } catch {
-          user = await prisma.user.findFirst({
-            where: {
-              OR: [
-                { username: loginInput },
-                { email: loginInput },
-              ],
-            },
-          });
-        }
+          },
+        });
 
         if (!user) return null;
 
@@ -68,7 +56,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           // Ignora erro de timestamp
         }
 
-        const formattedScopes = (user.scopes || []).map((s) => ({
+        const userScopes = (user as any).scopes || [];
+        const formattedScopes = userScopes.map((s: any) => ({
           empresaId: s.empresaId,
           nomeEmpresa: s.empresa?.nome ?? "",
           cnpj: s.empresa?.cnpj ?? null,
