@@ -49,6 +49,10 @@
       "schedule": "58 14 * * *"
     },
     {
+      "path": "/api/cron/sync-elleven?report=pedidos-de-venda",
+      "schedule": "3 15 * * *"
+    },
+    {
       "path": "/api/cron/sync-chip",
       "schedule": "0 7 * * *"
     },
