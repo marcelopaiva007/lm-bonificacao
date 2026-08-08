@@ -221,6 +221,30 @@ model ElevenRelatorioLinha {
   @@map("elleven_relatorio_linha")
 }
 
+model VendaChipMovel {
+  id            Int      @id @default(autoincrement())
+  vendaId       Int      @unique
+  periodo       String
+  sellerIdMovel Int?
+  sellerNome    String?
+  sellerCpf     String?
+  clienteNome   String?
+  clienteCpf    String?
+  msisdn        String?
+  iccid         String?
+  planoNome     String?
+  planoPreco    String?
+  status        String?
+  soldAt        String?
+  activatedAt   String?
+  cancelledAt   String?
+  syncedAt      DateTime @default(now()) @updatedAt
+
+  @@index([periodo])
+  @@index([sellerCpf])
+  @@map("venda_chip_movel")
+}
+
 model Empresa {
   id          String   @id @default(cuid())
   nome        String   @unique
