@@ -1,0 +1,9 @@
+# Trava de tipo antes do push.
+#
+# Motivo: em 07/08/2026 sete deploys de produção seguidos falharam na Vercel
+# pelo mesmo erro de tipo (um `select` do Prisma sem o campo `nome` que a
+# página lia). Cada tentativa custou ~50s de build e deixou o master quebrado
+# no meio do caminho. O `next build` já reprova erro de tipo — o problema era
+# só descobrir isso na Vercel em vez de aqui, em 5 segundos.
+echo "→ conferindo tipos antes do push (npm run type-check)"
+npm run type-check

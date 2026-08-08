@@ -23,3 +23,15 @@ entregas diferentes aparecem com o mesmo número na tela.
 Quando o PR mexe em **cálculo de bonificação**, diga no corpo do PR qual mês é
 afetado e se exige recálculo do fechamento — é a informação que a diretoria usa
 para decidir se reabre o mês.
+
+# O erro de tipo morre aqui, não na Vercel
+
+`git push` roda `npm run type-check` sozinho (hook `pre-push` do husky, ~5 s).
+Não contorne com `--no-verify`.
+
+Motivo: em 07/08/2026 sete deploys de produção seguidos falharam na Vercel pelo
+**mesmo** erro de tipo — um `select` do Prisma sem o campo `nome` que a página
+lia. Cada tentativa custou ~50 s de build, e entre uma e outra o master ficou
+sem deploy bom. O `next build` já reprova erro de tipo (e o `next.config.ts`
+não tem `ignoreBuildErrors` — não coloque): o que faltava era descobrir isso
+aqui, em segundos, antes de o master ir para produção.
