@@ -129,7 +129,6 @@ export async function updateUsuario(id: string, _prev: ActionResult, formData: F
 
 export async function toggleUsuarioAtivo(id: string, ativo: boolean): Promise<ActionResult> {
   const admin = await requireAdmin();
-  await ensureAuthAndUserSchema();
 
   if (admin.id === id) {
     return { ok: false, error: "Você não pode desativar seu próprio usuário." };
@@ -152,7 +151,6 @@ export async function toggleUsuarioAtivo(id: string, ativo: boolean): Promise<Ac
 
 export async function resetSenhaUsuario(id: string, _prev: ActionResult, formData: FormData): Promise<ActionResult> {
   const admin = await requireAdmin();
-  await ensureAuthAndUserSchema();
 
   const senha = String(formData.get("senha") ?? "");
   if (senha.length < 8) return { ok: false, error: "A senha deve ter pelo menos 8 caracteres." };
@@ -178,7 +176,6 @@ export async function resetSenhaUsuario(id: string, _prev: ActionResult, formDat
 
 export async function deleteUsuario(id: string): Promise<ActionResult> {
   const admin = await requireAdmin();
-  await ensureAuthAndUserSchema();
 
   if (admin.id === id) {
     return { ok: false, error: "Você não pode excluir seu próprio usuário." };
@@ -202,7 +199,6 @@ export async function deleteUsuario(id: string): Promise<ActionResult> {
 
 export async function trocarMinhaSenha(_prev: ActionResult, formData: FormData): Promise<ActionResult> {
   const currentUser = await requireUser();
-  await ensureAuthAndUserSchema();
 
   const senhaAtual = String(formData.get("senhaAtual") ?? "");
   const novaSenha = String(formData.get("novaSenha") ?? "");
