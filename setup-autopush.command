@@ -26,11 +26,11 @@ cat <<EOF > "$PLIST_PATH"
         <string>$WATCH_DIR</string>
     </array>
     <key>ThrottleInterval</key>
-    <integer>10</integer>
+    <integer>15</integer>
     <key>StandardOutPath</key>
-    <string>$WATCH_DIR/auto-push.log</string>
+    <string>/tmp/softvendas-autopush.log</string>
     <key>StandardErrorPath</key>
-    <string>$WATCH_DIR/auto-push-error.log</string>
+    <string>/tmp/softvendas-autopush-error.log</string>
 </dict>
 </plist>
 EOF
@@ -39,10 +39,10 @@ launchctl unload "$PLIST_PATH" 2>/dev/null
 launchctl load "$PLIST_PATH"
 
 echo "--------------------------------------------------------"
-echo " SUCCESS! Automação de Deploy Automático Ativada!"
+echo " SUCCESS! Automação de Deploy Automático Corrigida!"
 echo "--------------------------------------------------------"
 echo "Sempre que o Claude alterar arquivos neste projeto,"
-echo "seu Mac fará o Push para o GitHub e a Vercel fará o Deploy"
-echo "automaticamente em segundo plano, SEM usar o terminal!"
+echo "seu Mac enviará automaticamente a branch atual para o GitHub"
+echo "e a Vercel fará o Deploy em https://vendas.assinelm.com"
 echo "--------------------------------------------------------"
 read -p "Pressione Enter para fechar..."
