@@ -24,42 +24,11 @@ export type ModuloAuditoria =
   | "USUARIOS"
   | "AUTENTICACAO";
 
-let auditTableEnsured = false;
+let auditTableEnsured = true;
 
 async function ensureAuditLogTable(): Promise<void> {
   if (auditTableEnsured) return;
-  try {
-    await prisma.$executeRawUnsafe(
-      `CREATE TABLE IF NOT EXISTS "AuditLog" (
-        "id" TEXT NOT NULL PRIMARY KEY,
-        "usuarioId" TEXT,
-        "usuarioNome" TEXT NOT NULL,
-        "usuarioRole" TEXT,
-        "acao" TEXT NOT NULL,
-        "modulo" TEXT NOT NULL,
-        "detalhes" TEXT NOT NULL,
-        "metadataJson" JSONB,
-        "ip" TEXT,
-        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
-      );`
-    );
-    await prisma.$executeRawUnsafe(
-      `CREATE INDEX IF NOT EXISTS "AuditLog_createdAt_idx" ON "AuditLog"("createdAt");`
-    );
-    await prisma.$executeRawUnsafe(
-      `CREATE INDEX IF NOT EXISTS "AuditLog_modulo_idx" ON "AuditLog"("modulo");`
-    );
-    await prisma.$executeRawUnsafe(
-      `CREATE INDEX IF NOT EXISTS "AuditLog_acao_idx" ON "AuditLog"("acao");`
-    );
-    await prisma.$executeRawUnsafe(
-      `CREATE INDEX IF NOT EXISTS "AuditLog_usuarioNome_idx" ON "AuditLog"("usuarioNome");`
-    );
-    auditTableEnsured = true;
-  } catch {
-    // Ignora erro se tabela já existir no SQLite ou Postgres
-    auditTableEnsured = true;
-  }
+  auditTableEnsured = true;
 }
 
 export async function registrarAuditoria(params: {
