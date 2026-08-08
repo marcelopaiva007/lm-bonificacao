@@ -654,6 +654,87 @@ async function clickFlatpickrDay(
   }
 }
 
+// Abre o calendário e NAVEGA até o mês da data alvo pelas setas de mês
+// (‹ ›), depois clica na célula do dia — a mesma sequência de uma pessoa.
+//
+// Existe porque a via de API (setFlatpickrDate) falhou em produção para mês
+// passado (extração de julho, 08/08/2026): o formulário não reconheceu o valor
+// e o relatório saiu com o filtro em branco, trazendo linhas de junho. Clique
+// real é o único caminho que o estado do wizard comprovadamente enxerga — o
+// que já valia para o mês corrente (clickFlatpickrDay/Today) e agora vale para
+// qualquer mês. A célula certa é achada pelo `dateObj` que o Flatpickr guarda
+// em cada dia — independe de idioma e de célula de transbordo.
+async function clickFlatpickrDate(
+  frame: Frame,
+  selector: string,
+  isoDate: string,
+): Promise<{ ok: boolean; valueAfter: string; debug: string }> {
+  try {
+    const locator = frame.locator(selector);
+    await locator.click({ timeout: 3000 });
+    await frame
+      .locator(".flatpickr-calendar.open")
+      .first()
+      .waitFor({ state: "visible", timeout: 3000 });
+
+    // Até 30 passos de navegação: cobre 2,5 anos de distância — folga larga
+    // sobre o caso real (1 mês) sem risco de loop infinito.
+    for (let i = 0; i < 30; i++) {
+      const passo = await withTimeout(
+        frame.evaluate((alvoIso) => {
+          const cal = document.querySelector(".flatpickr-calendar.open");
+          if (!cal) return "sem-calendario";
+          const [yyyy, mm, dd] = alvoIso.split("-").map(Number);
+          const alvo = yyyy * 10000 + (mm - 1) * 100 + dd;
+          const chave = (d: Date) =>
+            d.getFullYear() * 10000 + d.getMonth() * 100 + d.getDate();
+          const dias = Array.from(
+            cal.querySelectorAll<HTMLElement & { dateObj?: Date }>(".flatpickr-day"),
+          );
+          if (dias.length === 0 || !(dias[0].dateObj instanceof Date))
+            return "sem-dateObj";
+          const celula = dias.find(
+            (d) =>
+              d.dateObj &&
+              chave(d.dateObj) === alvo &&
+              !d.classList.contains("flatpickr-disabled"),
+          );
+          if (celula) {
+            celula.click();
+            return "clicou";
+          }
+          const primeiro = chave(dias[0].dateObj as Date);
+          const seta = cal.querySelector<HTMLElement>(
+            alvo < primeiro ? ".flatpickr-prev-month" : ".flatpickr-next-month",
+          );
+          if (!seta) return "sem-seta";
+          seta.click();
+          return "navegou";
+        }, isoDate),
+        EVAL_TIMEOUT_MS,
+        "clickFlatpickrDate",
+      );
+
+      if (passo === "clicou") {
+        await frame.page().waitForTimeout(300);
+        const valueAfter = await locator.inputValue().catch(() => "");
+        return {
+          ok: valueAfter.length > 0,
+          valueAfter,
+          debug: `navegou-e-clicou-${isoDate}`,
+        };
+      }
+      if (passo !== "navegou") {
+        return { ok: false, valueAfter: "", debug: `parou-em-${passo}` };
+      }
+      await frame.page().waitForTimeout(150);
+    }
+    return { ok: false, valueAfter: "", debug: "nao-alcancou-o-mes-em-30-passos" };
+  } catch (e) {
+    return { ok: false, valueAfter: "", debug: `erro-navegacao: ${e}` };
+  }
+}
+
 // Tenta preencher, de forma best-effort, qualquer input cujo rótulo/placeholder/name
 // sugira ser um campo de data (ex.: "Data Inicial", "Data Final") com o intervalo
 // do período pedido — mês corrente por padrão, mês passado via ?periodo=.
@@ -707,14 +788,15 @@ async function fillDateLikeInputs(
     if (className.includes("flatpickr")) {
       // 1ª tentativa: interação real (abrir o calendário e clicar na célula do
       // dia certo) — é o único caminho que dispara corretamente o estado do
-      // formulário. 2ª tentativa (fallback): API JS via fiber do React.
-      // Para período passado, direto na API: o calendário abre no mês corrente
-      // e o clique escolheria o dia certo do mês errado (ver rangeDoPeriodo).
+      // formulário. Para período passado, a interação NAVEGA até o mês alvo
+      // (clickFlatpickrDate) — a via de API direta comprovadamente não pega
+      // neste wizard (extração de julho, 08/08/2026). 2ª tentativa (fallback):
+      // API JS via fiber do React.
       let attempt = range.usarInteracao
         ? isInicial
           ? await clickFlatpickrDay(frame, selector, 1)
           : await clickFlatpickrToday(frame, selector)
-        : { ok: false, valueAfter: "", debug: "periodo-passado-vai-direto-na-api" };
+        : await clickFlatpickrDate(frame, selector, alvo.iso);
       if (!attempt.ok) {
         let apiAttempt = await setFlatpickrDate(frame, selector, alvo.iso);
         for (let i = 0; i < 5 && !apiAttempt.ok; i++) {
@@ -1038,6 +1120,10 @@ export async function GET(req: NextRequest) {
       // recordCronRun ainda registrava ok:true — o CSV vinha, nada era gravado,
       // e o monitor de saúde dizia que estava tudo bem.
       let erroSalvando: string | null = null;
+      // Resultado do preenchimento de datas, gravado nos detalhes da rodada:
+      // sem isso, diagnosticar filtro errado exigia repetir a rodada (a
+      // resposta HTTP com wizardSteps é descartada pelo cron).
+      let dateFill: unknown = null;
       // Só "funil-de-vendas" gera lançamentos automáticos (ver bloco de save
       // genérico abaixo); os demais relatórios ficam null aqui.
       let importacaoAuto: Awaited<
@@ -1084,11 +1170,26 @@ export async function GET(req: NextRequest) {
         step(
           "Tentando preencher campos de data (hoje) que tenham aparecido...",
         );
-        const dateFillResults = await fillDateLikeInputs(
-          reportFrame,
-          rangeDoPeriodo(periodoAlvo),
-        );
+        const rangeAlvo = rangeDoPeriodo(periodoAlvo);
+        const dateFillResults = await fillDateLikeInputs(reportFrame, rangeAlvo);
+        dateFill = dateFillResults;
         step(`Preenchimento de datas: ${JSON.stringify(dateFillResults)}`);
+
+        // Extração de mês passado com QUALQUER campo de data sem preencher é
+        // abortada aqui, antes de gerar o relatório: sem o filtro aplicado, o
+        // wizard devolve outro mês, e foi exatamente assim que julho perdeu as
+        // 894 linhas em 08/08/2026. A guarda de conteúdo (mais abaixo) pegaria
+        // de novo, mas falhar já com o diagnóstico do campo é meia hora de
+        // rodada a menos para descobrir o motivo.
+        if (
+          !rangeAlvo.usarInteracao &&
+          (dateFillResults.length === 0 || dateFillResults.some((r) => !r.ok))
+        ) {
+          throw new Error(
+            `Filtro de data do período ${periodoAlvo} não foi aplicado — ` +
+              `abortando antes de gerar o relatório. Campos: ${JSON.stringify(dateFillResults)}`,
+          );
+        }
 
         const step1AfterDateFillElements =
           await describeInteractiveElements(reportFrame);
@@ -1247,6 +1348,35 @@ export async function GET(req: NextRequest) {
               try {
                 await ensureRelatorioTable();
 
+                // O CONTEÚDO precisa ser do período pedido. Em 08/08/2026 a
+                // extração de julho voltou com 17 linhas DE JUNHO (o filtro de
+                // data não pegou), passou pela trava de "não vazio" e o snapshot
+                // substituiu as 894 linhas reais de julho — que só puderam ser
+                // recuperadas reextraindo do Elleven. Contar linha não basta;
+                // aqui a data das linhas é conferida contra o período, e um
+                // descompasso aborta ANTES do apaga-e-regrava.
+                {
+                  const mesDe = (row: Record<string, string>): string | null => {
+                    for (const valor of Object.values(row)) {
+                      const m = String(valor ?? "").match(/(\d{2})\/(\d{2})\/(\d{4})/);
+                      if (m) return `${m[3]}-${m[2]}`;
+                    }
+                    return null;
+                  };
+                  const meses = modeResult.rows
+                    .map(mesDe)
+                    .filter((m): m is string => m != null);
+                  const noPeriodo = meses.filter((m) => m === periodo).length;
+                  if (meses.length >= 5 && noPeriodo / meses.length < 0.6) {
+                    throw new Error(
+                      `O CSV não é do período pedido: ${noPeriodo} de ${meses.length} ` +
+                        `linha(s) datada(s) pertencem a ${periodo} — o filtro de data do ` +
+                        `wizard não foi aplicado. Nada foi gravado; o que está no banco ` +
+                        `permanece. Datas encontradas: ${[...new Set(meses)].sort().join(", ")}.`,
+                    );
+                  }
+                }
+
                 // Snapshot vazio NÃO substitui snapshot cheio. O fluxo aqui é
                 // "apaga o período e regrava"; se o CSV vier sem linha nenhuma
                 // por um tropeço na coleta (tela mudou, sessão caiu, wizard
@@ -1394,11 +1524,13 @@ export async function GET(req: NextRequest) {
                     : null)),
         detalhes: {
           reportNome: report.nome,
+          periodoAlvo,
           rowCount: modeResult?.rowCount ?? 0,
           savedCount,
           errorCount,
           reportFrameFound: !!reportFrame,
           importacaoAuto,
+          dateFill,
           // Sem iframe de relatório não há o que extrair, e o diagnóstico só
           // existia na resposta HTTP — que o cron descarta. Guardando aqui, dá
           // para descobrir o que a tela realmente tem sem precisar de mais uma
