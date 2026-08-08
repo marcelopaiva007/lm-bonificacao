@@ -834,6 +834,11 @@ export async function GET(req: NextRequest) {
       let modeResult: Awaited<ReturnType<typeof downloadAndParseCsv>> | null = null;
       let savedCount = 0;
       let errorCount = 0;
+      // Mensagem do erro de gravação, para a rodada aparecer vermelha em
+      // /api/health/crons. Antes, falha ao salvar só somava em errorCount e o
+      // recordCronRun ainda registrava ok:true — o CSV vinha, nada era gravado,
+      // e o monitor de saúde dizia que estava tudo bem.
+      let erroSalvando: string | null = null;
       // Só "funil-de-vendas" gera lançamentos automáticos (ver bloco de save
       // genérico abaixo); os demais relatórios ficam null aqui.
       let importacaoAuto: Awaited<
@@ -1011,17 +1016,35 @@ export async function GET(req: NextRequest) {
             });
 
             // Relatórios sem tabela modelada própria: guardamos cada linha do
-            // CSV como JSONB em elleven_relatorio_linha (chave = 1ª coluna, ou
-            // um índice quando vazia). Snapshot mensal: apaga o período e recria,
-            // mais rápido e simples que upsert linha a linha.
+            // CSV como JSONB em elleven_relatorio_linha. Snapshot mensal: apaga
+            // o período e recria, mais rápido e simples que upsert linha a linha.
+            //
+            // A chave era só a 1ª coluna do CSV — no Funil de Vendas, o nome da
+            // negociação ("39718 - Negociação com FULANO"). Uma negociação com
+            // mais de um produto (internet + GPS no mesmo carrinho) gera VÁRIAS
+            // linhas com esse mesmo nome; elas colidiam no índice único e o
+            // `skipDuplicates` descartava todas menos a primeira, sem erro e sem
+            // aviso. Enquanto o relatório só ficava armazenado isso era inócuo;
+            // desde que ele virou a fonte oficial da bonificação (30/07/2026),
+            // cada linha descartada é uma venda real que não é paga a ninguém.
+            // Levantamento de 08/08/2026: 4 vendas (R$ 319,60) perdidas só entre
+            // 01 e 08/08.
+            //
+            // Agora a chave carrega também o produto e a posição da linha no
+            // CSV. A posição sozinha já garantiria unicidade (o período é
+            // apagado e regravado inteiro a cada sync); produto e negociação
+            // ficam junto porque a chave é lida por gente ao investigar.
             if (modeResult.ok && report.generico) {
               const periodo = firstOfMonthFormats().iso.slice(0, 7); // YYYY-MM
               const linhas = modeResult.rows.map((row, i) => {
                 const primeira = String(Object.values(row)[0] ?? "").trim();
+                const produto = String(row["Servico Carrinho"] ?? "").trim();
                 return {
                   relatorio: slug,
                   periodo,
-                  chave: primeira || `linha-${i}`,
+                  chave: [primeira || `linha-${i}`, produto, `#${i}`]
+                    .filter(Boolean)
+                    .join(" | "),
                   dados: row,
                 };
               });
@@ -1038,6 +1061,19 @@ export async function GET(req: NextRequest) {
                 step(
                   `Genérico (${slug}): ${savedCount} linha(s) salvas em elleven_relatorio_linha (período ${periodo}).`,
                 );
+
+                // Cinto de segurança para o bug de chave colidida não voltar
+                // calado: se sobrou linha do CSV pelo caminho, isso agora
+                // aparece no passo e derruba a rodada em vez de virar venda
+                // que ninguém recebe.
+                if (savedCount !== linhas.length) {
+                  throw new Error(
+                    `Perda silenciosa de linhas em ${slug}/${periodo}: o CSV trouxe ` +
+                      `${linhas.length} linha(s) e só ${savedCount} foram gravadas ` +
+                      `(${linhas.length - savedCount} descartada(s) por colisão de chave). ` +
+                      `Abortando para não gerar bonificação com venda faltando.`,
+                  );
+                }
 
                 // Único relatório que alimenta a bonificação (ver OS de
                 // 30/07/2026) — gera/atualiza LancamentoVenda do período logo
@@ -1058,6 +1094,7 @@ export async function GET(req: NextRequest) {
                 }
               } catch (e) {
                 errorCount++;
+                erroSalvando = e instanceof Error ? e.message : String(e);
                 step(`Erro salvando genérico (${slug}): ${e}`);
               }
             }
@@ -1077,9 +1114,9 @@ export async function GET(req: NextRequest) {
 
       await recordCronRun({
         job: `sync-elleven:${slug}`,
-        ok: modeResult?.ok ?? true,
+        ok: (modeResult?.ok ?? true) && erroSalvando == null,
         durationMs: Date.now() - started,
-        erro: modeResult?.ok === false ? modeResult.error : null,
+        erro: modeResult?.ok === false ? modeResult.error : erroSalvando,
         detalhes: {
           reportNome: report.nome,
           rowCount: modeResult?.rowCount ?? 0,
