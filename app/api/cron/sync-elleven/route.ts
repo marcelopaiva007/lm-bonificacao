@@ -95,6 +95,20 @@ const REPORTS: Record<string, { path: string; nome: string; generico?: boolean }
     nome: "Cancelamentos por Mês - Claude",
     generico: true,
   },
+  // Vendas fechadas que ainda não foram instaladas ("Solicitações - Em
+  // andamento", filtrando ativação e pré-contrato). A diretoria descartou tirar
+  // isso das negociações em Andamento do Funil de Vendas — aquela lista não
+  // representa o que está em campo esperando instalação.
+  //
+  // Terceiro formato de endereço do elleven: "legacy/analytics". Se ele montar
+  // o wizard num iframe ainda diferente dos dois conhecidos, a rodada falha com
+  // a lista de frames da página no erro — que foi como o caminho do Exportador
+  // de Dados apareceu.
+  "solicitacoes-andamento": {
+    path: "/ui/565d5331-e2d6-4724-b2ba-b227b07abe38/legacy/analytics/a05fd286-4750-353f-0e2c-4baf97fcf60a",
+    nome: "Solicitações - Em andamento",
+    generico: true,
+  },
   // Faturamento por Vendedor (modal JS legado, sem iframe de relatório) e
   // CRE - Títulos Recebidos (exige campo obrigatório extra) NÃO são usados para
   // comissão — removidos da sincronização a pedido do usuário.

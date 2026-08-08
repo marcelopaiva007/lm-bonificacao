@@ -45,6 +45,10 @@
       "schedule": "53 14 * * *"
     },
     {
+      "path": "/api/cron/sync-elleven?report=solicitacoes-andamento",
+      "schedule": "58 14 * * *"
+    },
+    {
       "path": "/api/cron/sync-chip",
       "schedule": "0 7 * * *"
     },
