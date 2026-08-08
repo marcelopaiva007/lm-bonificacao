@@ -1,0 +1,9 @@
+echo "→ verificando o codigo antes de enviar..."
+npx prisma generate >/dev/null 2>&1
+npx tsc --noEmit || {
+  echo ""
+  echo "❌ PUSH BLOQUEADO: o codigo tem erro de tipo (veja acima)."
+  echo "   Corrija e tente de novo. Isso evita deploy quebrado na Vercel."
+  exit 1
+}
+echo "✓ codigo compila. Enviando..."
