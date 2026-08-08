@@ -41,6 +41,10 @@
       "schedule": "48 14 * * *"
     },
     {
+      "path": "/api/cron/sync-elleven?report=funil-de-vendas",
+      "schedule": "53 14 * * *"
+    },
+    {
       "path": "/api/cron/sync-chip",
       "schedule": "0 7 * * *"
     },
