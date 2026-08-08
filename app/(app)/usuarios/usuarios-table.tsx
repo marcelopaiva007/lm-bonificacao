@@ -352,21 +352,11 @@ function UsuarioForm({
   const [empresaId, setEmpresaId] = useState(defaultValues?.empresaId ?? "");
   const [setorId, setSetorId] = useState(defaultValues?.setorId ?? "");
 
-  const initialScopes = useMemo(() => {
-    if (!defaultValues?.scopes) return [];
-    return defaultValues.scopes.map((s) => s.empresaId);
-  }, [defaultValues]);
-
-  const [selectedEmpresaIds, setSelectedEmpresaIds] = useState<string[]>(initialScopes);
-
   const precisaEmpresa = role === "RH_MANAGER" || role === "GESTOR_SETOR";
   const precisaSetor = role === "GESTOR_SETOR";
   const setoresDaEmpresa = setores.filter((s) => s.empresaId === empresaId);
 
   const [state, formAction, isPending] = useActionState(async (prev: ActionResult, fd: FormData) => {
-    const scopesPayload = selectedEmpresaIds.map((id) => ({ empresaId: id, nivelAcesso: "OPERADOR" }));
-    fd.append("scopesJson", JSON.stringify(scopesPayload));
-
     const result = await action(prev, fd);
     if (result.ok) {
       toast.success("Usuário salvo com sucesso.");
@@ -374,12 +364,6 @@ function UsuarioForm({
     }
     return result;
   }, initialState);
-
-  function toggleScope(empId: string) {
-    setSelectedEmpresaIds((prev) =>
-      prev.includes(empId) ? prev.filter((i) => i !== empId) : [...prev, empId]
-    );
-  }
 
   return (
     <form action={formAction} className="space-y-4">
@@ -489,42 +473,6 @@ function UsuarioForm({
           </Select>
         </div>
       )}
-
-      {/* Scope Matrix */}
-      <div className="space-y-2 pt-2 border-t border-slate-800">
-        <Label className="text-xs font-bold flex items-center gap-1.5 text-cyan-400 uppercase tracking-wider">
-          <Building2 className="size-3.5" /> Poderes e Acesso por CNPJ e Marca
-        </Label>
-        <p className="text-[11px] text-slate-400">
-          Selecione as marcas às quais este usuário terá acesso operacional no sistema:
-        </p>
-
-        <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto p-2 border border-slate-800 rounded-lg bg-slate-950/60">
-          {empresas.map((emp) => {
-            const isChecked = selectedEmpresaIds.includes(emp.id);
-            return (
-              <div key={emp.id} className="flex items-center space-x-2 p-1.5 rounded hover:bg-slate-900/60">
-                <Checkbox
-                  id={`scope-${emp.id}`}
-                  checked={isChecked}
-                  onCheckedChange={() => toggleScope(emp.id)}
-                />
-                <label
-                  htmlFor={`scope-${emp.id}`}
-                  className="text-xs font-medium leading-none cursor-pointer select-none space-y-0.5 text-slate-200"
-                >
-                  <div>{emp.nome}</div>
-                  {(emp.marca || emp.cnpj) && (
-                    <div className="text-[10px] text-slate-400 font-mono">
-                      {emp.marca ? `Marca: ${emp.marca}` : ""} {emp.cnpj ? `| CNPJ: ${emp.cnpj}` : ""}
-                    </div>
-                  )}
-                </label>
-              </div>
-            );
-          })}
-        </div>
-      </div>
 
       {!state.ok && (
         <Alert variant="destructive" className="border-rose-800 bg-rose-950/40 text-rose-200">
