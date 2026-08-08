@@ -7,8 +7,7 @@ import { LogOut, KeyRound, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { navByRole, diretoriaNav } from "@/components/nav-config";
-import { Logo } from "@/components/logo";
-import { EmpresaMarcaSwitcher } from "@/components/empresa-marca-switcher";
+import { logo } from "@/components/logo";
 
 const ROLE_LABELS: Record<string, string> = {
   ADMIN: "Administrativo/Financeiro",
@@ -40,9 +39,6 @@ export function AppSidebar({
         <p className="text-[11px] font-medium text-slate-400">
           Sistema de Vendas da LM
         </p>
-        <div className="md:hidden">
-          <EmpresaMarcaSwitcher />
-        </div>
       </div>
 
       {/* Navigation Items */}
