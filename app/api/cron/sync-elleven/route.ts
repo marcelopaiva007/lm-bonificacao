@@ -1114,9 +1114,21 @@ export async function GET(req: NextRequest) {
 
       await recordCronRun({
         job: `sync-elleven:${slug}`,
-        ok: (modeResult?.ok ?? true) && erroSalvando == null,
+        // Sem iframe de relatório, a rodada não extraiu nada — e antes disso
+        // era registrada como ok, porque modeResult nem chegava a existir. Foi
+        // o que aconteceu com o primeiro sync de "Cancelamentos por Mês":
+        // verde no monitor, zero linha no banco.
+        ok: (modeResult?.ok ?? true) && erroSalvando == null && !!reportFrame,
         durationMs: Date.now() - started,
-        erro: modeResult?.ok === false ? modeResult.error : erroSalvando,
+        erro:
+          modeResult?.ok === false
+            ? modeResult.error
+            : (erroSalvando ??
+              (reportFrame
+                ? null
+                : `A tela do relatório não montou o iframe "reports_exec" — ` +
+                  `nada foi extraído. URL final: ${page.url()}. ` +
+                  `Frames encontrados: ${allFrameUrls.join(" , ") || "nenhum"}.`)),
         detalhes: {
           reportNome: report.nome,
           rowCount: modeResult?.rowCount ?? 0,
@@ -1124,6 +1136,18 @@ export async function GET(req: NextRequest) {
           errorCount,
           reportFrameFound: !!reportFrame,
           importacaoAuto,
+          // Sem iframe de relatório não há o que extrair, e o diagnóstico só
+          // existia na resposta HTTP — que o cron descarta. Guardando aqui, dá
+          // para descobrir o que a tela realmente tem sem precisar de mais uma
+          // rodada. É o caso do "Cancelamentos por Mês", que fica em
+          // legacy/utilities e não no wizard de relatórios.
+          ...(reportFrame
+            ? {}
+            : {
+                urlFinal: page.url(),
+                framesEncontrados: allFrameUrls,
+                passos: log.slice(-25),
+              }),
         },
       });
 
