@@ -4,7 +4,6 @@ import { z } from "zod";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
-import { ensureAuthAndUserSchema } from "@/lib/ensure-schema";
 import { registrarAuditoria } from "@/lib/auditoria";
 import type { ActionResult } from "@/lib/constants";
 
