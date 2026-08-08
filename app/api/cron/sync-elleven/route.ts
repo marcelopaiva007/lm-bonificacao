@@ -1027,6 +1027,11 @@ export async function GET(req: NextRequest) {
         );
       }
 
+      // Cada passo da navegação via menu, com o que a tela oferecia no momento
+      // do clique — o diagnóstico que faltou nas rodadas 15:50 e 16:26.
+      // Declarado antes da navegação e lido lá embaixo no recordCronRun.
+      const passosDeMenu: Array<Record<string, unknown>> = [];
+
       if (report.viaMenu) {
         // As telas do Exportador de Dados e de analytics não montam o conteúdo
         // quando se entra direto pela URL: a aba abre, fica selecionada, e a
@@ -1042,13 +1047,14 @@ export async function GET(req: NextRequest) {
         });
         await page.waitForTimeout(5000);
         for (const texto of report.viaMenu) {
+          // O item pode demorar a existir (animação de expandir o submenu do
+          // clique anterior) — espera e re-tenta ANTES de suspeitar de menu
+          // fechado. Na rodada 16:26 de 08/08/2026 a ordem errada custou a
+          // navegação: o clique no hambúrguer, com o menu JÁ aberto, fechou o
+          // menu e a expansão de "Utilitários" junto.
           let clique = await clicarPorTexto(page.mainFrame(), texto);
-          if (!clique.ok) {
-            // O menu lateral abre RECOLHIDO na tela inicial (rodada 15:50 de
-            // 08/08/2026: "Utilitários" com 0 candidatos) — o hambúrguer tem
-            // "menu" como texto do ícone. Abre e tenta de novo.
-            await clicarPorTexto(page.mainFrame(), "menu");
-            await page.waitForTimeout(1500);
+          for (let tentativa = 0; !clique.ok && tentativa < 4; tentativa++) {
+            await page.waitForTimeout(2000);
             clique = await clicarPorTexto(page.mainFrame(), texto);
           }
           if (!clique.ok) {
@@ -1059,10 +1065,30 @@ export async function GET(req: NextRequest) {
               clique = await clicarPorTexto(frameLegado, texto);
             }
           }
-          wizardSteps.push({
-            name: `menu-${texto}`,
-            ...clique,
-            elementosDepois: await describeInteractiveElements(page.mainFrame()),
+          if (!clique.ok) {
+            // Último recurso: hambúrguer (ícone "menu") para o caso de o menu
+            // lateral estar realmente recolhido — rodada 15:50 de 08/08/2026.
+            await clicarPorTexto(page.mainFrame(), "menu");
+            await page.waitForTimeout(1500);
+            clique = await clicarPorTexto(page.mainFrame(), texto);
+          }
+          // Registro compacto do que a tela oferecia no momento do clique —
+          // vai para os detalhes da rodada (o wizardSteps completo morre com
+          // a resposta HTTP, que o cron descarta).
+          const oferta = (await describeInteractiveElements(page.mainFrame())) as
+            | Array<Record<string, unknown>>
+            | string;
+          passosDeMenu.push({
+            alvo: texto,
+            ok: clique.ok,
+            usado: clique.usado ?? null,
+            candidatos: clique.achados,
+            telaOferecia: Array.isArray(oferta)
+              ? oferta
+                  .map((e) => String(e.text ?? e.ariaLabel ?? "").replace(/\s+/g, " ").trim())
+                  .filter(Boolean)
+                  .slice(0, 40)
+              : String(oferta).slice(0, 200),
           });
           step(
             `Menu "${texto}": ${clique.ok ? `cliquei em "${clique.usado}"` : "NÃO ENCONTRADO"} (${clique.achados} candidato(s))`,
@@ -1547,6 +1573,7 @@ export async function GET(req: NextRequest) {
           reportFrameFound: !!reportFrame,
           importacaoAuto,
           dateFill,
+          ...(passosDeMenu.length > 0 ? { passosDeMenu } : {}),
           // Sem iframe de relatório não há o que extrair, e o diagnóstico só
           // existia na resposta HTTP — que o cron descarta. Guardando aqui, dá
           // para descobrir o que a tela realmente tem sem precisar de mais uma

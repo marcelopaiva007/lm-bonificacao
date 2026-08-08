@@ -21,16 +21,12 @@
       "schedule": "55 6 * * *"
     },
     {
-      "path": "/api/cron/sync-elleven?report=funil-de-vendas&periodo=2026-07",
-      "schedule": "20 16 * * *"
-    },
-    {
       "path": "/api/cron/sync-elleven?report=cancelamentos",
-      "schedule": "26 16 * * *"
+      "schedule": "42 16 * * *"
     },
     {
       "path": "/api/cron/sync-elleven?report=solicitacoes-andamento",
-      "schedule": "32 16 * * *"
+      "schedule": "48 16 * * *"
     },
     {
       "path": "/api/cron/sync-chip",
