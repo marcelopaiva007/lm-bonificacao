@@ -185,7 +185,7 @@ export function UsuariosTable({
               <TableHead className="font-semibold text-slate-300">Usuário / E-mail</TableHead>
               <TableHead className="font-semibold text-slate-300">Login</TableHead>
               <TableHead className="font-semibold text-slate-300">Papel Global</TableHead>
-              <TableHead className="font-semibold text-slate-300">Escopo CNPJ / Marca</TableHead>
+              <TableHead className="font-semibold text-slate-300">Empresa / Setor</TableHead>
               <TableHead className="font-semibold text-slate-300">Último Acesso</TableHead>
               <TableHead className="font-semibold text-slate-300">Status</TableHead>
               <TableHead className="w-32 text-right font-semibold text-slate-300">Ações</TableHead>
