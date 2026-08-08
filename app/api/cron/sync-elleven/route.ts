@@ -120,6 +120,13 @@ const REPORTS: Record<
     // a busca global acha a tela pelo nome, onde ela estiver.
     viaMenu: ["buscar:Solicitações - Em Andamento"],
   },
+  // Modo de DESCOBERTA (?report=mapa-menus): loga e consulta a API interna de
+  // menus da SPA em vez de extrair relatório. O path não é navegado. Ver o
+  // bloco `slug === "mapa-menus"` no fluxo, logo após o login.
+  "mapa-menus": {
+    path: "/",
+    nome: "Mapa de menus (descoberta)",
+  },
   // Faturamento por Vendedor (modal JS legado, sem iframe de relatório) e
   // CRE - Títulos Recebidos (exige campo obrigatório extra) NÃO são usados para
   // comissão — removidos da sincronização a pedido do usuário.
@@ -1025,6 +1032,98 @@ export async function GET(req: NextRequest) {
         throw new Error(
           "Login não avançou — continua na tela de login (credenciais incorretas ou CAPTCHA/MFA apareceu).",
         );
+      }
+
+      // ?report=mapa-menus: modo de DESCOBERTA — não extrai relatório nenhum.
+      // Consulta a API interna de menus da própria SPA (general/me/menus, a
+      // mesma de onde vieram os UUIDs dos três relatórios que funcionam) e
+      // grava as entradas nos detalhes da rodada. Existe porque tatear a
+      // interface custou 5 rodadas de ~10min em 08/08/2026 sem achar o caminho
+      // do Exportador de Dados; o menu-fonte responde de uma vez, com os
+      // endereços exatos.
+      if (slug === "mapa-menus") {
+        const mapa = await withTimeout(
+          page.evaluate(async () => {
+            const tentativas: Record<string, unknown> = {};
+            for (const url of [
+              "/api/general/me/menus",
+              "/api/v1/general/me/menus",
+              "/general/me/menus",
+            ]) {
+              try {
+                const res = await fetch(url, { credentials: "include" });
+                const corpo = await res.text();
+                tentativas[url] = {
+                  status: res.status,
+                  corpo: corpo.slice(0, 60000),
+                };
+                if (res.ok) break;
+              } catch (e) {
+                tentativas[url] = { erro: String(e) };
+              }
+            }
+            return tentativas;
+          }),
+          30000,
+          "mapa-menus",
+        );
+
+        // Só as entradas que interessam vão para o registro: o menu inteiro
+        // não cabe no JSONB com folga, e o que se procura tem nome conhecido.
+        const bruto = JSON.stringify(mapa);
+        const relevantes: string[] = [];
+        try {
+          for (const tent of Object.values(mapa as Record<string, unknown>)) {
+            const corpo = (tent as { corpo?: string }).corpo;
+            if (!corpo) continue;
+            const json = JSON.parse(corpo) as unknown;
+            const pilha: unknown[] = [json];
+            while (pilha.length) {
+              const item = pilha.pop();
+              if (Array.isArray(item)) {
+                pilha.push(...item);
+              } else if (item && typeof item === "object") {
+                const o = item as Record<string, unknown>;
+                const texto = JSON.stringify(o).toLowerCase();
+                const temFilho = Object.values(o).some(
+                  (v) => Array.isArray(v) && v.length > 0,
+                );
+                if (
+                  !temFilho &&
+                  /(cancelament|exportador|solicita|andamento)/.test(texto)
+                ) {
+                  relevantes.push(JSON.stringify(o).slice(0, 600));
+                }
+                pilha.push(...Object.values(o));
+              }
+            }
+          }
+        } catch {
+          /* corpo não-JSON fica só no bruto */
+        }
+
+        await recordCronRun({
+          job: `sync-elleven:${slug}`,
+          ok: relevantes.length > 0,
+          durationMs: Date.now() - started,
+          erro:
+            relevantes.length > 0
+              ? null
+              : `Nenhuma entrada de menu casou com os termos procurados. Respostas: ${bruto.slice(0, 500)}`,
+          detalhes: {
+            reportNome: "Mapa de menus (descoberta)",
+            entradasRelevantes: relevantes.slice(0, 30),
+            statusDasTentativas: Object.fromEntries(
+              Object.entries(mapa as Record<string, unknown>).map(([k, v]) => [
+                k,
+                (v as { status?: number; erro?: string }).status ??
+                  (v as { erro?: string }).erro ??
+                  "?",
+              ]),
+            ),
+          },
+        });
+        return NextResponse.json({ ok: true, mapa: relevantes });
       }
 
       // Cada passo da navegação via menu, com o que a tela oferecia no momento

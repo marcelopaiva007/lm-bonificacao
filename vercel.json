@@ -21,12 +21,8 @@
       "schedule": "55 6 * * *"
     },
     {
-      "path": "/api/cron/sync-elleven?report=cancelamentos",
-      "schedule": "20 17 * * *"
-    },
-    {
-      "path": "/api/cron/sync-elleven?report=solicitacoes-andamento",
-      "schedule": "26 17 * * *"
+      "path": "/api/cron/sync-elleven?report=mapa-menus",
+      "schedule": "40 17 * * *"
     },
     {
       "path": "/api/cron/sync-chip",
