@@ -65,7 +65,10 @@ const ELLEVEN_BASE = "https://elleven.assinelm.com.br";
 //            "funil-de-vendas" também gera LancamentoVenda a partir dessas
 //            linhas (ver lib/importar-elleven-funil.ts) — é o único que
 //            alimenta a bonificação.
-const REPORTS: Record<string, { path: string; nome: string; generico?: boolean }> = {
+const REPORTS: Record<
+  string,
+  { path: string; nome: string; generico?: boolean; viaMenu?: string[] }
+> = {
   "vendedores-comercial": {
     path: "/ui/legacy/reports/fc792c4f-d4cf-572a-361b-3502c29ede8c",
     nome: "Vendedores - Comercial",
@@ -94,6 +97,9 @@ const REPORTS: Record<string, { path: string; nome: string; generico?: boolean }
     path: "/ui/04a36939-b7cb-4e54-83e1-6d92444f98c8/legacy/utilities/9cd32fd1-d070-1569-453a-c8cba6505d66",
     nome: "Cancelamentos por Mês - Claude",
     generico: true,
+    // Caminho informado pela diretoria: o relatório vive no Exportador de
+    // Dados. A entrada direta pela URL abre a aba mas o conteúdo nunca monta.
+    viaMenu: ["Utilitários", "Exportador de Dados", "Cancelamentos por Mês - Claude"],
   },
   // Vendas fechadas que ainda não foram instaladas ("Solicitações - Em
   // andamento", filtrando ativação e pré-contrato). A diretoria descartou tirar
@@ -108,6 +114,11 @@ const REPORTS: Record<string, { path: string; nome: string; generico?: boolean }
     path: "/ui/565d5331-e2d6-4724-b2ba-b227b07abe38/legacy/analytics/a05fd286-4750-353f-0e2c-4baf97fcf60a",
     nome: "Solicitações - Em andamento",
     generico: true,
+    // Caminho descrito pela diretoria: "Solicitações - Em andamento > por
+    // tipo". O menu exato entre a raiz e a tela ainda não é conhecido — a
+    // primeira rodada com viaMenu registra o que cada clique encontrou, e é
+    // por esses registros que o caminho se ajusta.
+    viaMenu: ["Análises", "Solicitações - Em Andamento"],
   },
   // Faturamento por Vendedor (modal JS legado, sem iframe de relatório) e
   // CRE - Títulos Recebidos (exige campo obrigatório extra) NÃO são usados para
@@ -150,6 +161,51 @@ function acharFrameDoLegado(page: Page): Frame | undefined {
     doElleven.find((f: Frame) => f.url().includes("reports_exec")) ??
     doElleven.find((f: Frame) => f.url().includes("/restricted/gv"))
   );
+}
+
+// Clica no primeiro elemento clicável visível cujo texto contenha `texto`
+// (sem acento, sem caixa). Entre vários candidatos, o de texto mais curto — o
+// item de menu "Utilitários" ganha de um contêiner que também contém a palavra.
+// É a peça da navegação via menu (ver report.viaMenu): cliques do jeito que uma
+// pessoa faria, porque a entrada direta pela URL não monta essas telas.
+async function clicarPorTexto(
+  frame: Frame,
+  texto: string,
+): Promise<{ ok: boolean; achados: number; usado?: string }> {
+  return withTimeout(
+    frame.evaluate((alvo) => {
+      const norm = (s: string) =>
+        s
+          .normalize("NFD")
+          .replace(/[̀-ͯ]/g, "")
+          .toLowerCase()
+          .replace(/\s+/g, " ")
+          .trim();
+      const alvoN = norm(alvo);
+      const sel =
+        'button, a, li, [role="button"], [role="tab"], [role="menuitem"], [role="option"]';
+      const els = Array.from(document.querySelectorAll(sel)) as HTMLElement[];
+      const candidatos = els
+        .filter((e) => {
+          const r = e.getBoundingClientRect();
+          return r.width > 0 && r.height > 0;
+        })
+        .map((e) => ({ e, t: norm(e.innerText || "") }))
+        .filter((x) => x.t.includes(alvoN))
+        .sort((a, b) => a.t.length - b.t.length);
+      if (candidatos.length === 0) return { ok: false, achados: 0 };
+      const escolhido = candidatos[0].e;
+      escolhido.scrollIntoView({ block: "center" });
+      escolhido.click();
+      return {
+        ok: true,
+        achados: candidatos.length,
+        usado: (escolhido.innerText || "").replace(/\s+/g, " ").slice(0, 80),
+      };
+    }, texto),
+    EVAL_TIMEOUT_MS,
+    `clicar-${texto}`,
+  ).catch((e: unknown) => ({ ok: false, achados: -1, usado: `ERRO: ${e}` }));
 }
 
 // Garante que a tabela genérica exista antes de gravar, criando-a sob demanda
@@ -408,6 +464,29 @@ function firstOfMonthFormats() {
   return dateFormats({ dd: "01", mm, yyyy });
 }
 
+// Intervalo de datas de um período "AAAA-MM" qualquer — o que permite
+// reprocessar um mês passado (?periodo=2026-07). Existe por causa do bug do
+// identificador de linhas (corrigido em 1.3.0): as linhas descartadas nunca
+// chegaram ao banco, então recuperar julho exige extrair o CSV daquele mês de
+// novo — e o wizard só filtrava o mês corrente.
+//
+// `usarInteracao` é o detalhe que importa: o Flatpickr abre SEMPRE mostrando o
+// mês corrente, então o caminho de clique (clickFlatpickrDay/Today) escolheria
+// o dia certo do MÊS ERRADO para qualquer período passado. Para período
+// passado, só a API JS (setFlatpickrDate) serve.
+function rangeDoPeriodo(periodo: string) {
+  const [yyyy, mm] = periodo.split("-");
+  const hoje = saoPauloParts(new Date());
+  const ehCorrente = `${hoje.yyyy}-${hoje.mm}` === periodo;
+  const ultimoDia = new Date(Date.UTC(Number(yyyy), Number(mm), 0)).getUTCDate();
+  return {
+    inicio: dateFormats({ dd: "01", mm, yyyy }),
+    fim: dateFormats({ dd: String(ultimoDia).padStart(2, "0"), mm, yyyy }),
+    usarInteracao: ehCorrente,
+  };
+}
+type RangePeriodo = ReturnType<typeof rangeDoPeriodo>;
+
 // Define a data num input controlado pela biblioteca Flatpickr usando a API JS dela
 // (window/elemento expõe `_flatpickr`), em vez de digitar — o input costuma ser
 // somente leitura ou interceptar o teclado para navegação do calendário, então
@@ -576,9 +655,11 @@ async function clickFlatpickrDay(
 }
 
 // Tenta preencher, de forma best-effort, qualquer input cujo rótulo/placeholder/name
-// sugira ser um campo de data (ex.: "Data Inicial", "Data Final") com a data de hoje.
+// sugira ser um campo de data (ex.: "Data Inicial", "Data Final") com o intervalo
+// do período pedido — mês corrente por padrão, mês passado via ?periodo=.
 async function fillDateLikeInputs(
   frame: Frame,
+  range: RangePeriodo,
 ): Promise<
   Array<{
     selector: string;
@@ -595,8 +676,8 @@ async function fillDateLikeInputs(
     valueAfter: string;
     debug?: string;
   }> = [];
-  const hoje = todayFormats(); const fimMes = (() => { const p = saoPauloParts(new Date()); const last = new Date(Date.UTC(Number(p.yyyy), Number(p.mm), 0)).getUTCDate(); return dateFormats({ dd: String(last).padStart(2, "0"), mm: p.mm, yyyy: p.yyyy }); })();
-  const inicioMes = firstOfMonthFormats();
+  const inicioMes = range.inicio;
+  const fimMes = range.fim;
   const candidates = (await describeInteractiveElements(frame)) as Array<
     Record<string, unknown>
   >;
@@ -627,9 +708,13 @@ async function fillDateLikeInputs(
       // 1ª tentativa: interação real (abrir o calendário e clicar na célula do
       // dia certo) — é o único caminho que dispara corretamente o estado do
       // formulário. 2ª tentativa (fallback): API JS via fiber do React.
-      let attempt = isInicial
-        ? await clickFlatpickrDay(frame, selector, 1)
-        : await clickFlatpickrToday(frame, selector);
+      // Para período passado, direto na API: o calendário abre no mês corrente
+      // e o clique escolheria o dia certo do mês errado (ver rangeDoPeriodo).
+      let attempt = range.usarInteracao
+        ? isInicial
+          ? await clickFlatpickrDay(frame, selector, 1)
+          : await clickFlatpickrToday(frame, selector)
+        : { ok: false, valueAfter: "", debug: "periodo-passado-vai-direto-na-api" };
       if (!attempt.ok) {
         let apiAttempt = await setFlatpickrDate(frame, selector, alvo.iso);
         for (let i = 0; i < 5 && !apiAttempt.ok; i++) {
@@ -701,6 +786,25 @@ export async function GET(req: NextRequest) {
       {
         error: `Relatório desconhecido: "${slug}". Válidos: ${Object.keys(REPORTS).join(", ")}`,
       },
+      { status: 400 },
+    );
+  }
+
+  // Período a extrair: mês corrente por padrão; ?periodo=AAAA-MM para
+  // reprocessar um mês passado (recuperação das linhas perdidas pelo bug do
+  // identificador — 1.3.0). Futuro não existe no Elleven, então é erro.
+  const periodoCorrente = firstOfMonthFormats().iso.slice(0, 7);
+  const periodoAlvo =
+    req.nextUrl.searchParams.get("periodo") ?? periodoCorrente;
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(periodoAlvo)) {
+    return NextResponse.json(
+      { error: `Período inválido: "${periodoAlvo}". Formato: AAAA-MM.` },
+      { status: 400 },
+    );
+  }
+  if (periodoAlvo > periodoCorrente) {
+    return NextResponse.json(
+      { error: `Período no futuro: "${periodoAlvo}".` },
       { status: 400 },
     );
   }
@@ -841,11 +945,40 @@ export async function GET(req: NextRequest) {
         );
       }
 
-      step(`Navegando até o relatório ${report.nome}...`);
-      await page.goto(`${ELLEVEN_BASE}${report.path}`, {
-        waitUntil: "load",
-        timeout: 30000,
-      });
+      if (report.viaMenu) {
+        // As telas do Exportador de Dados e de analytics não montam o conteúdo
+        // quando se entra direto pela URL: a aba abre, fica selecionada, e a
+        // área de conteúdo nunca carrega (capturas de 08/08/2026 — 21 elementos
+        // na página, todos menu e moldura). O caminho que uma pessoa faz — pelo
+        // menu — é o que dispara a montagem. Cada clique registra o que a tela
+        // ofereceu, então uma etapa que não for encontrada diz exatamente o que
+        // havia no lugar dela.
+        step(`Navegando pelo menu: ${report.viaMenu.join(" → ")}...`);
+        await page.goto(`${ELLEVEN_BASE}/ui/`, {
+          waitUntil: "load",
+          timeout: 45000,
+        });
+        await page.waitForTimeout(5000);
+        for (const texto of report.viaMenu) {
+          const clique = await clicarPorTexto(page.mainFrame(), texto);
+          wizardSteps.push({
+            name: `menu-${texto}`,
+            ...clique,
+            elementosDepois: await describeInteractiveElements(page.mainFrame()),
+          });
+          step(
+            `Menu "${texto}": ${clique.ok ? `cliquei em "${clique.usado}"` : "NÃO ENCONTRADO"} (${clique.achados} candidato(s))`,
+          );
+          if (!clique.ok) break;
+          await page.waitForTimeout(4000);
+        }
+      } else {
+        step(`Navegando até o relatório ${report.nome}...`);
+        await page.goto(`${ELLEVEN_BASE}${report.path}`, {
+          waitUntil: "load",
+          timeout: 30000,
+        });
+      }
 
       // ESPERAR o reports_exec antes de aceitar a casca é o ponto todo.
       //
@@ -951,7 +1084,10 @@ export async function GET(req: NextRequest) {
         step(
           "Tentando preencher campos de data (hoje) que tenham aparecido...",
         );
-        const dateFillResults = await fillDateLikeInputs(reportFrame);
+        const dateFillResults = await fillDateLikeInputs(
+          reportFrame,
+          rangeDoPeriodo(periodoAlvo),
+        );
         step(`Preenchimento de datas: ${JSON.stringify(dateFillResults)}`);
 
         const step1AfterDateFillElements =
@@ -1095,7 +1231,7 @@ export async function GET(req: NextRequest) {
             // apagado e regravado inteiro a cada sync); produto e negociação
             // ficam junto porque a chave é lida por gente ao investigar.
             if (modeResult.ok && report.generico) {
-              const periodo = firstOfMonthFormats().iso.slice(0, 7); // YYYY-MM
+              const periodo = periodoAlvo;
               const linhas = modeResult.rows.map((row, i) => {
                 const primeira = String(Object.values(row)[0] ?? "").trim();
                 const produto = String(row["Servico Carrinho"] ?? "").trim();

@@ -44,6 +44,22 @@ export type ResultadoImportacaoFunil = {
 export async function importarLancamentosEllevenFunil(
   periodo: string,
 ): Promise<ResultadoImportacaoFunil> {
+  // Mês FECHADO é intocável. recalcularFechamento já se recusa a recalcular,
+  // mas o apaga-e-regrava dos lançamentos logo abaixo rodaria mesmo assim —
+  // e mudaria os dados de um mês que já foi pago. A trava passou a importar
+  // com a chegada do ?periodo= (reprocessamento de mês passado, 08/08/2026):
+  // antes disso, só o mês corrente chegava aqui, sempre aberto.
+  const fechamento = await prisma.fechamentoMensal.findUnique({
+    where: { periodo },
+    select: { status: true },
+  });
+  if (fechamento?.status === "FECHADO") {
+    throw new Error(
+      `O fechamento de ${periodo} está FECHADO — a importação não altera mês pago. ` +
+        `Reabra o fechamento primeiro se for realmente necessário.`,
+    );
+  }
+
   const linhasBrutas = await prisma.elevenRelatorioLinha.findMany({
     where: { relatorio: "funil-de-vendas", periodo },
   });
