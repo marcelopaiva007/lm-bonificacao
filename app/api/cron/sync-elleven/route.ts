@@ -1183,6 +1183,26 @@ export async function GET(req: NextRequest) {
         }
       }
 
+      // Coleta que achou o frame mas não trouxe CSV: guarda o que a tela
+      // realmente oferece. É o caso do Exportador de Dados, cujo frame é o do
+      // legado mas cujo conteúdo não é o wizard de Filtros/Geração — o log só
+      // dizia "Filtrar por: opções []", que não diz o que ESTÁ lá. Sem isto, a
+      // única saída é tentar de novo às cegas.
+      let telaDoFrame: unknown = null;
+      if (reportFrame && (!modeResult || (modeResult.rowCount ?? 0) === 0)) {
+        telaDoFrame = {
+          url: reportFrame.url(),
+          elementos: await describeInteractiveElements(reportFrame),
+          texto: await withTimeout(
+            reportFrame.evaluate(() =>
+              (document.body?.innerText ?? "").replace(/\s+/g, " ").slice(0, 1200),
+            ),
+            EVAL_TIMEOUT_MS,
+            "texto-do-frame",
+          ).catch(() => null),
+        };
+      }
+
       const screenshot = await page.screenshot({
         fullPage: true,
         timeout: 15000,
@@ -1236,6 +1256,7 @@ export async function GET(req: NextRequest) {
                 framesEncontrados: allFrameUrls,
                 passos: log.slice(-25),
               }),
+          ...(telaDoFrame ? { telaDoFrame, passos: log.slice(-25) } : {}),
         },
       });
 
