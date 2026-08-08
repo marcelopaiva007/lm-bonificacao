@@ -144,8 +144,22 @@ export async function previsualizarVendedoresElleven() {
   await requireAdmin();
 
   const [contratos, funcionarios] = await Promise.all([
-    prisma.contratoAtivacaoElleven.findMany(),
-    prisma.funcionario.findMany({ include: { cidade: true } }),
+    prisma.contratoAtivacaoElleven.findMany({
+      select: {
+        vendedor1: true,
+        cidade: true,
+        ativacaoContrato: true,
+        dataContrato: true,
+      },
+    }),
+    prisma.funcionario.findMany({
+      select: {
+        id: true,
+        nome: true,
+        cidadeId: true,
+        cidade: true,
+      },
+    }),
   ]);
 
   type Grupo = { contratos: number; cidades: Map<string, number>; ultima: Date | null };
