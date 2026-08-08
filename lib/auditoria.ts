@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
-import type { Prisma } from "@/app/generated/prisma/client";
+import type { Prisma } from "@/app/generated/prisma";
 
 export type AcaoAuditoria =
   | "CRIAR"
