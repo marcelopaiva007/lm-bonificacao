@@ -9,6 +9,7 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  schemas  = ["bonificacao", "public", "rh", "shared"]
 }
 
 model User {
@@ -34,6 +35,8 @@ model User {
   pesquisasCriadas    Pesquisa[]
   scopes              UserEmpresaScope[]
   resetTokens         PasswordResetToken[]
+
+  @@schema("shared")
 }
 
 model Cidade {
@@ -41,6 +44,8 @@ model Cidade {
   nome String @unique
 
   funcionarios Funcionario[]
+
+  @@schema("bonificacao")
 }
 
 model Equipe {
@@ -51,6 +56,8 @@ model Equipe {
   tamanhoTier  Int?
 
   membros Funcionario[] @relation("MembroDaEquipe")
+
+  @@schema("bonificacao")
 }
 
 model Funcionario {
@@ -76,6 +83,8 @@ model Funcionario {
   @@index([equipeId])
   @@index([ativo])
   @@index([cargo])
+
+  @@schema("bonificacao")
 }
 
 model RegraBonificacao {
@@ -88,6 +97,8 @@ model RegraBonificacao {
   createdAt      DateTime  @default(now())
 
   @@index([cargo, vigenciaInicio])
+
+  @@schema("bonificacao")
 }
 
 model LancamentoVenda {
@@ -114,6 +125,8 @@ model LancamentoVenda {
 
   @@index([funcionarioId, periodo])
   @@index([periodo])
+
+  @@schema("bonificacao")
 }
 
 model ImportLote {
@@ -128,6 +141,8 @@ model ImportLote {
   detalhesErrosJson Json?
 
   lancamentos LancamentoVenda[]
+
+  @@schema("bonificacao")
 }
 
 model FechamentoMensal {
@@ -143,6 +158,8 @@ model FechamentoMensal {
 
   bonificacoes BonificacaoCalculada[]
   ajustes      Ajuste[]
+
+  @@schema("bonificacao")
 }
 
 model BonificacaoCalculada {
@@ -162,6 +179,8 @@ model BonificacaoCalculada {
 
   @@unique([fechamentoId, funcionarioId])
   @@index([funcionarioId])
+
+  @@schema("bonificacao")
 }
 
 model Ajuste {
@@ -176,6 +195,8 @@ model Ajuste {
   createdAt     DateTime          @default(now())
 
   @@index([funcionarioId, periodo])
+
+  @@schema("bonificacao")
 }
 
 model ContratoAtivacaoElleven {
@@ -206,6 +227,8 @@ model ContratoAtivacaoElleven {
   @@index([statusContrato])
   @@index([vendedor1])
   @@map("contrato_ativacao_elleven")
+
+  @@schema("bonificacao")
 }
 
 model ElevenRelatorioLinha {
@@ -219,6 +242,8 @@ model ElevenRelatorioLinha {
   @@unique([relatorio, periodo, chave])
   @@index([relatorio, periodo])
   @@map("elleven_relatorio_linha")
+
+  @@schema("bonificacao")
 }
 
 model VendaChipMovel {
@@ -243,6 +268,8 @@ model VendaChipMovel {
   @@index([periodo])
   @@index([sellerCpf])
   @@map("venda_chip_movel")
+
+  @@schema("bonificacao")
 }
 
 model Empresa {
@@ -261,6 +288,8 @@ model Empresa {
   colaboradores Colaborador[]
   pesquisas     Pesquisa[]
   scopes        UserEmpresaScope[]
+
+  @@schema("rh")
 }
 
 model UserEmpresaScope {
@@ -276,6 +305,8 @@ model UserEmpresaScope {
   @@unique([userId, empresaId])
   @@index([userId])
   @@index([empresaId])
+
+  @@schema("public")
 }
 
 model PasswordResetToken {
@@ -289,6 +320,8 @@ model PasswordResetToken {
 
   @@index([token])
   @@index([userId])
+
+  @@schema("public")
 }
 
 model Setor {
@@ -304,6 +337,8 @@ model Setor {
 
   @@unique([empresaId, nome])
   @@index([empresaId])
+
+  @@schema("rh")
 }
 
 model Posicao {
@@ -318,6 +353,8 @@ model Posicao {
 
   @@unique([empresaId, nome])
   @@index([empresaId])
+
+  @@schema("rh")
 }
 
 model Colaborador {
@@ -344,6 +381,8 @@ model Colaborador {
   @@index([empresaId])
   @@index([setorId])
   @@index([posicaoId])
+
+  @@schema("rh")
 }
 
 model Pesquisa {
@@ -366,6 +405,8 @@ model Pesquisa {
   respostas Resposta[]
 
   @@index([empresaId, status])
+
+  @@schema("rh")
 }
 
 model Pergunta {
@@ -383,6 +424,8 @@ model Pergunta {
 
   @@unique([pesquisaId, ordem])
   @@index([pesquisaId])
+
+  @@schema("rh")
 }
 
 model Opcao {
@@ -395,6 +438,8 @@ model Opcao {
   itens RespostaItem[]
 
   @@index([perguntaId])
+
+  @@schema("rh")
 }
 
 model SurveyToken {
@@ -413,6 +458,8 @@ model SurveyToken {
 
   @@unique([pesquisaId, colaboradorId])
   @@index([status])
+
+  @@schema("rh")
 }
 
 model Resposta {
@@ -428,6 +475,8 @@ model Resposta {
   itens RespostaItem[]
 
   @@index([pesquisaId])
+
+  @@schema("rh")
 }
 
 model RespostaItem {
@@ -443,6 +492,8 @@ model RespostaItem {
 
   @@index([respostaId])
   @@index([perguntaId])
+
+  @@schema("rh")
 }
 
 model AuditLog {
@@ -461,4 +512,6 @@ model AuditLog {
   @@index([modulo])
   @@index([acao])
   @@index([usuarioNome])
+
+  @@schema("public")
 }
