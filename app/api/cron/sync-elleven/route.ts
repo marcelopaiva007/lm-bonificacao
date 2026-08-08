@@ -847,10 +847,35 @@ export async function GET(req: NextRequest) {
         timeout: 30000,
       });
 
-      let reportFrame = acharFrameDoLegado(page);
+      // ESPERAR o reports_exec antes de aceitar a casca é o ponto todo.
+      //
+      // Preferir reports_exec quando os dois frames já existem não bastava: no
+      // carregamento, a casca (/restricted/gv) aparece ANTES, e aceitá-la
+      // encerrava a espera. O wizard então rodava contra um frame sem
+      // formulário nenhum — "Filtrar por: opções []", "AVANÇAR: false", zero
+      // linha. Foi o que derrubou o Funil das 11:30 e os Pedidos das 11:40 em
+      // 08/08/2026.
+      //
+      // Então: gasta-se toda a janela de espera procurando o relatório de
+      // verdade e, só se ele nunca aparecer, cai-se para a casca — que é o
+      // único frame das telas abertas pelo Exportador de Dados e por analytics.
+      const ehReportsExec = (f: Frame) =>
+        f.url().includes("elleven.assinelm.com.br") &&
+        f.url().includes("reports_exec");
+
+      let reportFrame = page.frames().find(ehReportsExec);
       for (let i = 0; i < 20 && !reportFrame; i++) {
         await page.waitForTimeout(2000);
+        reportFrame = page.frames().find(ehReportsExec);
+      }
+      if (!reportFrame) {
         reportFrame = acharFrameDoLegado(page);
+        if (reportFrame) {
+          step(
+            "Sem iframe reports_exec após a espera — seguindo pela casca do " +
+              "legado (tela de Exportador de Dados / analytics).",
+          );
+        }
       }
       step(
         `Frame do sistema legado encontrado: ${!!reportFrame}` +
