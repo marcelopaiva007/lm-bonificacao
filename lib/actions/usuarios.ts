@@ -82,17 +82,6 @@ export async function createUsuario(_prev: ActionResult, formData: FormData): Pr
       },
     });
 
-    // Cria os escopos por CNPJ / Empresa / Marca
-    if (scopes.length > 0) {
-      await prisma.userEmpresaScope.createMany({
-        data: scopes.map((s) => ({
-          userId: novoUsuario.id,
-          empresaId: s.empresaId,
-          nivelAcesso: s.nivelAcesso || "OPERADOR",
-        })),
-      });
-    }
-
     await registrarAuditoria({
       acao: "CRIAR",
       modulo: "USUARIOS",
