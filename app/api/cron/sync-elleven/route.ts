@@ -1188,18 +1188,37 @@ export async function GET(req: NextRequest) {
       // legado mas cujo conteúdo não é o wizard de Filtros/Geração — o log só
       // dizia "Filtrar por: opções []", que não diz o que ESTÁ lá. Sem isto, a
       // única saída é tentar de novo às cegas.
+      const textoDe = (f: Frame, label: string) =>
+        withTimeout(
+          f.evaluate(() =>
+            (document.body?.innerText ?? "").replace(/\s+/g, " ").slice(0, 1200),
+          ),
+          EVAL_TIMEOUT_MS,
+          label,
+        ).catch(() => null);
+
       let telaDoFrame: unknown = null;
-      if (reportFrame && (!modeResult || (modeResult.rowCount ?? 0) === 0)) {
+      if (!modeResult || (modeResult.rowCount ?? 0) === 0) {
+        // A primeira captura olhou só o iframe do legado e voltou vazia — nem
+        // texto, nem um elemento interativo. Ou seja: as telas do Exportador de
+        // Dados e de analytics NÃO montam a interface lá dentro; a casca
+        // /restricted/gv é só um invólucro. O que sobra é a própria página
+        // React, que é onde a interface deve estar. Capturamos as duas para não
+        // gastar mais uma rodada descobrindo de qual lado olhar.
         telaDoFrame = {
-          url: reportFrame.url(),
-          elementos: await describeInteractiveElements(reportFrame),
-          texto: await withTimeout(
-            reportFrame.evaluate(() =>
-              (document.body?.innerText ?? "").replace(/\s+/g, " ").slice(0, 1200),
-            ),
-            EVAL_TIMEOUT_MS,
-            "texto-do-frame",
-          ).catch(() => null),
+          frame: reportFrame
+            ? {
+                url: reportFrame.url(),
+                elementos: await describeInteractiveElements(reportFrame),
+                texto: await textoDe(reportFrame, "texto-do-frame"),
+              }
+            : null,
+          pagina: {
+            url: page.url(),
+            elementos: await describeInteractiveElements(page.mainFrame()),
+            texto: await textoDe(page.mainFrame(), "texto-da-pagina"),
+          },
+          frames: allFrameUrls,
         };
       }
 
