@@ -152,12 +152,14 @@ export function UsuariosTable({
         </div>
 
         <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-          <DialogTrigger render={<Button />}>
-            <Button className="bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 text-slate-950 font-bold shadow-md shadow-cyan-500/20 text-xs">
-              <Plus className="size-4 mr-1.5" />
-              Novo Usuário
-            </Button>
-          </DialogTrigger>
+          <DialogTrigger
+            render={
+              <Button className="bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 text-slate-950 font-bold shadow-md shadow-cyan-500/20 text-xs">
+                <Plus className="size-4 mr-1.5" />
+                Novo Usuário
+              </Button>
+            }
+          />
           <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto border-slate-800 bg-slate-950/95 backdrop-blur-xl">
             <UsuarioForm
               action={createUsuario}
