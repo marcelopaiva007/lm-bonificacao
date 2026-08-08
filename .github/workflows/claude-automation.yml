@@ -1,0 +1,48 @@
+name: Claude Automated Workflow
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  issue_comment:
+    types: [created]
+  workflow_dispatch:
+    inputs:
+      prompt:
+        description: 'Instrução para o Claude executar'
+        required: false
+        default: 'Verificar integridade do projeto e relatar status'
+
+jobs:
+  claude-automation:
+    # Executa quando houver um PR, ou um comentário convocando @claude, ou execução manual (dispatch)
+    if: |
+      github.event_name == 'pull_request' ||
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude'))
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Dependencies
+        run: |
+          npm ci || npm install
+
+      - name: Run Claude Automation
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          prompt: ${{ github.event.inputs.prompt || 'Faça a revisão completa do PR e verifique se há problemas de build ou lint.' }}

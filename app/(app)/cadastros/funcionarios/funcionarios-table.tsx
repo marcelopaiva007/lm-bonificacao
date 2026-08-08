@@ -2,7 +2,7 @@
 
 import { useActionState, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, UsersCheck } from "lucide-react";
+import { Plus, Pencil, Trash2, UserCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -417,7 +417,7 @@ function DetectarDuplicadosModal() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger render={<Button variant="outline" onClick={handleBuscar} />}>
-        <UsersCheck className="size-4" />
+        <UserCheck className="size-4" />
         Detectar Duplicados
       </DialogTrigger>
       <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
