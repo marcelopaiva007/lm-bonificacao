@@ -101,7 +101,7 @@ export default function RecuperarSenhaPage() {
                   />
                 </div>
 
-                {!state.ok && state.error && (
+                {!state.ok && (
                   <Alert variant="destructive" className="bg-red-950/50 border-red-800/50">
                     <AlertDescription className="text-red-200">{state.error}</AlertDescription>
                   </Alert>

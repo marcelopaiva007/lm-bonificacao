@@ -138,7 +138,7 @@ export function TrocarSenhaView({
                 </div>
               </div>
 
-              {!state.ok && state.error && (
+              {!state.ok && (
                 <Alert variant="destructive">
                   <AlertDescription>{state.error}</AlertDescription>
                 </Alert>
