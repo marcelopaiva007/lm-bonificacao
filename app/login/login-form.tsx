@@ -26,23 +26,36 @@ export function LoginForm() {
   function handleSubmit(formData: FormData) {
     setError(null);
     startTransition(async () => {
-      const result = await signIn("credentials", {
-        username: formData.get("username"),
-        password: formData.get("password"),
-        redirect: false,
-      });
+      try {
+        const username = formData.get("username") as string;
+        const password = formData.get("password") as string;
 
-      if (result?.error) {
-        if (result.error.includes("inativa")) {
+        const result = await signIn("credentials", {
+          username,
+          password,
+          redirect: false,
+        });
+
+        if (result?.error) {
+          if (result.error.includes("inativa")) {
+            setError("Sua conta está inativa. Entre em contato com o suporte.");
+          } else {
+            setError("Usuário/E-mail ou senha inválidos.");
+          }
+          return;
+        }
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const callbackUrl = urlParams.get("callbackUrl") || "/";
+        window.location.href = callbackUrl;
+      } catch (err: any) {
+        const msg = err?.message || String(err);
+        if (msg.includes("inativa")) {
           setError("Sua conta está inativa. Entre em contato com o suporte.");
         } else {
           setError("Usuário/E-mail ou senha inválidos.");
         }
-        return;
       }
-
-      router.push("/");
-      router.refresh();
     });
   }
 
