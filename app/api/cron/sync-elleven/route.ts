@@ -1074,22 +1074,57 @@ export async function GET(req: NextRequest) {
           await page.waitForTimeout(500);
         }
 
-        // A SPA pode ter o menu em cache e não repetir a chamada — nesse caso,
-        // com o token capturado de qualquer outra chamada /api/, a consulta é
-        // feita por dentro da página, com o mesmo Authorization.
-        if (!corpoMenus && tokenCapturado) {
-          corpoMenus = await withTimeout(
+        // Com o token capturado, busca por dentro da página o menu completo E
+        // desce nos filhos de cada entrada: a captura de rede (18:16 de
+        // 08/08/2026) trouxe só o 1º nível ("Minhas Tarefas"...), e o
+        // Exportador de Dados / Cancelamentos vivem aninhados. Aqui cada
+        // entrada que tem `hasChildren`/`path` de submenu é expandida pela
+        // própria API, montando a árvore inteira.
+        if (tokenCapturado) {
+          const arvore = await withTimeout(
             page.evaluate(async (tk) => {
-              const r = await fetch("/api/general/me/menus", {
-                headers: { Authorization: `Bearer ${tk}` },
-                credentials: "include",
-              });
-              const t = await r.text();
-              return r.ok ? t : `HTTP ${r.status}: ${t.slice(0, 200)}`;
+              const cab = { Authorization: `Bearer ${tk}` };
+              const raiz = await (
+                await fetch("/api/general/me/menus", { headers: cab, credentials: "include" })
+              ).json();
+              const lista: unknown[] = Array.isArray(raiz?.response) ? raiz.response : [];
+              const saida: Record<string, unknown>[] = [];
+              // Largura limitada para não explodir: no máximo 400 nós.
+              const fila = lista.map((n) => ({ n, nivel: 0 }));
+              let visitados = 0;
+              while (fila.length && visitados < 400) {
+                const { n, nivel } = fila.shift() as { n: Record<string, unknown>; nivel: number };
+                visitados++;
+                saida.push({
+                  title: n.title,
+                  module: n.module,
+                  segment: n.segment,
+                  path: n.path,
+                  id: n.id,
+                  nivel,
+                });
+                const id = n.id;
+                if (nivel < 3 && typeof id === "string") {
+                  try {
+                    const sub = await (
+                      await fetch(`/api/general/me/menus?parentId=${id}`, {
+                        headers: cab,
+                        credentials: "include",
+                      })
+                    ).json();
+                    const filhos = Array.isArray(sub?.response) ? sub.response : [];
+                    for (const f of filhos) fila.push({ n: f, nivel: nivel + 1 });
+                  } catch {
+                    /* sem filhos */
+                  }
+                }
+              }
+              return saida;
             }, tokenCapturado),
-            20000,
-            "fetch-menus-com-token",
-          ).catch((e) => `erro: ${e}`);
+            60000,
+            "arvore-de-menus",
+          ).catch(() => null);
+          if (arvore) corpoMenus = JSON.stringify({ arvore });
         }
 
         // Só as entradas que interessam vão para o registro: o menu inteiro
@@ -1139,7 +1174,22 @@ export async function GET(req: NextRequest) {
             entradasRelevantes: relevantes.slice(0, 30),
             capturouResposta: corpoMenus != null,
             capturouToken: tokenCapturado != null,
-            amostraBruta: bruto.slice(0, 1500),
+            // Todos os títulos+path da árvore, para ler o caminho real de cada
+            // tela sem depender do filtro por palavra.
+            todosOsTitulos: (() => {
+              try {
+                const j = JSON.parse(bruto) as { arvore?: Array<Record<string, unknown>> };
+                return (j.arvore ?? [])
+                  .map(
+                    (n) =>
+                      `${"  ".repeat(Number(n.nivel) || 0)}${n.title} :: ${n.path ?? "-"}`,
+                  )
+                  .slice(0, 200);
+              } catch {
+                return [];
+              }
+            })(),
+            amostraBruta: bruto.slice(0, 3000),
           },
         });
         return NextResponse.json({ ok: true, mapa: relevantes });
