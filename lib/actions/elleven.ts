@@ -45,7 +45,17 @@ export async function previsualizarLancamentosElleven(periodo: string) {
   // Dataset de um único ISP: volume esperado é baixo o bastante para filtrar
   // em memória em vez de tentar casar um padrão de data guardado como texto
   // livre via SQL.
-  const contratos = await prisma.contratoAtivacaoElleven.findMany();
+  const contratos = await prisma.contratoAtivacaoElleven.findMany({
+    select: {
+      contrato: true,
+      vendedor1: true,
+      ativacaoContrato: true,
+      dataContrato: true,
+      statusContrato: true,
+      valServAtivado: true,
+      servicoAtivado: true,
+    },
+  });
 
   const doPeriodo = contratos.filter((c) => {
     const d = parseDataBr(c.ativacaoContrato) ?? parseDataBr(c.dataContrato);

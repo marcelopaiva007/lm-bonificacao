@@ -29,6 +29,19 @@ export async function getVendasEmAndamento(periodo?: string): Promise<ResumoVend
   await requireAdmin();
 
   const todosContratos = await prisma.contratoAtivacaoElleven.findMany({
+    select: {
+      id: true,
+      contrato: true,
+      vendedor1: true,
+      nomeCliente: true,
+      cidade: true,
+      servicoAtivado: true,
+      valServAtivado: true,
+      dataContrato: true,
+      prazoAtivacaoContrato: true,
+      statusContrato: true,
+      ativacaoContrato: true,
+    },
     orderBy: { syncedAt: "desc" },
   });
 
