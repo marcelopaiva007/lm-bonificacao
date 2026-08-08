@@ -41,7 +41,6 @@ function escopoPorRole(data: z.infer<typeof usuarioSchema>) {
 
 export async function createUsuario(_prev: ActionResult, formData: FormData): Promise<ActionResult> {
   const admin = await requireAdmin();
-  await ensureAuthAndUserSchema();
 
   const senha = String(formData.get("senha") ?? "");
   if (senha.length < 8) return { ok: false, error: "A senha deve ter pelo menos 8 caracteres." };
@@ -89,7 +88,6 @@ export async function createUsuario(_prev: ActionResult, formData: FormData): Pr
 
 export async function updateUsuario(id: string, _prev: ActionResult, formData: FormData): Promise<ActionResult> {
   const admin = await requireAdmin();
-  await ensureAuthAndUserSchema();
 
   const parsed = usuarioSchema.safeParse({
     nome: formData.get("nome"),
