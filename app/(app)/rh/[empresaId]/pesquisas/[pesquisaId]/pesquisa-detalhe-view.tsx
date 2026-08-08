@@ -542,7 +542,7 @@ function ResultadosSection({
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                   <XAxis dataKey="dimensao" tick={{ fontSize: 12 }} />
                   <YAxis tick={{ fontSize: 12 }} />
-                  <Tooltip formatter={(v) => Number(v).toFixed(2)} />
+                  <Tooltip formatter={(v: any) => Number(v).toFixed(2)} />
                   <Bar dataKey="media" name="Média" fill="var(--chart-2)" radius={4} />
                 </BarChart>
               </ResponsiveContainer>
@@ -554,7 +554,7 @@ function ResultadosSection({
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                   <XAxis type="number" tick={{ fontSize: 12 }} />
                   <YAxis dataKey="setor" type="category" tick={{ fontSize: 12 }} width={100} />
-                  <Tooltip formatter={(v) => Number(v).toFixed(2)} />
+                  <Tooltip formatter={(v: any) => Number(v).toFixed(2)} />
                   <Bar dataKey="media" name="Média" fill="var(--chart-4)" radius={4} />
                 </BarChart>
               </ResponsiveContainer>
