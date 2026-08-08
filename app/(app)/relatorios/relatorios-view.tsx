@@ -138,7 +138,7 @@ export function RelatoriosView({
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                 <XAxis dataKey="label" tick={{ fontSize: 12 }} />
                 <YAxis tick={{ fontSize: 12 }} tickFormatter={(v) => fmtMoeda(Number(v))} width={90} />
-                <Tooltip formatter={(v) => fmtMoeda(Number(v))} />
+                <Tooltip formatter={(v: any) => fmtMoeda(Number(v))} />
                 <Legend />
                 <Line
                   type="monotone"
@@ -176,7 +176,7 @@ export function RelatoriosView({
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                   <XAxis type="number" tick={{ fontSize: 12 }} tickFormatter={(v) => fmtMoeda(Number(v))} />
                   <YAxis dataKey="cidade" type="category" tick={{ fontSize: 12 }} width={90} />
-                  <Tooltip formatter={(v) => fmtMoeda(Number(v))} />
+                  <Tooltip formatter={(v: any) => fmtMoeda(Number(v))} />
                   <Bar dataKey="valor" name="Valor Vendido" fill="var(--chart-2)" radius={4} />
                 </BarChart>
               </ResponsiveContainer>
