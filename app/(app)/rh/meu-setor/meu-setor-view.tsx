@@ -36,7 +36,7 @@ export function MeuSetorView({ resultados }: { resultados: Resultado[] }) {
                     <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                     <XAxis dataKey="dimensao" tick={{ fontSize: 12 }} />
                     <YAxis tick={{ fontSize: 12 }} />
-                    <Tooltip formatter={(v) => Number(v).toFixed(2)} />
+                    <Tooltip formatter={(v: any) => Number(v).toFixed(2)} />
                     <Bar dataKey="media" name="Média" fill="var(--chart-2)" radius={4} />
                   </BarChart>
                 </ResponsiveContainer>
