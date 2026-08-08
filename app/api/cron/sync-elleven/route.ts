@@ -86,11 +86,10 @@ const REPORTS: Record<string, { path: string; nome: string; generico?: boolean }
   // importar-elleven-funil grava cancelado: 0 fixo, porque o Funil de Vendas
   // não tem esse conceito, e venda cancelada segue contando para bonificação.
   //
-  // Atenção: o endereço veio como "legacy/utilities", não "legacy/reports"
-  // como os três acima (URL informada pela diretoria em 08/08/2026). Se a tela
-  // não montar o mesmo iframe reports_exec do wizard, este sync falha sozinho
-  // e aparece em /api/health/crons com o passo exato em wizardSteps — sem
-  // afetar os outros relatórios, que rodam em execuções separadas.
+  // O endereço é "legacy/utilities" (Exportador de Dados), não "legacy/reports"
+  // como os três acima. As duas primeiras tentativas voltaram vazias por causa
+  // disso: a tela monta o iframe do legado em "/restricted/gv?hash=...", e a
+  // busca do frame só aceitava "reports_exec". Ver isFrameDoLegado.
   cancelamentos: {
     path: "/ui/04a36939-b7cb-4e54-83e1-6d92444f98c8/legacy/utilities/9cd32fd1-d070-1569-453a-c8cba6505d66",
     nome: "Cancelamentos por Mês - Claude",
@@ -108,6 +107,23 @@ function unauthorized() {
 
 function escapeRegex(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+// O wizard legado do elleven roda dentro de um iframe, e o endereço dele muda
+// conforme por onde se entra:
+//
+//  - pelos relatórios (/ui/legacy/reports/...), a URL contém "reports_exec";
+//  - pelo Exportador de Dados (/ui/<workspace>/legacy/utilities/...), ela é
+//    "/restricted/gv?hash=..." — descoberto em 08/08/2026, quando o sync de
+//    "Cancelamentos por Mês" falhou procurando só por reports_exec e o
+//    diagnóstico gravado mostrou qual iframe a página realmente monta.
+//
+// Ficam de fora frames de terceiros que a página carrega junto (o widget de
+// ajuda Stonly, por exemplo) e o próprio frame principal.
+function isFrameDoLegado(f: Frame): boolean {
+  const url = f.url();
+  if (!url.includes("elleven.assinelm.com.br")) return false;
+  return url.includes("reports_exec") || url.includes("/restricted/gv");
 }
 
 // Garante que a tabela genérica exista antes de gravar, criando-a sob demanda
@@ -805,16 +821,15 @@ export async function GET(req: NextRequest) {
         timeout: 30000,
       });
 
-      let reportFrame = page
-        .frames()
-        .find((f: Frame) => f.url().includes("reports_exec"));
+      let reportFrame = page.frames().find(isFrameDoLegado);
       for (let i = 0; i < 20 && !reportFrame; i++) {
         await page.waitForTimeout(2000);
-        reportFrame = page
-          .frames()
-          .find((f: Frame) => f.url().includes("reports_exec"));
+        reportFrame = page.frames().find(isFrameDoLegado);
       }
-      step(`Frame do relatório (reports_exec) encontrado: ${!!reportFrame}`);
+      step(
+        `Frame do sistema legado encontrado: ${!!reportFrame}` +
+          (reportFrame ? ` (${reportFrame.url().slice(0, 80)})` : ""),
+      );
 
       if (reportFrame) {
         for (let i = 0; i < 10; i++) {
@@ -903,9 +918,7 @@ export async function GET(req: NextRequest) {
         await page.waitForTimeout(4000);
 
         // Playwright pode ter trocado a referência do frame após navegação interna do SPA.
-        reportFrame =
-          page.frames().find((f: Frame) => f.url().includes("reports_exec")) ??
-          reportFrame;
+        reportFrame = page.frames().find(isFrameDoLegado) ?? reportFrame;
 
         // Etapa 2: pode ser "Parâmetros" (se o relatório tiver parâmetros extras) ou
         // pular direto para "Geração" (quando não há parâmetros configuráveis).
@@ -933,11 +946,7 @@ export async function GET(req: NextRequest) {
           );
           await page.waitForTimeout(3000);
 
-          reportFrame =
-            page
-              .frames()
-              .find((f: Frame) => f.url().includes("reports_exec")) ??
-            reportFrame;
+          reportFrame = page.frames().find(isFrameDoLegado) ?? reportFrame;
           stageText = await withTimeout(
             reportFrame.evaluate(() => document.body?.innerText ?? ""),
             EVAL_TIMEOUT_MS,
@@ -1126,7 +1135,7 @@ export async function GET(req: NextRequest) {
             : (erroSalvando ??
               (reportFrame
                 ? null
-                : `A tela do relatório não montou o iframe "reports_exec" — ` +
+                : `A tela do relatório não montou o iframe do sistema legado — ` +
                   `nada foi extraído. URL final: ${page.url()}. ` +
                   `Frames encontrados: ${allFrameUrls.join(" , ") || "nenhum"}.`)),
         detalhes: {
