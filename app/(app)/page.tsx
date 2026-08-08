@@ -91,6 +91,7 @@ export default async function HomePage({
         valorSupervisor: true,
         funcionario: {
           select: {
+            nome: true,
             cargo: true,
             cidade: { select: { nome: true } },
           },
