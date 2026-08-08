@@ -104,8 +104,8 @@ export function AppHeader({
             </DropdownMenuLabel>
             <DropdownMenuSeparator className="bg-slate-800" />
 
-            <DropdownMenuItem asChild className="cursor-pointer text-xs">
-              <Link href="/conta" className="flex items-center gap-2">
+            <DropdownMenuItem className="cursor-pointer text-xs p-0">
+              <Link href="/conta" className="flex items-center gap-2 w-full px-1.5 py-1">
                 <KeyRound className="size-4 text-cyan-400" />
                 Minha Conta / Senha
               </Link>
