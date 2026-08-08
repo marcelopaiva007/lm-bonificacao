@@ -231,7 +231,7 @@ export function calcularAcompanhamento(params: {
 
   let supervisor: AcompanhamentoSupervisor | null = null;
   let valorSupervisor = 0;
-  if (cargo === "SUPERVISOR" && config?.supervisor && supervisorCtx) {
+  if (config?.supervisor && supervisorCtx) {
     const b = calcularBonificacaoSupervisor(
       config.supervisor,
       supervisorCtx.totalInternetEquipe,

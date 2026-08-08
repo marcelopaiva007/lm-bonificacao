@@ -10,6 +10,7 @@ import {
   type LancamentoAgregado,
   type RegraConfig,
 } from "@/lib/bonificacao-calc";
+import { CARGOS } from "@/lib/constants";
 
 // Reexporta a API de cálculo puro para que os consumidores continuem importando
 // tudo de "@/lib/bonificacao".
@@ -81,8 +82,11 @@ export async function recalcularFechamento(periodo: string) {
     );
   }
 
+  // A lista de cargos vem de CARGOS (fonte única) — quando um cargo novo entra
+  // no cadastro, ele entra no cálculo junto, em vez de ficar silenciosamente
+  // sem regra (era uma lista duplicada aqui até 08/08/2026).
   const configPorCargo = new Map<string, RegraConfig | null>();
-  for (const cargo of ["VENDEDOR_EXTERNO", "ATENDIMENTO_ADM", "SUPERVISOR", "OUTRO_SETOR"]) {
+  for (const { value: cargo } of CARGOS) {
     const regra = await getRegraVigente(cargo, periodo);
     configPorCargo.set(cargo, asRegraConfig(regra?.config));
   }
@@ -92,7 +96,13 @@ export async function recalcularFechamento(periodo: string) {
   // estourava o timeout padrão de 5s do Prisma conforme o quadro crescia e
   // abortava o recálculo inteiro (P2028).
   const equipesPorSupervisor = new Map<string, EquipeComMembros[]>();
-  const supervisorIds = funcionarios.filter((f) => f.cargo === "SUPERVISOR").map((f) => f.id);
+  // Quem tem bônus de equipe é quem tem a seção `supervisor` na regra do
+  // cargo — não só o cargo SUPERVISOR. O RESPONSAVEL_SETOR (R$ 10 por venda
+  // de internet dos técnicos, 08/08/2026) entra por aqui: mesma mecânica,
+  // meta zero.
+  const temBonusDeEquipe = (cargo: string) =>
+    configPorCargo.get(cargo)?.supervisor != null;
+  const supervisorIds = funcionarios.filter((f) => temBonusDeEquipe(f.cargo)).map((f) => f.id);
   if (supervisorIds.length > 0) {
     const equipes = await prisma.equipe.findMany({
       where: { supervisorId: { in: supervisorIds } },
@@ -122,7 +132,7 @@ export async function recalcularFechamento(periodo: string) {
         let valorSupervisor = 0;
         const detalhes: Record<string, unknown> = { servicos: individual.detalhes };
 
-        if (f.cargo === "SUPERVISOR" && config?.supervisor) {
+        if (config?.supervisor) {
           const equipesSupervisionadas = equipesPorSupervisor.get(f.id) ?? [];
           const detalhesEquipes: BonificacaoSupervisor[] = [];
           for (const equipe of equipesSupervisionadas) {

@@ -6,6 +6,12 @@ export const CARGOS = [
   { value: "VENDEDOR_EXTERNO", label: "Vendedor Externo" },
   { value: "ATENDIMENTO_ADM", label: "Atendimento/Administrativo" },
   { value: "SUPERVISOR", label: "Supervisor" },
+  // Cargos criados em 08/08/2026 (regras definidas pela diretoria).
+  // GESTOR fica de fora até a regra dele ser definida — cargo sem regra
+  // pagaria zero em silêncio.
+  { value: "TECNICO", label: "Técnico" },
+  { value: "VENDEDOR_AGREGADO", label: "Vendedor Agregado" },
+  { value: "RESPONSAVEL_SETOR", label: "Responsável de Setor" },
   { value: "OUTRO_SETOR", label: "Outro Setor" },
 ] as const;
 

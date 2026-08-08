@@ -34,6 +34,13 @@ const METAS: NavItem = { href: "/metas", label: "Metas", icon: Send };
 const REGISTRO: NavItem = { href: "/registro", label: "Registro de Alterações", icon: History };
 const BATIMENTO: NavItem = { href: "/batimento", label: "Batimento", icon: GitCompare };
 const PAGAMENTOS: NavItem = { href: "/pagamentos", label: "Pagamentos", icon: Wallet };
+// Recorte semanal pago toda segunda (regra dos técnicos, 08/08/2026). Vive sob
+// Relatórios porque não é um segundo fechamento — o fechamento segue mensal.
+const TECNICOS_SEMANA: NavItem = {
+  href: "/relatorios/tecnicos",
+  label: "Técnicos — Semana",
+  icon: BarChart3,
+};
 const GESTAO: NavItem = { href: "/gestao", label: "Gestão", icon: LineChart };
 
 const OPERACAO: NavItem[] = [
@@ -54,6 +61,7 @@ export const adminNav: NavItem[] = [
   PAGAMENTOS,
   METAS,
   RELATORIOS,
+  TECNICOS_SEMANA,
   BATIMENTO,
   REGISTRO,
   { href: "/cadastros/usuarios", label: "Usuários", icon: UserCog },
@@ -68,6 +76,7 @@ export const gerenteNav: NavItem[] = [
   PAGAMENTOS,
   METAS,
   RELATORIOS,
+  TECNICOS_SEMANA,
   BATIMENTO,
   REGISTRO,
 ];
@@ -80,6 +89,7 @@ export const diretoriaNav: NavItem[] = [
   RELATORIOS,
   FECHAMENTO,
   PAGAMENTOS,
+  TECNICOS_SEMANA,
   METAS,
   REGISTRO,
 ];

@@ -44,7 +44,7 @@ const configSchema = z.object({
 });
 
 const regraSchema = z.object({
-  cargo: z.enum(["VENDEDOR_EXTERNO", "ATENDIMENTO_ADM", "SUPERVISOR", "OUTRO_SETOR"]),
+  cargo: z.enum(["VENDEDOR_EXTERNO", "ATENDIMENTO_ADM", "SUPERVISOR", "TECNICO", "VENDEDOR_AGREGADO", "RESPONSAVEL_SETOR", "OUTRO_SETOR"]),
   vigenciaInicio: z.string().min(1, "Informe a data de início da vigência"),
   observacoes: z.string().trim().optional(),
 });

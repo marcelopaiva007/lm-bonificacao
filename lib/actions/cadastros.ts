@@ -124,7 +124,7 @@ const funcionarioSchema = z
       .transform((v) => v.replace(/\D/g, ""))
       .refine((v) => v === "" || v.length === 11, "CPF deve ter 11 dígitos")
       .optional(),
-    cargo: z.enum(["VENDEDOR_EXTERNO", "ATENDIMENTO_ADM", "SUPERVISOR", "OUTRO_SETOR"]),
+    cargo: z.enum(["VENDEDOR_EXTERNO", "ATENDIMENTO_ADM", "SUPERVISOR", "TECNICO", "VENDEDOR_AGREGADO", "RESPONSAVEL_SETOR", "OUTRO_SETOR"]),
   cidadeId: z.string().trim().optional(),
   equipeId: z.string().trim().optional(),
   // Contato para as cobranças de meta (Telegram/e-mail).
