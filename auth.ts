@@ -20,21 +20,33 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         await ensureAuthAndUserSchema();
 
-        const user = await prisma.user.findFirst({
-          where: {
-            OR: [
-              { username: loginInput },
-              { email: loginInput },
-            ],
-          },
-          include: {
-            scopes: {
-              include: {
-                empresa: true,
+        let user;
+        try {
+          user = await prisma.user.findFirst({
+            where: {
+              OR: [
+                { username: loginInput },
+                { email: loginInput },
+              ],
+            },
+            include: {
+              scopes: {
+                include: {
+                  empresa: true,
+                },
               },
             },
-          },
-        });
+          });
+        } catch {
+          user = await prisma.user.findFirst({
+            where: {
+              OR: [
+                { username: loginInput },
+                { email: loginInput },
+              ],
+            },
+          });
+        }
 
         if (!user) return null;
 
