@@ -89,7 +89,7 @@ const REPORTS: Record<string, { path: string; nome: string; generico?: boolean }
   // O endereço é "legacy/utilities" (Exportador de Dados), não "legacy/reports"
   // como os três acima. As duas primeiras tentativas voltaram vazias por causa
   // disso: a tela monta o iframe do legado em "/restricted/gv?hash=...", e a
-  // busca do frame só aceitava "reports_exec". Ver isFrameDoLegado.
+  // busca do frame só aceitava "reports_exec". Ver acharFrameDoLegado.
   cancelamentos: {
     path: "/ui/04a36939-b7cb-4e54-83e1-6d92444f98c8/legacy/utilities/9cd32fd1-d070-1569-453a-c8cba6505d66",
     nome: "Cancelamentos por Mês - Claude",
@@ -120,10 +120,22 @@ function escapeRegex(s: string): string {
 //
 // Ficam de fora frames de terceiros que a página carrega junto (o widget de
 // ajuda Stonly, por exemplo) e o próprio frame principal.
-function isFrameDoLegado(f: Frame): boolean {
-  const url = f.url();
-  if (!url.includes("elleven.assinelm.com.br")) return false;
-  return url.includes("reports_exec") || url.includes("/restricted/gv");
+//
+// A ORDEM importa: uma página de relatório pode ter os dois frames ao mesmo
+// tempo — a casca do legado em /restricted/gv e o relatório em si em
+// reports_exec. Pegar o primeiro que casasse fez o sync do Funil de Vendas
+// voltar com zero linha às 11:30 de 08/08/2026 (nada foi perdido: sem CSV, o
+// bloco de gravação nem chega a rodar). Por isso reports_exec vem sempre
+// primeiro, e /restricted/gv só quando ele não existe — que é o caso das telas
+// abertas pelo Exportador de Dados.
+function acharFrameDoLegado(page: Page): Frame | undefined {
+  const doElleven = page
+    .frames()
+    .filter((f: Frame) => f.url().includes("elleven.assinelm.com.br"));
+  return (
+    doElleven.find((f: Frame) => f.url().includes("reports_exec")) ??
+    doElleven.find((f: Frame) => f.url().includes("/restricted/gv"))
+  );
 }
 
 // Garante que a tabela genérica exista antes de gravar, criando-a sob demanda
@@ -821,10 +833,10 @@ export async function GET(req: NextRequest) {
         timeout: 30000,
       });
 
-      let reportFrame = page.frames().find(isFrameDoLegado);
+      let reportFrame = acharFrameDoLegado(page);
       for (let i = 0; i < 20 && !reportFrame; i++) {
         await page.waitForTimeout(2000);
-        reportFrame = page.frames().find(isFrameDoLegado);
+        reportFrame = acharFrameDoLegado(page);
       }
       step(
         `Frame do sistema legado encontrado: ${!!reportFrame}` +
@@ -918,7 +930,7 @@ export async function GET(req: NextRequest) {
         await page.waitForTimeout(4000);
 
         // Playwright pode ter trocado a referência do frame após navegação interna do SPA.
-        reportFrame = page.frames().find(isFrameDoLegado) ?? reportFrame;
+        reportFrame = acharFrameDoLegado(page) ?? reportFrame;
 
         // Etapa 2: pode ser "Parâmetros" (se o relatório tiver parâmetros extras) ou
         // pular direto para "Geração" (quando não há parâmetros configuráveis).
@@ -946,7 +958,7 @@ export async function GET(req: NextRequest) {
           );
           await page.waitForTimeout(3000);
 
-          reportFrame = page.frames().find(isFrameDoLegado) ?? reportFrame;
+          reportFrame = acharFrameDoLegado(page) ?? reportFrame;
           stageText = await withTimeout(
             reportFrame.evaluate(() => document.body?.innerText ?? ""),
             EVAL_TIMEOUT_MS,
@@ -1059,6 +1071,23 @@ export async function GET(req: NextRequest) {
               });
               try {
                 await ensureRelatorioTable();
+
+                // Snapshot vazio NÃO substitui snapshot cheio. O fluxo aqui é
+                // "apaga o período e regrava"; se o CSV vier sem linha nenhuma
+                // por um tropeço na coleta (tela mudou, sessão caiu, wizard
+                // parou no meio), o apaga aconteceria e o regrava não — levando
+                // junto os lançamentos do mês, já que o funil regera
+                // LancamentoVenda a partir daqui. Um mês legitimamente sem
+                // venda não se distingue de uma coleta que falhou, e entre as
+                // duas leituras a segura é manter o que já está no banco.
+                if (linhas.length === 0) {
+                  throw new Error(
+                    `CSV de ${slug}/${periodo} voltou sem nenhuma linha — ` +
+                      `mantendo o que já está gravado e abortando, para não ` +
+                      `apagar o período por causa de uma coleta falha.`,
+                  );
+                }
+
                 await prisma.elevenRelatorioLinha.deleteMany({
                   where: { relatorio: slug, periodo },
                 });
@@ -1123,21 +1152,32 @@ export async function GET(req: NextRequest) {
 
       await recordCronRun({
         job: `sync-elleven:${slug}`,
-        // Sem iframe de relatório, a rodada não extraiu nada — e antes disso
-        // era registrada como ok, porque modeResult nem chegava a existir. Foi
-        // o que aconteceu com o primeiro sync de "Cancelamentos por Mês":
-        // verde no monitor, zero linha no banco.
-        ok: (modeResult?.ok ?? true) && erroSalvando == null && !!reportFrame,
+        // Uma rodada só é verde se REALMENTE trouxe o relatório. Antes,
+        // `modeResult?.ok ?? true` dava ok quando a exportação sequer chegava a
+        // ser tentada — foi assim que o primeiro sync de "Cancelamentos por
+        // Mês" (sem iframe) e o do Funil às 11:30 (frame errado, zero linha)
+        // apareceram verdes no monitor com o banco vazio do outro lado.
+        ok:
+          modeResult?.ok === true &&
+          erroSalvando == null &&
+          !!reportFrame &&
+          (modeResult.rowCount ?? 0) > 0,
         durationMs: Date.now() - started,
         erro:
           modeResult?.ok === false
             ? modeResult.error
             : (erroSalvando ??
-              (reportFrame
-                ? null
-                : `A tela do relatório não montou o iframe do sistema legado — ` +
+              (!reportFrame
+                ? `A tela do relatório não montou o iframe do sistema legado — ` +
                   `nada foi extraído. URL final: ${page.url()}. ` +
-                  `Frames encontrados: ${allFrameUrls.join(" , ") || "nenhum"}.`)),
+                  `Frames encontrados: ${allFrameUrls.join(" , ") || "nenhum"}.`
+                : !modeResult
+                  ? `O wizard abriu, mas a exportação do CSV não chegou a rodar. ` +
+                    `Últimos passos: ${log.slice(-6).join(" › ")}`
+                  : (modeResult.rowCount ?? 0) === 0
+                    ? `O CSV voltou sem nenhuma linha — nada foi gravado e o que ` +
+                      `já estava no banco foi mantido.`
+                    : null)),
         detalhes: {
           reportNome: report.nome,
           rowCount: modeResult?.rowCount ?? 0,
