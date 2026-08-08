@@ -25,6 +25,22 @@
       "schedule": "30 14 * * *"
     },
     {
+      "path": "/api/cron/sync-elleven?report=vendedores-comercial",
+      "schedule": "36 14 * * *"
+    },
+    {
+      "path": "/api/cron/sync-elleven?report=pedidos-de-venda",
+      "schedule": "40 14 * * *"
+    },
+    {
+      "path": "/api/cron/sync-chip",
+      "schedule": "44 14 * * *"
+    },
+    {
+      "path": "/api/cron/sync-elleven?report=cancelamentos",
+      "schedule": "48 14 * * *"
+    },
+    {
       "path": "/api/cron/sync-chip",
       "schedule": "0 7 * * *"
     },
