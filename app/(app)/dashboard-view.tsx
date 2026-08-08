@@ -616,7 +616,7 @@ export function DashboardView({
                           dataKey="qtd"
                           position="right"
                           className="fill-slate-300 font-mono text-[11px]"
-                          formatter={(v) => fmtNum(Number(v))}
+                          formatter={(v: any) => fmtNum(Number(v))}
                         />
                       </Bar>
                     </BarChart>
