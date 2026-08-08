@@ -16,7 +16,7 @@ export default async function AppLayout({
         <AppSidebar role={user.role} nome={user.name ?? user.username} />
         <div className="flex flex-1 flex-col overflow-hidden">
           <AppHeader role={user.role} nome={user.name ?? user.username} />
-          <main className="flex-1 overflow-y-auto p-6 md:p-8">{children}</main>
+          <main className="flex-1 overflow-y-auto p-4 md:p-6">{children}</main>
         </div>
       </div>
     </Providers>

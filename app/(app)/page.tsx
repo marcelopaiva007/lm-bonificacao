@@ -1,10 +1,28 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { unstable_cache } from "next/cache";
 import { Button } from "@/components/ui/button";
 import { requireUser } from "@/lib/auth-guard";
 import { prisma } from "@/lib/prisma";
 import { periodoAtual, periodoAnterior } from "@/lib/periodo";
 import { DashboardView, type RankingLinha, type ResumoPeriodo } from "./dashboard-view";
+
+// Cache de curto prazo para o histórico de fechamentos (dados estáticos/consolidados)
+const getFechamentosHistorico = unstable_cache(
+  async () => {
+    return prisma.fechamentoMensal.findMany({
+      select: {
+        periodo: true,
+        status: true,
+        valorTotalVendido: true,
+        valorTotalBonificacao: true,
+      },
+      orderBy: { periodo: "asc" },
+    });
+  },
+  ["fechamentos-historico-vendas"],
+  { revalidate: 60, tags: ["fechamentos"] }
+);
 
 export default async function HomePage({
   searchParams,
@@ -19,9 +37,7 @@ export default async function HomePage({
   if (user.role === "GESTOR_SETOR") redirect("/rh/meu-setor");
   const params = await searchParams;
 
-  const fechamentos = await prisma.fechamentoMensal.findMany({
-    orderBy: { periodo: "asc" },
-  });
+  const fechamentos = await getFechamentosHistorico();
   const fechamentoAberto = [...fechamentos].reverse().find((f) => f.status === "ABERTO") ?? null;
   const periodo =
     params.periodo ?? fechamentoAberto?.periodo ?? fechamentos.at(-1)?.periodo ?? periodoAtual();
@@ -39,7 +55,26 @@ export default async function HomePage({
   ] = await Promise.all([
     prisma.lancamentoVenda.findMany({
       where: { periodo },
-      include: { funcionario: { include: { cidade: true } } },
+      select: {
+        funcionarioId: true,
+        quantidade: true,
+        aprovado: true,
+        cancelado: true,
+        valorInstalado: true,
+        qtdInternet: true,
+        qtdChip: true,
+        qtdGps: true,
+        qtdTv: true,
+        qtdStreaming: true,
+        qtdTelefoniaFixa: true,
+        funcionario: {
+          select: {
+            nome: true,
+            cargo: true,
+            cidade: { select: { nome: true } },
+          },
+        },
+      },
     }),
     prisma.lancamentoVenda.aggregate({
       where: { periodo: anterior },
@@ -47,7 +82,20 @@ export default async function HomePage({
     }),
     prisma.bonificacaoCalculada.findMany({
       where: { fechamento: { periodo } },
-      include: { funcionario: { include: { cidade: true } } },
+      select: {
+        funcionarioId: true,
+        valorTotal: true,
+        valorInternet: true,
+        valorChip: true,
+        valorDemais: true,
+        valorSupervisor: true,
+        funcionario: {
+          select: {
+            cargo: true,
+            cidade: { select: { nome: true } },
+          },
+        },
+      },
     }),
     prisma.bonificacaoCalculada.aggregate({
       where: { fechamento: { periodo: anterior } },
@@ -147,54 +195,44 @@ export default async function HomePage({
   };
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">
-          Painel do Sistema de Vendas da LM
-        </h1>
-        <p className="text-sm text-slate-400">
-          Bem-vindo(a), <span className="font-semibold text-slate-200">{user.name ?? user.username}</span>. Acompanhe a performance em tempo real.
-        </p>
-      </div>
-
-      <DashboardView
-        periodo={periodo}
-        periodoAnterior={anterior}
-        statusFechamento={fechamentoSelecionado?.status ?? null}
-        totalFuncionarios={totalFuncionarios}
-        totalCidades={totalCidades}
-        vendedoresComVenda={vendedoresComVenda.size}
-        resumo={resumo}
-        resumoAnterior={resumoAnterior}
-        totalAjustes={ajustesAgg._sum.valor ?? 0}
-        tendencia={fechamentos.slice(-12).map((f) => ({
-          periodo: f.periodo,
-          vendido: f.valorTotalVendido,
-          bonificacao: f.valorTotalBonificacao,
-        }))}
-        porCidade={Array.from(porCidadeMap.entries())
-          .map(([cidade, v]) => ({ cidade, ...v }))
-          .sort((a, b) => b.valor - a.valor)}
-        mixProdutos={[
-          { produto: "Internet", qtd: mix.internet },
-          { produto: "Chip", qtd: mix.chip },
-          { produto: "GPS", qtd: mix.gps },
-          { produto: "TV", qtd: mix.tv },
-          { produto: "Streaming", qtd: mix.streaming },
-          { produto: "Telefonia Fixa", qtd: mix.telefoniaFixa },
-        ]}
-        composicao={[
-          { componente: "Internet", valor: composicao.internet },
-          { componente: "Chip", valor: composicao.chip },
-          { componente: "Demais serviços", valor: composicao.demais },
-          { componente: "Supervisor", valor: composicao.supervisor },
-          { componente: "Ajustes", valor: ajustesAgg._sum.valor ?? 0 },
-        ]}
-        porCargo={Array.from(porCargoMap.entries())
-          .map(([cargo, v]) => ({ cargo, ...v }))
-          .sort((a, b) => b.vendido - a.vendido)}
-        ranking={Array.from(rankingMap.values())}
-      />
-    </div>
+    <DashboardView
+      userName={user.name ?? user.username}
+      periodo={periodo}
+      periodoAnterior={anterior}
+      statusFechamento={fechamentoSelecionado?.status ?? null}
+      totalFuncionarios={totalFuncionarios}
+      totalCidades={totalCidades}
+      vendedoresComVenda={vendedoresComVenda.size}
+      resumo={resumo}
+      resumoAnterior={resumoAnterior}
+      totalAjustes={ajustesAgg._sum.valor ?? 0}
+      tendencia={fechamentos.slice(-12).map((f) => ({
+        periodo: f.periodo,
+        vendido: f.valorTotalVendido,
+        bonificacao: f.valorTotalBonificacao,
+      }))}
+      porCidade={Array.from(porCidadeMap.entries())
+        .map(([cidade, v]) => ({ cidade, ...v }))
+        .sort((a, b) => b.valor - a.valor)}
+      mixProdutos={[
+        { produto: "Internet", qtd: mix.internet },
+        { produto: "Chip", qtd: mix.chip },
+        { produto: "GPS", qtd: mix.gps },
+        { produto: "TV", qtd: mix.tv },
+        { produto: "Streaming", qtd: mix.streaming },
+        { produto: "Telefonia Fixa", qtd: mix.telefoniaFixa },
+      ]}
+      composicao={[
+        { componente: "Internet", valor: composicao.internet },
+        { componente: "Chip", valor: composicao.chip },
+        { componente: "Demais serviços", valor: composicao.demais },
+        { componente: "Supervisor", valor: composicao.supervisor },
+        { componente: "Ajustes", valor: ajustesAgg._sum.valor ?? 0 },
+      ]}
+      porCargo={Array.from(porCargoMap.entries())
+        .map(([cargo, v]) => ({ cargo, ...v }))
+        .sort((a, b) => b.vendido - a.vendido)}
+      ranking={Array.from(rankingMap.values())}
+    />
   );
 }
