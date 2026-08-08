@@ -74,6 +74,8 @@ model Funcionario {
 
   @@index([cidadeId])
   @@index([equipeId])
+  @@index([ativo])
+  @@index([cargo])
 }
 
 model RegraBonificacao {
@@ -200,6 +202,9 @@ model ContratoAtivacaoElleven {
   ativacaoConexao          String?
   syncedAt                 DateTime @default(now()) @updatedAt
 
+  @@index([syncedAt])
+  @@index([statusContrato])
+  @@index([vendedor1])
   @@map("contrato_ativacao_elleven")
 }
 
