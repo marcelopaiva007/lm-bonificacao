@@ -1,3 +1,4 @@
+// Teste de Deploy Automático sem Terminal - 2026-08-07
 import Image from "next/image";
 import { cn } from "@/lib/utils";
 

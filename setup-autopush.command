@@ -24,11 +24,11 @@ cat <<EOF > "$PLIST_PATH"
         <string>$WATCH_DIR</string>
     </array>
     <key>ThrottleInterval</key>
-    <integer>10</integer>
+    <integer>15</integer>
     <key>StandardOutPath</key>
-    <string>$WATCH_DIR/autopush-debug.log</string>
+    <string>/tmp/softvendas-autopush.log</string>
     <key>StandardErrorPath</key>
-    <string>$WATCH_DIR/autopush-debug.log</string>
+    <string>/tmp/softvendas-autopush-error.log</string>
 </dict>
 </plist>
 EOF
@@ -37,9 +37,10 @@ launchctl unload "$PLIST_PATH" 2>/dev/null
 launchctl load "$PLIST_PATH"
 
 echo "--------------------------------------------------------"
-echo " SUCCESS! Automação de Deploy Automático Atualizada!"
+echo " SUCCESS! Automação de Deploy Automático Ativa!"
 echo "--------------------------------------------------------"
 echo "Sempre que o Claude alterar arquivos neste projeto,"
-echo "seu Mac enviará automaticamente para o GitHub."
+echo "seu Mac fará o Git Push e o Deploy na Vercel"
+echo "automaticamente em segundo plano!"
 echo "--------------------------------------------------------"
 read -p "Pressione Enter para fechar..."
