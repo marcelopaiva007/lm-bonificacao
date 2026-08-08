@@ -97,9 +97,10 @@ const REPORTS: Record<
     path: "/ui/04a36939-b7cb-4e54-83e1-6d92444f98c8/legacy/utilities/9cd32fd1-d070-1569-453a-c8cba6505d66",
     nome: "Cancelamentos por Mês - Claude",
     generico: true,
-    // Caminho informado pela diretoria: o relatório vive no Exportador de
-    // Dados. A entrada direta pela URL abre a aba mas o conteúdo nunca monta.
-    viaMenu: ["Utilitários", "Exportador de Dados", "Cancelamentos por Mês - Claude"],
+    // A entrada direta pela URL abre a aba mas o conteúdo nunca monta, e
+    // "Utilitários" no menu abre um painel de suítes com a tela um nível
+    // abaixo (rodada 16:42 de 08/08/2026). A busca global acha pelo nome.
+    viaMenu: ["buscar:Exportador de Dados", "Cancelamentos por Mês - Claude"],
   },
   // Vendas fechadas que ainda não foram instaladas ("Solicitações - Em
   // andamento", filtrando ativação e pré-contrato). A diretoria descartou tirar
@@ -115,10 +116,9 @@ const REPORTS: Record<
     nome: "Solicitações - Em andamento",
     generico: true,
     // Caminho descrito pela diretoria: "Solicitações - Em andamento > por
-    // tipo". O menu exato entre a raiz e a tela ainda não é conhecido — a
-    // primeira rodada com viaMenu registra o que cada clique encontrou, e é
-    // por esses registros que o caminho se ajusta.
-    viaMenu: ["Análises", "Solicitações - Em Andamento"],
+    // tipo". Mesma situação do Exportador: o menu abre painel de suítes;
+    // a busca global acha a tela pelo nome, onde ela estiver.
+    viaMenu: ["buscar:Solicitações - Em Andamento"],
   },
   // Faturamento por Vendedor (modal JS legado, sem iframe de relatório) e
   // CRE - Títulos Recebidos (exige campo obrigatório extra) NÃO são usados para
@@ -1047,6 +1047,47 @@ export async function GET(req: NextRequest) {
         });
         await page.waitForTimeout(5000);
         for (const texto of report.viaMenu) {
+          // "buscar:<nome>" usa a busca global do Elleven em vez do menu — a
+          // rodada 16:42 de 08/08/2026 mostrou que "Utilitários" abre um painel
+          // de SUÍTES (Faturamento, Financeiro, ISP|Telecom...) e a tela alvo
+          // mora um nível abaixo, dentro de uma delas. Adivinhar a suíte custa
+          // uma rodada por erro; a busca acha a tela pelo nome, onde estiver.
+          if (texto.startsWith("buscar:")) {
+            const alvoBusca = texto.slice("buscar:".length);
+            await clicarPorTexto(page.mainFrame(), "search");
+            await page.waitForTimeout(1500);
+            await page.keyboard.type(alvoBusca, { delay: 50 });
+            await page.waitForTimeout(3000);
+            let resultado = await clicarPorTexto(page.mainFrame(), alvoBusca);
+            for (let t = 0; !resultado.ok && t < 3; t++) {
+              await page.waitForTimeout(2000);
+              resultado = await clicarPorTexto(page.mainFrame(), alvoBusca);
+            }
+            const ofertaBusca = (await describeInteractiveElements(
+              page.mainFrame(),
+            )) as Array<Record<string, unknown>> | string;
+            passosDeMenu.push({
+              alvo: texto,
+              ok: resultado.ok,
+              usado: resultado.usado ?? null,
+              candidatos: resultado.achados,
+              telaOferecia: Array.isArray(ofertaBusca)
+                ? ofertaBusca
+                    .map((e) =>
+                      String(e.text ?? e.ariaLabel ?? "").replace(/\s+/g, " ").trim(),
+                    )
+                    .filter(Boolean)
+                    .slice(0, 60)
+                : String(ofertaBusca).slice(0, 200),
+            });
+            step(
+              `Busca "${alvoBusca}": ${resultado.ok ? `abri "${resultado.usado}"` : "SEM RESULTADO CLICÁVEL"} (${resultado.achados} candidato(s))`,
+            );
+            if (!resultado.ok) break;
+            await page.waitForTimeout(5000);
+            continue;
+          }
+
           // O item pode demorar a existir (animação de expandir o submenu do
           // clique anterior) — espera e re-tenta ANTES de suspeitar de menu
           // fechado. Na rodada 16:26 de 08/08/2026 a ordem errada custou a
