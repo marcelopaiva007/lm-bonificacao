@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { navByRole, diretoriaNav } from "@/components/nav-config";
 import { Logo } from "@/components/logo";
+import packageJson from "@/package.json";
 
 const ROLE_LABELS: Record<string, string> = {
   ADMIN: "Administrativo/Financeiro",
@@ -103,7 +104,7 @@ export function AppSidebar({
           Sair da conta
         </Button>
         <div className="mt-2 text-center text-[10px] text-slate-500 font-mono tracking-wider">
-          v0.2.0 · L&M TELECOM
+          v{packageJson.version} · L&M TELECOM
         </div>
       </div>
     </aside>
