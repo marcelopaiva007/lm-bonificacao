@@ -1,10 +1,10 @@
-import { requireCapacidade } from "@/lib/auth-guard";
+import { requireAdmin } from "@/lib/auth-guard";
 import { prisma } from "@/lib/prisma";
 import { previsualizarVendedoresElleven } from "@/lib/actions/elleven";
 import { SincronizarEllevenView } from "./sincronizar-elleven-view";
 
 export default async function SincronizarVendedoresEllevenPage() {
-  await requireCapacidade("EDITAR_CADASTRO");
+  await requireAdmin();
 
   const [{ vendedores, totalContratos }, funcionarios] = await Promise.all([
     previsualizarVendedoresElleven(),

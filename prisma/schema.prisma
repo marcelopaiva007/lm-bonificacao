@@ -94,9 +94,6 @@ model Funcionario {
   equipeId  String?
   equipe    Equipe?  @relation("MembroDaEquipe", fields: [equipeId], references: [id])
   ativo     Boolean  @default(true)
-  // Recebe aviso no Telegram quando uma automação falha. Marcado na tela
-  // "Vincular Telegram" — quem cuida do sistema, não quem vende.
-  recebeAlertaTecnico Boolean @default(false)
   createdAt DateTime @default(now())
 
   equipesSupervisionadas Equipe[]                @relation("SupervisorDaEquipe")

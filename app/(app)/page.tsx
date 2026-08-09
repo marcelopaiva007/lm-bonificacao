@@ -1,14 +1,9 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { requireUser } from "@/lib/auth-guard";
-import { idsVisiveisPara, filtroPorEscopo } from "@/lib/escopo";
 import { prisma } from "@/lib/prisma";
 import { periodoAtual, periodoAnterior } from "@/lib/periodo";
 import { DashboardView, type RankingLinha, type ResumoPeriodo } from "./dashboard-view";
-import { PainelGestaoView } from "./painel-gestao-view";
-import { resumoGestao, quemPrecisaDeAtencao, desempenhoDasEquipes } from "@/lib/painel-gestao";
-import { getCronHealth } from "@/lib/cron-observability";
-import { escopoDoPapel } from "@/lib/permissoes";
 
 export default async function HomePage({
   searchParams,
@@ -27,14 +22,6 @@ export default async function HomePage({
   const anterior = periodoAnterior(periodo);
   const fechamentoSelecionado = fechamentos.find((f) => f.periodo === periodo) ?? null;
 
-  // O painel traz ranking, valores por pessoa e composição da bonificação —
-  // tudo recortado pelo que quem está logado pode ver. Supervisor enxerga a
-  // própria equipe; vendedor, só ele. `null` = sem recorte.
-  const idsVisiveis = await idsVisiveisPara(user);
-  const filtroFuncionario = filtroPorEscopo(idsVisiveis);
-  const filtroFuncionarioDireto =
-    idsVisiveis === null ? {} : { id: { in: idsVisiveis } };
-
   const [
     lancamentos,
     lancAnteriorAgg,
@@ -45,23 +32,23 @@ export default async function HomePage({
     totalCidades,
   ] = await Promise.all([
     prisma.lancamentoVenda.findMany({
-      where: { periodo, ...filtroFuncionario },
+      where: { periodo },
       include: { funcionario: { include: { cidade: true } } },
     }),
     prisma.lancamentoVenda.aggregate({
-      where: { periodo: anterior, ...filtroFuncionario },
+      where: { periodo: anterior },
       _sum: { valorInstalado: true, quantidade: true, aprovado: true, cancelado: true },
     }),
     prisma.bonificacaoCalculada.findMany({
-      where: { fechamento: { periodo }, ...filtroFuncionario },
+      where: { fechamento: { periodo } },
       include: { funcionario: { include: { cidade: true } } },
     }),
     prisma.bonificacaoCalculada.aggregate({
-      where: { fechamento: { periodo: anterior }, ...filtroFuncionario },
+      where: { fechamento: { periodo: anterior } },
       _sum: { valorTotal: true },
     }),
-    prisma.ajuste.aggregate({ where: { periodo, ...filtroFuncionario }, _sum: { valor: true } }),
-    prisma.funcionario.count({ where: { ativo: true, ...filtroFuncionarioDireto } }),
+    prisma.ajuste.aggregate({ where: { periodo }, _sum: { valor: true } }),
+    prisma.funcionario.count({ where: { ativo: true } }),
     prisma.cidade.count(),
   ]);
 
@@ -153,18 +140,6 @@ export default async function HomePage({
     canceladas: lancAnteriorAgg._sum.cancelado ?? 0,
   };
 
-  // Painel de decisão: só para quem enxerga o quadro inteiro. Supervisor e
-  // vendedor veem o próprio desempenho abaixo, sem projeção e custo da empresa.
-  const veTudo = escopoDoPapel(user.role) === "TUDO";
-  const [gestao, atencao, equipes, saudeCrons] = veTudo
-    ? await Promise.all([
-        resumoGestao(periodo),
-        quemPrecisaDeAtencao(periodo),
-        desempenhoDasEquipes(periodo),
-        getCronHealth().catch(() => []),
-      ])
-    : [null, [], [], []];
-
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
@@ -180,19 +155,6 @@ export default async function HomePage({
           Ver relatórios completos
         </Button>
       </div>
-
-      {gestao && (
-        <PainelGestaoView
-          resumo={gestao}
-          atencao={atencao}
-          equipes={equipes}
-          crons={saudeCrons.map((c) => ({
-            label: c.label,
-            atrasado: c.atrasado,
-            erro: c.erro,
-          }))}
-        />
-      )}
 
       <DashboardView
         periodo={periodo}

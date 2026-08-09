@@ -3,7 +3,7 @@
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { requireCapacidade } from "@/lib/auth-guard";
+import { requireAdmin } from "@/lib/auth-guard";
 import { normalizarTexto } from "@/lib/text";
 // Parsing/categorização/matching vivem em lib/elleven-core.ts (fonte única,
 // compartilhada com a importação automática do cron) — ver comentário lá.
@@ -36,7 +36,7 @@ export type LinhaPreviewElleven = {
 };
 
 export async function previsualizarLancamentosElleven(periodo: string) {
-  await requireCapacidade("IMPORTAR_VENDAS");
+  await requireAdmin();
 
   const [ano, mes] = periodo.split("-").map(Number);
 
@@ -129,7 +129,7 @@ export type VendedorEllevenPreview = {
 };
 
 export async function previsualizarVendedoresElleven() {
-  await requireCapacidade("IMPORTAR_VENDAS");
+  await requireAdmin();
 
   const [contratos, funcionarios] = await Promise.all([
     prisma.contratoAtivacaoElleven.findMany(),
@@ -210,7 +210,7 @@ const decisaoSchema = z.object({
 export type DecisaoVendedorElleven = z.infer<typeof decisaoSchema>;
 
 export async function sincronizarVendedoresElleven(decisoes: DecisaoVendedorElleven[]) {
-  await requireCapacidade("IMPORTAR_VENDAS");
+  await requireAdmin();
 
   const parsed = z.array(decisaoSchema).max(500).safeParse(decisoes);
   if (!parsed.success) return { ok: false as const, error: "Dados inválidos." };

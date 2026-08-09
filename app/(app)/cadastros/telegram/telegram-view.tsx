@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { alternarAlertaTecnico, vincularTelegramChatId } from "@/lib/actions/cadastros";
+import { vincularTelegramChatId } from "@/lib/actions/cadastros";
 import { CARGOS } from "@/lib/constants";
 
 type Funcionario = {
@@ -30,7 +30,6 @@ type Funcionario = {
   nome: string;
   cargo: string;
   telegramChatId: string | null;
-  recebeAlertaTecnico: boolean;
 };
 type Contato = { chatId: string; nome: string; username: string | null };
 
@@ -128,7 +127,6 @@ export function TelegramView({
                   <TableHead>Funcionário</TableHead>
                   <TableHead>Cargo</TableHead>
                   <TableHead>chat_id</TableHead>
-                  <TableHead className="w-44">Avisar se falhar</TableHead>
                   <TableHead className="w-32 text-right">Ação</TableHead>
                 </TableRow>
               </TableHeader>
@@ -214,38 +212,11 @@ function VinculoRow({ funcionario }: { funcionario: Funcionario }) {
     });
   }
 
-  function alternarAlerta(marcado: boolean) {
-    startSaving(async () => {
-      const r = await alternarAlertaTecnico(funcionario.id, marcado);
-      if (r.ok) {
-        toast.success(
-          marcado
-            ? `${funcionario.nome} passa a receber aviso de falha.`
-            : `${funcionario.nome} não recebe mais aviso de falha.`,
-        );
-      } else {
-        toast.error(r.error);
-      }
-    });
-  }
-
   return (
     <TableRow>
       <TableCell className="font-medium">{funcionario.nome}</TableCell>
       <TableCell>{cargoLabel(funcionario.cargo)}</TableCell>
       <TableCell className="font-mono text-sm">{funcionario.telegramChatId}</TableCell>
-      <TableCell>
-        <label className="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground">
-          <input
-            type="checkbox"
-            className="size-4 cursor-pointer accent-primary"
-            checked={funcionario.recebeAlertaTecnico}
-            disabled={saving}
-            onChange={(e) => alternarAlerta(e.target.checked)}
-          />
-          {funcionario.recebeAlertaTecnico ? "Recebe" : "Não recebe"}
-        </label>
-      </TableCell>
       <TableCell className="text-right">
         <Button variant="ghost" size="sm" disabled={saving} onClick={desvincular}>
           <Unlink className="size-4" />

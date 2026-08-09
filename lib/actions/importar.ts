@@ -3,7 +3,7 @@
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { requireCapacidade } from "@/lib/auth-guard";
+import { requireAdmin } from "@/lib/auth-guard";
 import { recalcularFechamento } from "@/lib/bonificacao";
 import type { ActionResult } from "@/lib/constants";
 
@@ -29,7 +29,7 @@ const importSchema = z.object({
 });
 
 export async function confirmarImportacao(input: z.infer<typeof importSchema>): Promise<ActionResult> {
-  const user = await requireCapacidade("IMPORTAR_VENDAS");
+  const user = await requireAdmin();
   const parsed = importSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
 

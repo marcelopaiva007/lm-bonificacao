@@ -1,12 +1,12 @@
 import Link from "next/link";
-import { RefreshCw, Merge } from "lucide-react";
+import { RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { requireCapacidade } from "@/lib/auth-guard";
+import { requireAdmin } from "@/lib/auth-guard";
 import { prisma } from "@/lib/prisma";
 import { FuncionariosTable } from "./funcionarios-table";
 
 export default async function FuncionariosPage() {
-  await requireCapacidade("EDITAR_CADASTRO");
+  await requireAdmin();
 
   const [funcionarios, cidades, equipes] = await Promise.all([
     prisma.funcionario.findMany({
@@ -27,24 +27,14 @@ export default async function FuncionariosPage() {
             setores. Cadastre uma vez, reaproveite em todos os meses.
           </p>
         </div>
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            nativeButton={false}
-            render={<Link href="/cadastros/funcionarios/duplicados" />}
-          >
-            <Merge className="size-4" />
-            Duplicados
-          </Button>
-          <Button
-            variant="outline"
-            nativeButton={false}
-            render={<Link href="/cadastros/funcionarios/elleven" />}
-          >
-            <RefreshCw className="size-4" />
-            Atualizar pelo elleven
-          </Button>
-        </div>
+        <Button
+          variant="outline"
+          nativeButton={false}
+          render={<Link href="/cadastros/funcionarios/elleven" />}
+        >
+          <RefreshCw className="size-4" />
+          Atualizar pelo elleven
+        </Button>
       </div>
       <FuncionariosTable funcionarios={funcionarios} cidades={cidades} equipes={equipes} />
     </div>

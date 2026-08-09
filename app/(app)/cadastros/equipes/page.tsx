@@ -1,9 +1,9 @@
-import { requireCapacidade } from "@/lib/auth-guard";
+import { requireAdmin } from "@/lib/auth-guard";
 import { prisma } from "@/lib/prisma";
 import { EquipesTable } from "./equipes-table";
 
 export default async function EquipesPage() {
-  await requireCapacidade("EDITAR_CADASTRO");
+  await requireAdmin();
 
   const [equipes, supervisores] = await Promise.all([
     prisma.equipe.findMany({

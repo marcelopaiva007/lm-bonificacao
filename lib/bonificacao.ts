@@ -10,7 +10,6 @@ import {
   type LancamentoAgregado,
   type RegraConfig,
 } from "@/lib/bonificacao-calc";
-import { CARGOS } from "@/lib/constants";
 
 // Reexporta a API de cálculo puro para que os consumidores continuem importando
 // tudo de "@/lib/bonificacao".
@@ -45,6 +44,11 @@ export async function recalcularFechamento(periodo: string) {
     return fechamento;
   }
 
+  const funcionarios = await prisma.funcionario.findMany({
+    where: { ativo: true },
+    include: { equipe: true },
+  });
+
   const lancamentos = await prisma.lancamentoVenda.findMany({ where: { periodo } });
   const lancamentosPorFuncionario = new Map<string, LancamentoAgregado[]>();
   for (const l of lancamentos) {
@@ -53,25 +57,7 @@ export async function recalcularFechamento(periodo: string) {
     lancamentosPorFuncionario.set(l.funcionarioId, lista);
   }
 
-  // Entram no cálculo os funcionários ATIVOS mais qualquer um com lançamento no
-  // período, mesmo já desativado. Decisão da diretoria (05/08/2026): quem vendeu
-  // e foi desligado no meio do mês recebe o bônus daquele mês — a venda
-  // aconteceu. Antes, o filtro `ativo: true` sozinho tirava essa pessoa do
-  // cálculo E do total, mas a linha de um recálculo anterior continuava no banco
-  // aparecendo na lista do fechamento: ela era exibida para pagamento e ao mesmo
-  // tempo ficava fora do total. Mês já FECHADO não passa por aqui (return acima),
-  // então nada é recalculado retroativamente.
-  const idsComLancamento = [...new Set(lancamentos.map((l) => l.funcionarioId))];
-  const funcionarios = await prisma.funcionario.findMany({
-    where: { OR: [{ ativo: true }, { id: { in: idsComLancamento } }] },
-    include: { equipe: true },
-  });
-
   // Total de vendas de INTERNET por equipe (base do bônus de supervisor, OS §3.2).
-  // Inclui a internet de quem foi desligado no meio do mês, pela mesma decisão
-  // acima — a venda foi da equipe. Já o TAMANHO da equipe (que escala a meta,
-  // mais abaixo) continua contando só membros ativos: mudar isso é uma segunda
-  // decisão, ainda não tomada.
   const internetPorEquipe = new Map<string, number>();
   for (const f of funcionarios) {
     if (!f.equipeId) continue;
@@ -82,11 +68,8 @@ export async function recalcularFechamento(periodo: string) {
     );
   }
 
-  // A lista de cargos vem de CARGOS (fonte única) — quando um cargo novo entra
-  // no cadastro, ele entra no cálculo junto, em vez de ficar silenciosamente
-  // sem regra (era uma lista duplicada aqui até 08/08/2026).
   const configPorCargo = new Map<string, RegraConfig | null>();
-  for (const { value: cargo } of CARGOS) {
+  for (const cargo of ["VENDEDOR_EXTERNO", "ATENDIMENTO_ADM", "SUPERVISOR", "OUTRO_SETOR"]) {
     const regra = await getRegraVigente(cargo, periodo);
     configPorCargo.set(cargo, asRegraConfig(regra?.config));
   }
@@ -96,13 +79,7 @@ export async function recalcularFechamento(periodo: string) {
   // estourava o timeout padrão de 5s do Prisma conforme o quadro crescia e
   // abortava o recálculo inteiro (P2028).
   const equipesPorSupervisor = new Map<string, EquipeComMembros[]>();
-  // Quem tem bônus de equipe é quem tem a seção `supervisor` na regra do
-  // cargo — não só o cargo SUPERVISOR. O RESPONSAVEL_SETOR (R$ 10 por venda
-  // de internet dos técnicos, 08/08/2026) entra por aqui: mesma mecânica,
-  // meta zero.
-  const temBonusDeEquipe = (cargo: string) =>
-    configPorCargo.get(cargo)?.supervisor != null;
-  const supervisorIds = funcionarios.filter((f) => temBonusDeEquipe(f.cargo)).map((f) => f.id);
+  const supervisorIds = funcionarios.filter((f) => f.cargo === "SUPERVISOR").map((f) => f.id);
   if (supervisorIds.length > 0) {
     const equipes = await prisma.equipe.findMany({
       where: { supervisorId: { in: supervisorIds } },
@@ -118,9 +95,6 @@ export async function recalcularFechamento(periodo: string) {
 
   let valorTotalVendido = 0;
   let valorTotalBonificacao = 0;
-  // Quem realmente recebeu linha nesta rodada — base da limpeza no fim da
-  // transação (ver comentário lá embaixo).
-  const idsCalculados = new Set<string>();
 
   await prisma.$transaction(
     async (tx) => {
@@ -132,7 +106,7 @@ export async function recalcularFechamento(periodo: string) {
         let valorSupervisor = 0;
         const detalhes: Record<string, unknown> = { servicos: individual.detalhes };
 
-        if (config?.supervisor) {
+        if (f.cargo === "SUPERVISOR" && config?.supervisor) {
           const equipesSupervisionadas = equipesPorSupervisor.get(f.id) ?? [];
           const detalhesEquipes: BonificacaoSupervisor[] = [];
           for (const equipe of equipesSupervisionadas) {
@@ -190,32 +164,7 @@ export async function recalcularFechamento(periodo: string) {
             detalhesJson: detalhes as Prisma.InputJsonValue,
           },
         });
-        idsCalculados.add(f.id);
       }
-
-      // Limpa linha de bonificação que sobrou de um recálculo anterior. O loop
-      // acima só faz upsert: quem tinha bônus e deixou de ter (o sync do
-      // Elleven REGRAVA os lançamentos do mês inteiro a cada rodada, então uma
-      // venda pode simplesmente sumir do relatório) caía no `continue` e a
-      // linha ANTIGA continuava no banco — aparecendo na lista e no CSV do
-      // fechamento, que é a planilha usada para pagar, sem entrar no
-      // valorTotalBonificacao recalculado. Resultado: soma da lista ≠ total, a
-      // favor de um bônus que não existe mais.
-      //
-      // Vale para TODA linha não recalculada agora, sem exceção para funcionário
-      // desativado: com a regra da diretoria (05/08/2026) quem tem venda no
-      // período é calculado mesmo inativo, então sobrar aqui significa que não
-      // há mais venda nenhuma sustentando aquele valor.
-      await tx.bonificacaoCalculada.deleteMany({
-        where: {
-          fechamentoId: fechamento.id,
-          // Set vazio = ninguém pontuou no mês; nesse caso a limpeza é do
-          // fechamento inteiro (sem `notIn`, que com lista vazia é ambíguo).
-          ...(idsCalculados.size > 0
-            ? { funcionarioId: { notIn: [...idsCalculados] } }
-            : {}),
-        },
-      });
 
       const ajustes = await tx.ajuste.findMany({ where: { periodo } });
       const totalAjustes = ajustes.reduce((acc, a) => acc + a.valor, 0);

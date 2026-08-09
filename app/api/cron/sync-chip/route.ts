@@ -13,8 +13,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { syncChipMovel, type ResultadoSyncChip } from "@/lib/chip-movel";
 import { recordCronRun } from "@/lib/cron-observability";
-import { FUSO_BR, periodoAnterior, periodoAtual } from "@/lib/periodo";
-import { ensureFuncionarioContato } from "@/lib/ensure-schema";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -38,37 +36,24 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // Cron não passa pelo requireUser — ver lib/ensure-schema.ts.
-  await ensureFuncionarioContato();
-
   // ?year=&month= permitem reprocessar um mês específico (ex.: backfill de um
   // período já fechado no L&M Movel para conferência).
+  const now = new Date();
   const yearParam = Number(req.nextUrl.searchParams.get("year"));
   const monthParam = Number(req.nextUrl.searchParams.get("month"));
   const explicit = yearParam >= 2020 && monthParam >= 1 && monthParam <= 12;
-
-  // Data corrente SEMPRE no fuso de Brasília, como manda lib/periodo.ts. Em
-  // produção o servidor roda em UTC: a partir das ~21h de Brasília a data UTC já
-  // é o dia seguinte — e na virada do mês, o mês seguinte. Com o relógio do
-  // servidor, um disparo manual no fim do dia 31 sincronizava o mês errado, e a
-  // janela de recuperação "dia <= 3" fechava algumas horas antes do previsto.
-  // O cron agendado (07:00 UTC = 04:00 BRT) não era afetado.
-  const periodoBr = periodoAtual();
-  const diaBr = Number(
-    new Intl.DateTimeFormat("en-CA", { timeZone: FUSO_BR, day: "2-digit" }).format(new Date()),
-  );
-  const alvoDoPeriodo = (periodo: string) => {
-    const [year, month] = periodo.split("-").map(Number);
-    return { year, month };
-  };
 
   const alvos: Array<{ year: number; month: number }> = [];
   if (explicit) {
     alvos.push({ year: yearParam, month: monthParam });
   } else {
-    alvos.push(alvoDoPeriodo(periodoBr));
-    if (diaBr <= 3) {
-      alvos.push(alvoDoPeriodo(periodoAnterior(periodoBr)));
+    alvos.push({ year: now.getFullYear(), month: now.getMonth() + 1 });
+    if (now.getDate() <= 3) {
+      const anterior = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      alvos.push({
+        year: anterior.getFullYear(),
+        month: anterior.getMonth() + 1,
+      });
     }
   }
 

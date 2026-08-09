@@ -137,31 +137,10 @@ function reais(v: number): string {
 }
 
 // Monta o feedback textual determinístico a partir das metas em aberto.
-//
-// O "Parabéns, você desbloqueou as metas" NÃO pode sair de uma lista vazia de
-// pendências: lista vazia também acontece com quem não vendeu nada. Dois casos
-// produziam isso (e produziram, em produção):
-//
-//  - cargo sem regra vigente no período — carregarAcompanhamento só busca regra
-//    para VENDEDOR_EXTERNO, ATENDIMENTO_ADM, SUPERVISOR e OUTRO_SETOR, então
-//    qualquer outro cargo chega aqui com `metas` vazio;
-//  - regra só com serviços "porVenda"/"percentualValor", que não têm limiar e
-//    ficam de fora de metasDosServicos.
-//
-// Nos dois, quem tem zero venda recebia — por Telegram e e-mail — um parabéns
-// por uma bonificação que não existe. Por isso a mensagem passa a olhar
-// `totalVendas`: sem venda no período não há o que parabenizar, qualquer que
-// seja a configuração de regra.
 export function montarMensagem(
   nome: string,
   metas: MetaServico[],
   supervisor: AcompanhamentoSupervisor | null,
-  ctx: {
-    totalVendas: number;
-    bonificacaoAtual: number;
-    /** O cargo tem alguma regra de bonificação vigente (com ou sem meta). */
-    temRegra: boolean;
-  },
 ): string {
   const primeiroNome = nome.trim().split(/\s+/)[0] || nome;
   const linhas: string[] = [];
@@ -182,33 +161,8 @@ export function montarMensagem(
     );
   }
 
-  if (ctx.totalVendas <= 0) {
-    const abertura = `Olá, ${primeiroNome}! Você ainda não tem venda registrada neste mês.`;
-    return linhas.length === 0
-      ? `${abertura} Assim que a primeira entrar, ela aparece aqui.`
-      : `${abertura} ${linhas.join(" ")}`;
-  }
-
   if (linhas.length === 0) {
-    // Vendeu e não há pendência. "Desbloqueou a meta" só vale se existia meta
-    // para desbloquear — Atendimento/ADM, por exemplo, ganha por venda desde a
-    // primeira e nunca teve meta; dizer que ele desbloqueou algo é inventar
-    // um marco que a regra dele não tem.
-    if (metas.length > 0 || supervisor != null) {
-      return `Parabéns, ${primeiroNome}! Você já desbloqueou as metas com bonificação neste mês. Mantenha o ritmo para subir de faixa. 🚀`;
-    }
-    if (!ctx.temRegra) {
-      return (
-        `Olá, ${primeiroNome}! Suas ${ctx.totalVendas} venda(s) deste mês estão registradas. ` +
-        `Não há regra de bonificação configurada para o seu cargo neste período — ` +
-        `se isso não estiver certo, fale com a gestão.`
-      );
-    }
-    return (
-      `Olá, ${primeiroNome}! Suas ${ctx.totalVendas} venda(s) deste mês já renderam ` +
-      `${reais(ctx.bonificacaoAtual)}. Seu cargo recebe por venda, sem meta a bater — ` +
-      `cada venda a mais entra direto na bonificação.`
-    );
+    return `Parabéns, ${primeiroNome}! Você já desbloqueou as metas com bonificação neste mês. Mantenha o ritmo para subir de faixa. 🚀`;
   }
 
   return `Olá, ${primeiroNome}! ${linhas.join(" ")} 💡 Foque as próximas ativações onde falta menos para a próxima faixa — o ganho por venda aumenta.`;
@@ -231,7 +185,7 @@ export function calcularAcompanhamento(params: {
 
   let supervisor: AcompanhamentoSupervisor | null = null;
   let valorSupervisor = 0;
-  if (config?.supervisor && supervisorCtx) {
+  if (cargo === "SUPERVISOR" && config?.supervisor && supervisorCtx) {
     const b = calcularBonificacaoSupervisor(
       config.supervisor,
       supervisorCtx.totalInternetEquipe,
@@ -262,10 +216,6 @@ export function calcularAcompanhamento(params: {
     metas,
     supervisor,
     bonificacaoAtual,
-    mensagem: montarMensagem(nome, metas, supervisor, {
-      totalVendas: agregado.quantidade,
-      bonificacaoAtual,
-      temRegra: Object.keys(config?.servicos ?? {}).length > 0 || config?.supervisor != null,
-    }),
+    mensagem: montarMensagem(nome, metas, supervisor),
   };
 }

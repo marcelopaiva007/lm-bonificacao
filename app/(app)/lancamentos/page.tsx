@@ -1,4 +1,4 @@
-import { requireCapacidade } from "@/lib/auth-guard";
+import { requireAdmin } from "@/lib/auth-guard";
 import { prisma } from "@/lib/prisma";
 import { periodoAtual } from "@/lib/periodo";
 import { LancamentosView } from "./lancamentos-view";
@@ -8,7 +8,7 @@ export default async function LancamentosPage({
 }: {
   searchParams: Promise<{ periodo?: string }>;
 }) {
-  await requireCapacidade("EDITAR_LANCAMENTO");
+  await requireAdmin();
   const params = await searchParams;
   const periodo = params.periodo ?? periodoAtual();
 

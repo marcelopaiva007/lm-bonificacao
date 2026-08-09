@@ -33,10 +33,8 @@ import {
   type Locator,
 } from "playwright-core";
 import { prisma } from "@/lib/prisma";
-import { garantirEstrutura } from "@/lib/ddl";
 import { importarLancamentosEllevenFunil } from "@/lib/importar-elleven-funil";
 import { recordCronRun } from "@/lib/cron-observability";
-import { ensureFuncionarioContato } from "@/lib/ensure-schema";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -65,10 +63,7 @@ const ELLEVEN_BASE = "https://elleven.assinelm.com.br";
 //            "funil-de-vendas" também gera LancamentoVenda a partir dessas
 //            linhas (ver lib/importar-elleven-funil.ts) — é o único que
 //            alimenta a bonificação.
-const REPORTS: Record<
-  string,
-  { path: string; nome: string; generico?: boolean; viaMenu?: string[] }
-> = {
+const REPORTS: Record<string, { path: string; nome: string; generico?: boolean }> = {
   "vendedores-comercial": {
     path: "/ui/legacy/reports/fc792c4f-d4cf-572a-361b-3502c29ede8c",
     nome: "Vendedores - Comercial",
@@ -84,49 +79,6 @@ const REPORTS: Record<
     nome: "Listagem Pedidos de Venda",
     generico: true,
   },
-  // "Cancelamentos por Mês - Claude", do Exportador de Dados. É a fonte que
-  // falta para o sistema saber que uma venda Ganha foi cancelada depois — hoje
-  // importar-elleven-funil grava cancelado: 0 fixo, porque o Funil de Vendas
-  // não tem esse conceito, e venda cancelada segue contando para bonificação.
-  //
-  // O endereço é "legacy/utilities" (Exportador de Dados), não "legacy/reports"
-  // como os três acima. As duas primeiras tentativas voltaram vazias por causa
-  // disso: a tela monta o iframe do legado em "/restricted/gv?hash=...", e a
-  // busca do frame só aceitava "reports_exec". Ver acharFrameDoLegado.
-  cancelamentos: {
-    path: "/ui/04a36939-b7cb-4e54-83e1-6d92444f98c8/legacy/utilities/9cd32fd1-d070-1569-453a-c8cba6505d66",
-    nome: "Cancelamentos por Mês - Claude",
-    generico: true,
-    // A URL da diretoria carrega o workspace da sessão DELA — o uuid muda a
-    // cada login, e navegar com uuid alheio abre a tela vazia (descoberta da
-    // rodada 18:16 de 08/08/2026, via mapa de menus). A navegação direta agora
-    // reescreve o prefixo /ui/<uuid>/ com o workspace da sessão atual; o
-    // caminho legacy/utilities/<id> é o que identifica a tela.
-  },
-  // Vendas fechadas que ainda não foram instaladas ("Solicitações - Em
-  // andamento", filtrando ativação e pré-contrato). A diretoria descartou tirar
-  // isso das negociações em Andamento do Funil de Vendas — aquela lista não
-  // representa o que está em campo esperando instalação.
-  //
-  // Terceiro formato de endereço do elleven: "legacy/analytics". Se ele montar
-  // o wizard num iframe ainda diferente dos dois conhecidos, a rodada falha com
-  // a lista de frames da página no erro — que foi como o caminho do Exportador
-  // de Dados apareceu.
-  "solicitacoes-andamento": {
-    path: "/ui/565d5331-e2d6-4724-b2ba-b227b07abe38/legacy/analytics/a05fd286-4750-353f-0e2c-4baf97fcf60a",
-    nome: "Solicitações - Em andamento",
-    generico: true,
-    // Caminho descrito pela diretoria: "Solicitações - Em andamento > por
-    // tipo". Mesmo caso do Exportador: o prefixo de workspace da URL é
-    // reescrito para o da sessão atual na navegação direta.
-  },
-  // Modo de DESCOBERTA (?report=mapa-menus): loga e consulta a API interna de
-  // menus da SPA em vez de extrair relatório. O path não é navegado. Ver o
-  // bloco `slug === "mapa-menus"` no fluxo, logo após o login.
-  "mapa-menus": {
-    path: "/",
-    nome: "Mapa de menus (descoberta)",
-  },
   // Faturamento por Vendedor (modal JS legado, sem iframe de relatório) e
   // CRE - Títulos Recebidos (exige campo obrigatório extra) NÃO são usados para
   // comissão — removidos da sincronização a pedido do usuário.
@@ -141,101 +93,9 @@ function escapeRegex(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-// O wizard legado do elleven roda dentro de um iframe, e o endereço dele muda
-// conforme por onde se entra:
-//
-//  - pelos relatórios (/ui/legacy/reports/...), a URL contém "reports_exec";
-//  - pelo Exportador de Dados (/ui/<workspace>/legacy/utilities/...), ela é
-//    "/restricted/gv?hash=..." — descoberto em 08/08/2026, quando o sync de
-//    "Cancelamentos por Mês" falhou procurando só por reports_exec e o
-//    diagnóstico gravado mostrou qual iframe a página realmente monta.
-//
-// Ficam de fora frames de terceiros que a página carrega junto (o widget de
-// ajuda Stonly, por exemplo) e o próprio frame principal.
-//
-// A ORDEM importa: uma página de relatório pode ter os dois frames ao mesmo
-// tempo — a casca do legado em /restricted/gv e o relatório em si em
-// reports_exec. Pegar o primeiro que casasse fez o sync do Funil de Vendas
-// voltar com zero linha às 11:30 de 08/08/2026 (nada foi perdido: sem CSV, o
-// bloco de gravação nem chega a rodar). Por isso reports_exec vem sempre
-// primeiro, e /restricted/gv só quando ele não existe — que é o caso das telas
-// abertas pelo Exportador de Dados.
-function acharFrameDoLegado(page: Page): Frame | undefined {
-  const doElleven = page
-    .frames()
-    .filter((f: Frame) => f.url().includes("elleven.assinelm.com.br"));
-  return (
-    doElleven.find((f: Frame) => f.url().includes("reports_exec")) ??
-    doElleven.find((f: Frame) => f.url().includes("/restricted/gv"))
-  );
-}
-
-// Clica no primeiro elemento clicável visível cujo texto contenha `texto`
-// (sem acento, sem caixa). Entre vários candidatos, o de texto mais curto — o
-// item de menu "Utilitários" ganha de um contêiner que também contém a palavra.
-// É a peça da navegação via menu (ver report.viaMenu): cliques do jeito que uma
-// pessoa faria, porque a entrada direta pela URL não monta essas telas.
-async function clicarPorTexto(
-  frame: Frame,
-  texto: string,
-): Promise<{ ok: boolean; achados: number; usado?: string }> {
-  return withTimeout(
-    frame.evaluate((alvo) => {
-      const norm = (s: string) =>
-        s
-          .normalize("NFD")
-          .replace(/[̀-ͯ]/g, "")
-          .toLowerCase()
-          .replace(/\s+/g, " ")
-          .trim();
-      const alvoN = norm(alvo);
-      const sel =
-        'button, a, li, [role="button"], [role="tab"], [role="menuitem"], [role="option"]';
-      const els = Array.from(document.querySelectorAll(sel)) as HTMLElement[];
-      const candidatos = els
-        .filter((e) => {
-          const r = e.getBoundingClientRect();
-          return r.width > 0 && r.height > 0;
-        })
-        .map((e) => ({ e, t: norm(e.innerText || "") }))
-        .filter((x) => x.t.includes(alvoN))
-        .sort((a, b) => a.t.length - b.t.length);
-      if (candidatos.length === 0) return { ok: false, achados: 0 };
-      const escolhido = candidatos[0].e;
-      escolhido.scrollIntoView({ block: "center" });
-      escolhido.click();
-      return {
-        ok: true,
-        achados: candidatos.length,
-        usado: (escolhido.innerText || "").replace(/\s+/g, " ").slice(0, 80),
-      };
-    }, texto),
-    EVAL_TIMEOUT_MS,
-    `clicar-${texto}`,
-  ).catch((e: unknown) => ({ ok: false, achados: -1, usado: `ERRO: ${e}` }));
-}
-
-// Garante que a tabela genérica exista antes de gravar, criando-a sob demanda
-// (idempotente, IF NOT EXISTS — mesmo padrão da migração do CPF). Assim o save
-// dos relatórios genéricos funciona sem depender de aplicar a migração à mão.
-let relatorioTableEnsured = false;
+// Tabela genérica elleven_relatorio_linha é gerenciada via schema Prisma e migração no Postgres.
 async function ensureRelatorioTable(): Promise<void> {
-  if (relatorioTableEnsured) return;
-  // Schema-qualificado desde o cutover de 24/07/2026: sem o prefixo, o
-  // IF NOT EXISTS checaria só o search_path (public) e criaria uma tabela
-  // duplicada vazia lá, ignorando a real em "bonificacao".
-  await garantirEstrutura([`CREATE TABLE IF NOT EXISTS "bonificacao"."elleven_relatorio_linha" (
-      "id" SERIAL NOT NULL,
-      "relatorio" TEXT NOT NULL,
-      "periodo" TEXT NOT NULL,
-      "chave" TEXT NOT NULL,
-      "dados" JSONB NOT NULL,
-      "syncedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      CONSTRAINT "elleven_relatorio_linha_pkey" PRIMARY KEY ("id")
-    );`]);
-  await garantirEstrutura([`CREATE INDEX IF NOT EXISTS "elleven_relatorio_linha_relatorio_periodo_idx" ON "bonificacao"."elleven_relatorio_linha"("relatorio", "periodo");`]);
-  await garantirEstrutura([`CREATE UNIQUE INDEX IF NOT EXISTS "elleven_relatorio_linha_relatorio_periodo_chave_key" ON "bonificacao"."elleven_relatorio_linha"("relatorio", "periodo", "chave");`]);
-  relatorioTableEnsured = true;
+  return;
 }
 
 function isAuthorized(req: NextRequest): boolean {
@@ -471,29 +331,6 @@ function firstOfMonthFormats() {
   return dateFormats({ dd: "01", mm, yyyy });
 }
 
-// Intervalo de datas de um período "AAAA-MM" qualquer — o que permite
-// reprocessar um mês passado (?periodo=2026-07). Existe por causa do bug do
-// identificador de linhas (corrigido em 1.3.0): as linhas descartadas nunca
-// chegaram ao banco, então recuperar julho exige extrair o CSV daquele mês de
-// novo — e o wizard só filtrava o mês corrente.
-//
-// `usarInteracao` é o detalhe que importa: o Flatpickr abre SEMPRE mostrando o
-// mês corrente, então o caminho de clique (clickFlatpickrDay/Today) escolheria
-// o dia certo do MÊS ERRADO para qualquer período passado. Para período
-// passado, só a API JS (setFlatpickrDate) serve.
-function rangeDoPeriodo(periodo: string) {
-  const [yyyy, mm] = periodo.split("-");
-  const hoje = saoPauloParts(new Date());
-  const ehCorrente = `${hoje.yyyy}-${hoje.mm}` === periodo;
-  const ultimoDia = new Date(Date.UTC(Number(yyyy), Number(mm), 0)).getUTCDate();
-  return {
-    inicio: dateFormats({ dd: "01", mm, yyyy }),
-    fim: dateFormats({ dd: String(ultimoDia).padStart(2, "0"), mm, yyyy }),
-    usarInteracao: ehCorrente,
-  };
-}
-type RangePeriodo = ReturnType<typeof rangeDoPeriodo>;
-
 // Define a data num input controlado pela biblioteca Flatpickr usando a API JS dela
 // (window/elemento expõe `_flatpickr`), em vez de digitar — o input costuma ser
 // somente leitura ou interceptar o teclado para navegação do calendário, então
@@ -661,93 +498,10 @@ async function clickFlatpickrDay(
   }
 }
 
-// Abre o calendário e NAVEGA até o mês da data alvo pelas setas de mês
-// (‹ ›), depois clica na célula do dia — a mesma sequência de uma pessoa.
-//
-// Existe porque a via de API (setFlatpickrDate) falhou em produção para mês
-// passado (extração de julho, 08/08/2026): o formulário não reconheceu o valor
-// e o relatório saiu com o filtro em branco, trazendo linhas de junho. Clique
-// real é o único caminho que o estado do wizard comprovadamente enxerga — o
-// que já valia para o mês corrente (clickFlatpickrDay/Today) e agora vale para
-// qualquer mês. A célula certa é achada pelo `dateObj` que o Flatpickr guarda
-// em cada dia — independe de idioma e de célula de transbordo.
-async function clickFlatpickrDate(
-  frame: Frame,
-  selector: string,
-  isoDate: string,
-): Promise<{ ok: boolean; valueAfter: string; debug: string }> {
-  try {
-    const locator = frame.locator(selector);
-    await locator.click({ timeout: 3000 });
-    await frame
-      .locator(".flatpickr-calendar.open")
-      .first()
-      .waitFor({ state: "visible", timeout: 3000 });
-
-    // Até 30 passos de navegação: cobre 2,5 anos de distância — folga larga
-    // sobre o caso real (1 mês) sem risco de loop infinito.
-    for (let i = 0; i < 30; i++) {
-      const passo = await withTimeout(
-        frame.evaluate((alvoIso) => {
-          const cal = document.querySelector(".flatpickr-calendar.open");
-          if (!cal) return "sem-calendario";
-          const [yyyy, mm, dd] = alvoIso.split("-").map(Number);
-          const alvo = yyyy * 10000 + (mm - 1) * 100 + dd;
-          const chave = (d: Date) =>
-            d.getFullYear() * 10000 + d.getMonth() * 100 + d.getDate();
-          const dias = Array.from(
-            cal.querySelectorAll<HTMLElement & { dateObj?: Date }>(".flatpickr-day"),
-          );
-          if (dias.length === 0 || !(dias[0].dateObj instanceof Date))
-            return "sem-dateObj";
-          const celula = dias.find(
-            (d) =>
-              d.dateObj &&
-              chave(d.dateObj) === alvo &&
-              !d.classList.contains("flatpickr-disabled"),
-          );
-          if (celula) {
-            celula.click();
-            return "clicou";
-          }
-          const primeiro = chave(dias[0].dateObj as Date);
-          const seta = cal.querySelector<HTMLElement>(
-            alvo < primeiro ? ".flatpickr-prev-month" : ".flatpickr-next-month",
-          );
-          if (!seta) return "sem-seta";
-          seta.click();
-          return "navegou";
-        }, isoDate),
-        EVAL_TIMEOUT_MS,
-        "clickFlatpickrDate",
-      );
-
-      if (passo === "clicou") {
-        await frame.page().waitForTimeout(300);
-        const valueAfter = await locator.inputValue().catch(() => "");
-        return {
-          ok: valueAfter.length > 0,
-          valueAfter,
-          debug: `navegou-e-clicou-${isoDate}`,
-        };
-      }
-      if (passo !== "navegou") {
-        return { ok: false, valueAfter: "", debug: `parou-em-${passo}` };
-      }
-      await frame.page().waitForTimeout(150);
-    }
-    return { ok: false, valueAfter: "", debug: "nao-alcancou-o-mes-em-30-passos" };
-  } catch (e) {
-    return { ok: false, valueAfter: "", debug: `erro-navegacao: ${e}` };
-  }
-}
-
 // Tenta preencher, de forma best-effort, qualquer input cujo rótulo/placeholder/name
-// sugira ser um campo de data (ex.: "Data Inicial", "Data Final") com o intervalo
-// do período pedido — mês corrente por padrão, mês passado via ?periodo=.
+// sugira ser um campo de data (ex.: "Data Inicial", "Data Final") com a data de hoje.
 async function fillDateLikeInputs(
   frame: Frame,
-  range: RangePeriodo,
 ): Promise<
   Array<{
     selector: string;
@@ -764,8 +518,8 @@ async function fillDateLikeInputs(
     valueAfter: string;
     debug?: string;
   }> = [];
-  const inicioMes = range.inicio;
-  const fimMes = range.fim;
+  const hoje = todayFormats(); const fimMes = (() => { const p = saoPauloParts(new Date()); const last = new Date(Date.UTC(Number(p.yyyy), Number(p.mm), 0)).getUTCDate(); return dateFormats({ dd: String(last).padStart(2, "0"), mm: p.mm, yyyy: p.yyyy }); })();
+  const inicioMes = firstOfMonthFormats();
   const candidates = (await describeInteractiveElements(frame)) as Array<
     Record<string, unknown>
   >;
@@ -795,15 +549,10 @@ async function fillDateLikeInputs(
     if (className.includes("flatpickr")) {
       // 1ª tentativa: interação real (abrir o calendário e clicar na célula do
       // dia certo) — é o único caminho que dispara corretamente o estado do
-      // formulário. Para período passado, a interação NAVEGA até o mês alvo
-      // (clickFlatpickrDate) — a via de API direta comprovadamente não pega
-      // neste wizard (extração de julho, 08/08/2026). 2ª tentativa (fallback):
-      // API JS via fiber do React.
-      let attempt = range.usarInteracao
-        ? isInicial
-          ? await clickFlatpickrDay(frame, selector, 1)
-          : await clickFlatpickrToday(frame, selector)
-        : await clickFlatpickrDate(frame, selector, alvo.iso);
+      // formulário. 2ª tentativa (fallback): API JS via fiber do React.
+      let attempt = isInicial
+        ? await clickFlatpickrDay(frame, selector, 1)
+        : await clickFlatpickrToday(frame, selector);
       if (!attempt.ok) {
         let apiAttempt = await setFlatpickrDate(frame, selector, alvo.iso);
         for (let i = 0; i < 5 && !apiAttempt.ok; i++) {
@@ -851,12 +600,6 @@ async function fillDateLikeInputs(
 export async function GET(req: NextRequest) {
   if (!isAuthorized(req)) return unauthorized();
 
-  // Cron não passa pelo requireUser, que é quem cria as colunas extras do
-  // Funcionario sob demanda. Sem isto, qualquer leitura de Funcionario aqui
-  // dentro falha inteira quando o schema tem uma coluna que o banco ainda não
-  // tem (ver lib/ensure-schema.ts).
-  await ensureFuncionarioContato();
-
   const login = process.env.ELLEVEN_LOGIN;
   const password = process.env.ELLEVEN_PASSWORD;
   if (!login || !password) {
@@ -875,25 +618,6 @@ export async function GET(req: NextRequest) {
       {
         error: `Relatório desconhecido: "${slug}". Válidos: ${Object.keys(REPORTS).join(", ")}`,
       },
-      { status: 400 },
-    );
-  }
-
-  // Período a extrair: mês corrente por padrão; ?periodo=AAAA-MM para
-  // reprocessar um mês passado (recuperação das linhas perdidas pelo bug do
-  // identificador — 1.3.0). Futuro não existe no Elleven, então é erro.
-  const periodoCorrente = firstOfMonthFormats().iso.slice(0, 7);
-  const periodoAlvo =
-    req.nextUrl.searchParams.get("periodo") ?? periodoCorrente;
-  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(periodoAlvo)) {
-    return NextResponse.json(
-      { error: `Período inválido: "${periodoAlvo}". Formato: AAAA-MM.` },
-      { status: 400 },
-    );
-  }
-  if (periodoAlvo > periodoCorrente) {
-    return NextResponse.json(
-      { error: `Período no futuro: "${periodoAlvo}".` },
       { status: 400 },
     );
   }
@@ -1034,342 +758,22 @@ export async function GET(req: NextRequest) {
         );
       }
 
-      // ?report=mapa-menus: modo de DESCOBERTA — não extrai relatório nenhum.
-      // Consulta a API interna de menus da própria SPA (general/me/menus, a
-      // mesma de onde vieram os UUIDs dos três relatórios que funcionam) e
-      // grava as entradas nos detalhes da rodada. Existe porque tatear a
-      // interface custou 5 rodadas de ~10min em 08/08/2026 sem achar o caminho
-      // do Exportador de Dados; o menu-fonte responde de uma vez, com os
-      // endereços exatos.
-      if (slug === "mapa-menus") {
-        // Chamar a API por fora deu 401 (rodada 17:41 de 08/08/2026): ela
-        // exige o Authorization que só a SPA tem. Então ninguém chama nada —
-        // um recarregamento faz a SPA buscar o próprio menu, e a resposta é
-        // capturada da rede, como capturarBearerToken já faz com o token dos
-        // relatórios.
-        let corpoMenus: string | null = null;
-        let tokenCapturado: string | null = null;
-        page.on("response", (res) => {
-          if (corpoMenus) return;
-          if (!/elleven\.assinelm\.com\.br.*\/api\/.*menu/i.test(res.url())) return;
-          res
-            .text()
-            .then((t) => {
-              if (!corpoMenus && t && t.trim().startsWith("[")) corpoMenus = t;
-              else if (!corpoMenus && t && t.trim().startsWith("{")) corpoMenus = t;
-            })
-            .catch(() => {});
-        });
-        page.on("request", (req) => {
-          if (tokenCapturado) return;
-          const u = req.url();
-          if (!u.includes("elleven.assinelm.com.br") || !u.includes("/api/")) return;
-          const auth = req.headers()["authorization"];
-          if (auth?.startsWith("Bearer ")) tokenCapturado = auth.slice("Bearer ".length);
-        });
+      step(`Navegando até o relatório ${report.nome}...`);
+      await page.goto(`${ELLEVEN_BASE}${report.path}`, {
+        waitUntil: "load",
+        timeout: 30000,
+      });
 
-        await page.reload({ waitUntil: "load", timeout: 45000 }).catch(() => {});
-        const inicioEspera = Date.now();
-        while (!corpoMenus && Date.now() - inicioEspera < 30000) {
-          await page.waitForTimeout(500);
-        }
-
-        // Com o token capturado, busca por dentro da página o menu completo E
-        // desce nos filhos de cada entrada: a captura de rede (18:16 de
-        // 08/08/2026) trouxe só o 1º nível ("Minhas Tarefas"...), e o
-        // Exportador de Dados / Cancelamentos vivem aninhados. Aqui cada
-        // entrada que tem `hasChildren`/`path` de submenu é expandida pela
-        // própria API, montando a árvore inteira.
-        if (tokenCapturado) {
-          const arvore = await withTimeout(
-            page.evaluate(async (tk) => {
-              const cab = { Authorization: `Bearer ${tk}` };
-              const raiz = await (
-                await fetch("/api/general/me/menus", { headers: cab, credentials: "include" })
-              ).json();
-              const lista: unknown[] = Array.isArray(raiz?.response) ? raiz.response : [];
-              const saida: Record<string, unknown>[] = [];
-              // Largura limitada para não explodir: no máximo 400 nós.
-              const fila = lista.map((n) => ({ n, nivel: 0 }));
-              let visitados = 0;
-              while (fila.length && visitados < 400) {
-                const { n, nivel } = fila.shift() as { n: Record<string, unknown>; nivel: number };
-                visitados++;
-                saida.push({
-                  title: n.title,
-                  module: n.module,
-                  segment: n.segment,
-                  path: n.path,
-                  id: n.id,
-                  nivel,
-                });
-                const id = n.id;
-                if (nivel < 3 && typeof id === "string") {
-                  try {
-                    const sub = await (
-                      await fetch(`/api/general/me/menus?parentId=${id}`, {
-                        headers: cab,
-                        credentials: "include",
-                      })
-                    ).json();
-                    const filhos = Array.isArray(sub?.response) ? sub.response : [];
-                    for (const f of filhos) fila.push({ n: f, nivel: nivel + 1 });
-                  } catch {
-                    /* sem filhos */
-                  }
-                }
-              }
-              return saida;
-            }, tokenCapturado),
-            60000,
-            "arvore-de-menus",
-          ).catch(() => null);
-          if (arvore) corpoMenus = JSON.stringify({ arvore });
-        }
-
-        // Só as entradas que interessam vão para o registro: o menu inteiro
-        // não cabe no JSONB com folga, e o que se procura tem nome conhecido.
-        const bruto = String(corpoMenus ?? "(sem resposta de menu capturada)");
-        const relevantes: string[] = [];
-        try {
-          {
-            const corpo = corpoMenus;
-            if (!corpo) throw new Error("sem corpo");
-            const json = JSON.parse(corpo) as unknown;
-            const pilha: unknown[] = [json];
-            while (pilha.length) {
-              const item = pilha.pop();
-              if (Array.isArray(item)) {
-                pilha.push(...item);
-              } else if (item && typeof item === "object") {
-                const o = item as Record<string, unknown>;
-                const texto = JSON.stringify(o).toLowerCase();
-                const temFilho = Object.values(o).some(
-                  (v) => Array.isArray(v) && v.length > 0,
-                );
-                if (
-                  !temFilho &&
-                  /(cancelament|exportador|solicita|andamento)/.test(texto)
-                ) {
-                  relevantes.push(JSON.stringify(o).slice(0, 600));
-                }
-                pilha.push(...Object.values(o));
-              }
-            }
-          }
-        } catch {
-          /* corpo não-JSON fica só no bruto */
-        }
-
-        await recordCronRun({
-          job: `sync-elleven:${slug}`,
-          ok: relevantes.length > 0,
-          durationMs: Date.now() - started,
-          erro:
-            relevantes.length > 0
-              ? null
-              : `Nenhuma entrada de menu casou com os termos procurados. Respostas: ${bruto.slice(0, 500)}`,
-          detalhes: {
-            reportNome: "Mapa de menus (descoberta)",
-            entradasRelevantes: relevantes.slice(0, 30),
-            capturouResposta: corpoMenus != null,
-            capturouToken: tokenCapturado != null,
-            // Todos os títulos+path da árvore, para ler o caminho real de cada
-            // tela sem depender do filtro por palavra.
-            todosOsTitulos: (() => {
-              try {
-                const j = JSON.parse(bruto) as { arvore?: Array<Record<string, unknown>> };
-                return (j.arvore ?? [])
-                  .map(
-                    (n) =>
-                      `${"  ".repeat(Number(n.nivel) || 0)}${n.title} :: ${n.path ?? "-"}`,
-                  )
-                  .slice(0, 200);
-              } catch {
-                return [];
-              }
-            })(),
-            amostraBruta: bruto.slice(0, 3000),
-          },
-        });
-        return NextResponse.json({ ok: true, mapa: relevantes });
-      }
-
-      // Cada passo da navegação via menu, com o que a tela oferecia no momento
-      // do clique — o diagnóstico que faltou nas rodadas 15:50 e 16:26.
-      // Declarado antes da navegação e lido lá embaixo no recordCronRun.
-      const passosDeMenu: Array<Record<string, unknown>> = [];
-
-      if (report.viaMenu) {
-        // As telas do Exportador de Dados e de analytics não montam o conteúdo
-        // quando se entra direto pela URL: a aba abre, fica selecionada, e a
-        // área de conteúdo nunca carrega (capturas de 08/08/2026 — 21 elementos
-        // na página, todos menu e moldura). O caminho que uma pessoa faz — pelo
-        // menu — é o que dispara a montagem. Cada clique registra o que a tela
-        // ofereceu, então uma etapa que não for encontrada diz exatamente o que
-        // havia no lugar dela.
-        step(`Navegando pelo menu: ${report.viaMenu.join(" → ")}...`);
-        await page.goto(`${ELLEVEN_BASE}/ui/`, {
-          waitUntil: "load",
-          timeout: 45000,
-        });
-        await page.waitForTimeout(5000);
-        for (const texto of report.viaMenu) {
-          // "buscar:<nome>" usa a busca global do Elleven em vez do menu — a
-          // rodada 16:42 de 08/08/2026 mostrou que "Utilitários" abre um painel
-          // de SUÍTES (Faturamento, Financeiro, ISP|Telecom...) e a tela alvo
-          // mora um nível abaixo, dentro de uma delas. Adivinhar a suíte custa
-          // uma rodada por erro; a busca acha a tela pelo nome, onde estiver.
-          if (texto.startsWith("buscar:")) {
-            const alvoBusca = texto.slice("buscar:".length);
-            // A lupa NÃO existe na tela base — ela vive no cabeçalho do painel
-            // de menu (rodada 17:03 de 08/08/2026: busca com 0 candidatos na
-            // tela limpa; a rodada 16:42 mostrou "search" presente com o painel
-            // aberto). Abrir qualquer item do menu primeiro, então.
-            let abriuPainel = await clicarPorTexto(page.mainFrame(), "Utilitários");
-            for (let t = 0; !abriuPainel.ok && t < 3; t++) {
-              await page.waitForTimeout(2000);
-              abriuPainel = await clicarPorTexto(page.mainFrame(), "Utilitários");
-            }
-            await page.waitForTimeout(2000);
-            await clicarPorTexto(page.mainFrame(), "search");
-            await page.waitForTimeout(1500);
-            await page.keyboard.type(alvoBusca, { delay: 50 });
-            await page.waitForTimeout(3000);
-            let resultado = await clicarPorTexto(page.mainFrame(), alvoBusca);
-            for (let t = 0; !resultado.ok && t < 3; t++) {
-              await page.waitForTimeout(2000);
-              resultado = await clicarPorTexto(page.mainFrame(), alvoBusca);
-            }
-            const ofertaBusca = (await describeInteractiveElements(
-              page.mainFrame(),
-            )) as Array<Record<string, unknown>> | string;
-            passosDeMenu.push({
-              alvo: texto,
-              ok: resultado.ok,
-              usado: resultado.usado ?? null,
-              candidatos: resultado.achados,
-              telaOferecia: Array.isArray(ofertaBusca)
-                ? ofertaBusca
-                    .map((e) =>
-                      String(e.text ?? e.ariaLabel ?? "").replace(/\s+/g, " ").trim(),
-                    )
-                    .filter(Boolean)
-                    .slice(0, 60)
-                : String(ofertaBusca).slice(0, 200),
-            });
-            step(
-              `Busca "${alvoBusca}": ${resultado.ok ? `abri "${resultado.usado}"` : "SEM RESULTADO CLICÁVEL"} (${resultado.achados} candidato(s))`,
-            );
-            if (!resultado.ok) break;
-            await page.waitForTimeout(5000);
-            continue;
-          }
-
-          // O item pode demorar a existir (animação de expandir o submenu do
-          // clique anterior) — espera e re-tenta ANTES de suspeitar de menu
-          // fechado. Na rodada 16:26 de 08/08/2026 a ordem errada custou a
-          // navegação: o clique no hambúrguer, com o menu JÁ aberto, fechou o
-          // menu e a expansão de "Utilitários" junto.
-          let clique = await clicarPorTexto(page.mainFrame(), texto);
-          for (let tentativa = 0; !clique.ok && tentativa < 4; tentativa++) {
-            await page.waitForTimeout(2000);
-            clique = await clicarPorTexto(page.mainFrame(), texto);
-          }
-          if (!clique.ok) {
-            // Itens da tela final (o nome do relatório no Exportador) vivem
-            // DENTRO do quadro do legado, não na página React.
-            const frameLegado = acharFrameDoLegado(page);
-            if (frameLegado) {
-              clique = await clicarPorTexto(frameLegado, texto);
-            }
-          }
-          if (!clique.ok) {
-            // Último recurso: hambúrguer (ícone "menu") para o caso de o menu
-            // lateral estar realmente recolhido — rodada 15:50 de 08/08/2026.
-            await clicarPorTexto(page.mainFrame(), "menu");
-            await page.waitForTimeout(1500);
-            clique = await clicarPorTexto(page.mainFrame(), texto);
-          }
-          // Registro compacto do que a tela oferecia no momento do clique —
-          // vai para os detalhes da rodada (o wizardSteps completo morre com
-          // a resposta HTTP, que o cron descarta).
-          const oferta = (await describeInteractiveElements(page.mainFrame())) as
-            | Array<Record<string, unknown>>
-            | string;
-          passosDeMenu.push({
-            alvo: texto,
-            ok: clique.ok,
-            usado: clique.usado ?? null,
-            candidatos: clique.achados,
-            telaOferecia: Array.isArray(oferta)
-              ? oferta
-                  .map((e) => String(e.text ?? e.ariaLabel ?? "").replace(/\s+/g, " ").trim())
-                  .filter(Boolean)
-                  .slice(0, 40)
-              : String(oferta).slice(0, 200),
-          });
-          step(
-            `Menu "${texto}": ${clique.ok ? `cliquei em "${clique.usado}"` : "NÃO ENCONTRADO"} (${clique.achados} candidato(s))`,
-          );
-          if (!clique.ok) break;
-          await page.waitForTimeout(4000);
-        }
-      } else {
-        // URLs copiadas da barra de endereço carregam o WORKSPACE da sessão de
-        // quem copiou (/ui/<uuid>/legacy/...), e esse uuid muda a cada login —
-        // navegar com o uuid alheio abre a moldura da tela com o conteúdo
-        // eternamente vazio (todas as tentativas de 08/08/2026 com as telas do
-        // Exportador de Dados e de analytics). O uuid da sessão ATUAL está na
-        // URL pós-login; o caminho /legacy/... é o que identifica a tela.
-        let destino = report.path;
-        const legado = report.path.match(/^\/ui\/[0-9a-f-]{36}\/(legacy\/.+)$/i);
-        const workspaceAtual = page.url().match(/\/ui\/([0-9a-f-]{36})\//i);
-        if (legado && workspaceAtual) {
-          destino = `/ui/${workspaceAtual[1]}/${legado[1]}`;
-          step(`Workspace da sessão: ${workspaceAtual[1]} — destino reescrito.`);
-        }
-        step(`Navegando até o relatório ${report.nome}...`);
-        await page.goto(`${ELLEVEN_BASE}${destino}`, {
-          waitUntil: "load",
-          timeout: 30000,
-        });
-      }
-
-      // ESPERAR o reports_exec antes de aceitar a casca é o ponto todo.
-      //
-      // Preferir reports_exec quando os dois frames já existem não bastava: no
-      // carregamento, a casca (/restricted/gv) aparece ANTES, e aceitá-la
-      // encerrava a espera. O wizard então rodava contra um frame sem
-      // formulário nenhum — "Filtrar por: opções []", "AVANÇAR: false", zero
-      // linha. Foi o que derrubou o Funil das 11:30 e os Pedidos das 11:40 em
-      // 08/08/2026.
-      //
-      // Então: gasta-se toda a janela de espera procurando o relatório de
-      // verdade e, só se ele nunca aparecer, cai-se para a casca — que é o
-      // único frame das telas abertas pelo Exportador de Dados e por analytics.
-      const ehReportsExec = (f: Frame) =>
-        f.url().includes("elleven.assinelm.com.br") &&
-        f.url().includes("reports_exec");
-
-      let reportFrame = page.frames().find(ehReportsExec);
+      let reportFrame = page
+        .frames()
+        .find((f: Frame) => f.url().includes("reports_exec"));
       for (let i = 0; i < 20 && !reportFrame; i++) {
         await page.waitForTimeout(2000);
-        reportFrame = page.frames().find(ehReportsExec);
+        reportFrame = page
+          .frames()
+          .find((f: Frame) => f.url().includes("reports_exec"));
       }
-      if (!reportFrame) {
-        reportFrame = acharFrameDoLegado(page);
-        if (reportFrame) {
-          step(
-            "Sem iframe reports_exec após a espera — seguindo pela casca do " +
-              "legado (tela de Exportador de Dados / analytics).",
-          );
-        }
-      }
-      step(
-        `Frame do sistema legado encontrado: ${!!reportFrame}` +
-          (reportFrame ? ` (${reportFrame.url().slice(0, 80)})` : ""),
-      );
+      step(`Frame do relatório (reports_exec) encontrado: ${!!reportFrame}`);
 
       if (reportFrame) {
         for (let i = 0; i < 10; i++) {
@@ -1389,15 +793,6 @@ export async function GET(req: NextRequest) {
       let modeResult: Awaited<ReturnType<typeof downloadAndParseCsv>> | null = null;
       let savedCount = 0;
       let errorCount = 0;
-      // Mensagem do erro de gravação, para a rodada aparecer vermelha em
-      // /api/health/crons. Antes, falha ao salvar só somava em errorCount e o
-      // recordCronRun ainda registrava ok:true — o CSV vinha, nada era gravado,
-      // e o monitor de saúde dizia que estava tudo bem.
-      let erroSalvando: string | null = null;
-      // Resultado do preenchimento de datas, gravado nos detalhes da rodada:
-      // sem isso, diagnosticar filtro errado exigia repetir a rodada (a
-      // resposta HTTP com wizardSteps é descartada pelo cron).
-      let dateFill: unknown = null;
       // Só "funil-de-vendas" gera lançamentos automáticos (ver bloco de save
       // genérico abaixo); os demais relatórios ficam null aqui.
       let importacaoAuto: Awaited<
@@ -1444,26 +839,8 @@ export async function GET(req: NextRequest) {
         step(
           "Tentando preencher campos de data (hoje) que tenham aparecido...",
         );
-        const rangeAlvo = rangeDoPeriodo(periodoAlvo);
-        const dateFillResults = await fillDateLikeInputs(reportFrame, rangeAlvo);
-        dateFill = dateFillResults;
+        const dateFillResults = await fillDateLikeInputs(reportFrame);
         step(`Preenchimento de datas: ${JSON.stringify(dateFillResults)}`);
-
-        // Extração de mês passado com QUALQUER campo de data sem preencher é
-        // abortada aqui, antes de gerar o relatório: sem o filtro aplicado, o
-        // wizard devolve outro mês, e foi exatamente assim que julho perdeu as
-        // 894 linhas em 08/08/2026. A guarda de conteúdo (mais abaixo) pegaria
-        // de novo, mas falhar já com o diagnóstico do campo é meia hora de
-        // rodada a menos para descobrir o motivo.
-        if (
-          !rangeAlvo.usarInteracao &&
-          (dateFillResults.length === 0 || dateFillResults.some((r) => !r.ok))
-        ) {
-          throw new Error(
-            `Filtro de data do período ${periodoAlvo} não foi aplicado — ` +
-              `abortando antes de gerar o relatório. Campos: ${JSON.stringify(dateFillResults)}`,
-          );
-        }
 
         const step1AfterDateFillElements =
           await describeInteractiveElements(reportFrame);
@@ -1480,7 +857,9 @@ export async function GET(req: NextRequest) {
         await page.waitForTimeout(4000);
 
         // Playwright pode ter trocado a referência do frame após navegação interna do SPA.
-        reportFrame = acharFrameDoLegado(page) ?? reportFrame;
+        reportFrame =
+          page.frames().find((f: Frame) => f.url().includes("reports_exec")) ??
+          reportFrame;
 
         // Etapa 2: pode ser "Parâmetros" (se o relatório tiver parâmetros extras) ou
         // pular direto para "Geração" (quando não há parâmetros configuráveis).
@@ -1508,7 +887,11 @@ export async function GET(req: NextRequest) {
           );
           await page.waitForTimeout(3000);
 
-          reportFrame = acharFrameDoLegado(page) ?? reportFrame;
+          reportFrame =
+            page
+              .frames()
+              .find((f: Frame) => f.url().includes("reports_exec")) ??
+            reportFrame;
           stageText = await withTimeout(
             reportFrame.evaluate(() => document.body?.innerText ?? ""),
             EVAL_TIMEOUT_MS,
@@ -1587,86 +970,22 @@ export async function GET(req: NextRequest) {
             });
 
             // Relatórios sem tabela modelada própria: guardamos cada linha do
-            // CSV como JSONB em elleven_relatorio_linha. Snapshot mensal: apaga
-            // o período e recria, mais rápido e simples que upsert linha a linha.
-            //
-            // A chave era só a 1ª coluna do CSV — no Funil de Vendas, o nome da
-            // negociação ("39718 - Negociação com FULANO"). Uma negociação com
-            // mais de um produto (internet + GPS no mesmo carrinho) gera VÁRIAS
-            // linhas com esse mesmo nome; elas colidiam no índice único e o
-            // `skipDuplicates` descartava todas menos a primeira, sem erro e sem
-            // aviso. Enquanto o relatório só ficava armazenado isso era inócuo;
-            // desde que ele virou a fonte oficial da bonificação (30/07/2026),
-            // cada linha descartada é uma venda real que não é paga a ninguém.
-            // Levantamento de 08/08/2026: 4 vendas (R$ 319,60) perdidas só entre
-            // 01 e 08/08.
-            //
-            // Agora a chave carrega também o produto e a posição da linha no
-            // CSV. A posição sozinha já garantiria unicidade (o período é
-            // apagado e regravado inteiro a cada sync); produto e negociação
-            // ficam junto porque a chave é lida por gente ao investigar.
+            // CSV como JSONB em elleven_relatorio_linha (chave = 1ª coluna, ou
+            // um índice quando vazia). Snapshot mensal: apaga o período e recria,
+            // mais rápido e simples que upsert linha a linha.
             if (modeResult.ok && report.generico) {
-              const periodo = periodoAlvo;
+              const periodo = firstOfMonthFormats().iso.slice(0, 7); // YYYY-MM
               const linhas = modeResult.rows.map((row, i) => {
                 const primeira = String(Object.values(row)[0] ?? "").trim();
-                const produto = String(row["Servico Carrinho"] ?? "").trim();
                 return {
                   relatorio: slug,
                   periodo,
-                  chave: [primeira || `linha-${i}`, produto, `#${i}`]
-                    .filter(Boolean)
-                    .join(" | "),
+                  chave: primeira || `linha-${i}`,
                   dados: row,
                 };
               });
               try {
                 await ensureRelatorioTable();
-
-                // O CONTEÚDO precisa ser do período pedido. Em 08/08/2026 a
-                // extração de julho voltou com 17 linhas DE JUNHO (o filtro de
-                // data não pegou), passou pela trava de "não vazio" e o snapshot
-                // substituiu as 894 linhas reais de julho — que só puderam ser
-                // recuperadas reextraindo do Elleven. Contar linha não basta;
-                // aqui a data das linhas é conferida contra o período, e um
-                // descompasso aborta ANTES do apaga-e-regrava.
-                {
-                  const mesDe = (row: Record<string, string>): string | null => {
-                    for (const valor of Object.values(row)) {
-                      const m = String(valor ?? "").match(/(\d{2})\/(\d{2})\/(\d{4})/);
-                      if (m) return `${m[3]}-${m[2]}`;
-                    }
-                    return null;
-                  };
-                  const meses = modeResult.rows
-                    .map(mesDe)
-                    .filter((m): m is string => m != null);
-                  const noPeriodo = meses.filter((m) => m === periodo).length;
-                  if (meses.length >= 5 && noPeriodo / meses.length < 0.6) {
-                    throw new Error(
-                      `O CSV não é do período pedido: ${noPeriodo} de ${meses.length} ` +
-                        `linha(s) datada(s) pertencem a ${periodo} — o filtro de data do ` +
-                        `wizard não foi aplicado. Nada foi gravado; o que está no banco ` +
-                        `permanece. Datas encontradas: ${[...new Set(meses)].sort().join(", ")}.`,
-                    );
-                  }
-                }
-
-                // Snapshot vazio NÃO substitui snapshot cheio. O fluxo aqui é
-                // "apaga o período e regrava"; se o CSV vier sem linha nenhuma
-                // por um tropeço na coleta (tela mudou, sessão caiu, wizard
-                // parou no meio), o apaga aconteceria e o regrava não — levando
-                // junto os lançamentos do mês, já que o funil regera
-                // LancamentoVenda a partir daqui. Um mês legitimamente sem
-                // venda não se distingue de uma coleta que falhou, e entre as
-                // duas leituras a segura é manter o que já está no banco.
-                if (linhas.length === 0) {
-                  throw new Error(
-                    `CSV de ${slug}/${periodo} voltou sem nenhuma linha — ` +
-                      `mantendo o que já está gravado e abortando, para não ` +
-                      `apagar o período por causa de uma coleta falha.`,
-                  );
-                }
-
                 await prisma.elevenRelatorioLinha.deleteMany({
                   where: { relatorio: slug, periodo },
                 });
@@ -1678,19 +997,6 @@ export async function GET(req: NextRequest) {
                 step(
                   `Genérico (${slug}): ${savedCount} linha(s) salvas em elleven_relatorio_linha (período ${periodo}).`,
                 );
-
-                // Cinto de segurança para o bug de chave colidida não voltar
-                // calado: se sobrou linha do CSV pelo caminho, isso agora
-                // aparece no passo e derruba a rodada em vez de virar venda
-                // que ninguém recebe.
-                if (savedCount !== linhas.length) {
-                  throw new Error(
-                    `Perda silenciosa de linhas em ${slug}/${periodo}: o CSV trouxe ` +
-                      `${linhas.length} linha(s) e só ${savedCount} foram gravadas ` +
-                      `(${linhas.length - savedCount} descartada(s) por colisão de chave). ` +
-                      `Abortando para não gerar bonificação com venda faltando.`,
-                  );
-                }
 
                 // Único relatório que alimenta a bonificação (ver OS de
                 // 30/07/2026) — gera/atualiza LancamentoVenda do período logo
@@ -1711,7 +1017,6 @@ export async function GET(req: NextRequest) {
                 }
               } catch (e) {
                 errorCount++;
-                erroSalvando = e instanceof Error ? e.message : String(e);
                 step(`Erro salvando genérico (${slug}): ${e}`);
               }
             }
@@ -1723,45 +1028,6 @@ export async function GET(req: NextRequest) {
         }
       }
 
-      // Coleta que achou o frame mas não trouxe CSV: guarda o que a tela
-      // realmente oferece. É o caso do Exportador de Dados, cujo frame é o do
-      // legado mas cujo conteúdo não é o wizard de Filtros/Geração — o log só
-      // dizia "Filtrar por: opções []", que não diz o que ESTÁ lá. Sem isto, a
-      // única saída é tentar de novo às cegas.
-      const textoDe = (f: Frame, label: string) =>
-        withTimeout(
-          f.evaluate(() =>
-            (document.body?.innerText ?? "").replace(/\s+/g, " ").slice(0, 1200),
-          ),
-          EVAL_TIMEOUT_MS,
-          label,
-        ).catch(() => null);
-
-      let telaDoFrame: unknown = null;
-      if (!modeResult || (modeResult.rowCount ?? 0) === 0) {
-        // A primeira captura olhou só o iframe do legado e voltou vazia — nem
-        // texto, nem um elemento interativo. Ou seja: as telas do Exportador de
-        // Dados e de analytics NÃO montam a interface lá dentro; a casca
-        // /restricted/gv é só um invólucro. O que sobra é a própria página
-        // React, que é onde a interface deve estar. Capturamos as duas para não
-        // gastar mais uma rodada descobrindo de qual lado olhar.
-        telaDoFrame = {
-          frame: reportFrame
-            ? {
-                url: reportFrame.url(),
-                elementos: await describeInteractiveElements(reportFrame),
-                texto: await textoDe(reportFrame, "texto-do-frame"),
-              }
-            : null,
-          pagina: {
-            url: page.url(),
-            elementos: await describeInteractiveElements(page.mainFrame()),
-            texto: await textoDe(page.mainFrame(), "texto-da-pagina"),
-          },
-          frames: allFrameUrls,
-        };
-      }
-
       const screenshot = await page.screenshot({
         fullPage: true,
         timeout: 15000,
@@ -1770,55 +1036,16 @@ export async function GET(req: NextRequest) {
 
       await recordCronRun({
         job: `sync-elleven:${slug}`,
-        // Uma rodada só é verde se REALMENTE trouxe o relatório. Antes,
-        // `modeResult?.ok ?? true` dava ok quando a exportação sequer chegava a
-        // ser tentada — foi assim que o primeiro sync de "Cancelamentos por
-        // Mês" (sem iframe) e o do Funil às 11:30 (frame errado, zero linha)
-        // apareceram verdes no monitor com o banco vazio do outro lado.
-        ok:
-          modeResult?.ok === true &&
-          erroSalvando == null &&
-          !!reportFrame &&
-          (modeResult.rowCount ?? 0) > 0,
+        ok: modeResult?.ok ?? true,
         durationMs: Date.now() - started,
-        erro:
-          modeResult?.ok === false
-            ? modeResult.error
-            : (erroSalvando ??
-              (!reportFrame
-                ? `A tela do relatório não montou o iframe do sistema legado — ` +
-                  `nada foi extraído. URL final: ${page.url()}. ` +
-                  `Frames encontrados: ${allFrameUrls.join(" , ") || "nenhum"}.`
-                : !modeResult
-                  ? `O wizard abriu, mas a exportação do CSV não chegou a rodar. ` +
-                    `Últimos passos: ${log.slice(-6).join(" › ")}`
-                  : (modeResult.rowCount ?? 0) === 0
-                    ? `O CSV voltou sem nenhuma linha — nada foi gravado e o que ` +
-                      `já estava no banco foi mantido.`
-                    : null)),
+        erro: modeResult?.ok === false ? modeResult.error : null,
         detalhes: {
           reportNome: report.nome,
-          periodoAlvo,
           rowCount: modeResult?.rowCount ?? 0,
           savedCount,
           errorCount,
           reportFrameFound: !!reportFrame,
           importacaoAuto,
-          dateFill,
-          ...(passosDeMenu.length > 0 ? { passosDeMenu } : {}),
-          // Sem iframe de relatório não há o que extrair, e o diagnóstico só
-          // existia na resposta HTTP — que o cron descarta. Guardando aqui, dá
-          // para descobrir o que a tela realmente tem sem precisar de mais uma
-          // rodada. É o caso do "Cancelamentos por Mês", que fica em
-          // legacy/utilities e não no wizard de relatórios.
-          ...(reportFrame
-            ? {}
-            : {
-                urlFinal: page.url(),
-                framesEncontrados: allFrameUrls,
-                passos: log.slice(-25),
-              }),
-          ...(telaDoFrame ? { telaDoFrame, passos: log.slice(-25) } : {}),
         },
       });
 

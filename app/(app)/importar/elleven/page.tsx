@@ -1,10 +1,10 @@
-import { requireCapacidade } from "@/lib/auth-guard";
+import { requireAdmin } from "@/lib/auth-guard";
 import { prisma } from "@/lib/prisma";
 import { periodoAtual } from "@/lib/periodo";
 import { ImportarEllevenView } from "./importar-elleven-view";
 
 export default async function ImportarEllevenPage() {
-  await requireCapacidade("IMPORTAR_VENDAS");
+  await requireAdmin();
 
   const funcionarios = await prisma.funcionario.findMany({
     where: { ativo: true },

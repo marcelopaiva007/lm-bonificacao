@@ -1,7 +1,6 @@
 import { requireUser } from "@/lib/auth-guard";
 import { AppSidebar } from "@/components/app-sidebar";
 import { Providers } from "@/app/providers";
-import { versaoDoSistema } from "@/lib/versao";
 
 export default async function AppLayout({
   children,
@@ -13,12 +12,7 @@ export default async function AppLayout({
   return (
     <Providers>
       <div className="flex min-h-screen w-full">
-        <AppSidebar
-          role={user.role}
-          nome={user.name ?? user.username}
-          versao={versaoDoSistema().rotulo}
-          versaoDetalhe={versaoDoSistema().detalhe}
-        />
+        <AppSidebar role={user.role} nome={user.name ?? user.username} />
         <main className="flex-1 overflow-x-hidden p-6">{children}</main>
       </div>
     </Providers>

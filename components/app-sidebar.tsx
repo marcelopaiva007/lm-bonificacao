@@ -17,15 +17,9 @@ const ROLE_LABELS: Record<string, string> = {
 export function AppSidebar({
   role,
   nome,
-  versao,
-  versaoDetalhe,
 }: {
   role: string;
   nome: string;
-  /** "v<versão> · <data>" (ver lib/versao.ts). */
-  versao: string;
-  /** Commit publicado, para conferência técnica. */
-  versaoDetalhe: string;
 }) {
   const pathname = usePathname();
   const items = navByRole[role] ?? diretoriaNav;
@@ -35,12 +29,6 @@ export function AppSidebar({
       <div className="border-b px-4 py-4">
         <Logo width={180} height={44} className="h-9 w-auto" />
         <p className="mt-1 text-xs text-muted-foreground">Bonificação de Vendas</p>
-        {/* Logo abaixo da marca, e não no rodapé: é onde o olho já está quando
-            alguém pergunta "estou na versão nova?". */}
-        <p className="mt-1.5 text-sm font-medium tabular-nums text-muted-foreground">
-          {versao}
-        </p>
-        <p className="text-[11px] tabular-nums text-muted-foreground/60">{versaoDetalhe}</p>
       </div>
 
       <nav className="flex-1 space-y-1 overflow-y-auto p-2">

@@ -1,9 +1,9 @@
-import { requireCapacidade } from "@/lib/auth-guard";
+import { requireAdmin } from "@/lib/auth-guard";
 import { prisma } from "@/lib/prisma";
 import { RegrasView } from "./regras-view";
 
 export default async function RegrasPage() {
-  await requireCapacidade("EDITAR_REGRA");
+  await requireAdmin();
 
   const regras = await prisma.regraBonificacao.findMany({
     orderBy: { vigenciaInicio: "desc" },

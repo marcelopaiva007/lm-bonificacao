@@ -41,7 +41,7 @@ const fmtMoeda = (v: number) => v.toLocaleString("pt-BR", { style: "currency", c
 const initialState: ActionResult = { ok: true };
 
 type Cidade = { id: string; nome: string };
-type Funcionario = { id: string; nome: string; ativo?: boolean; cidade?: Cidade | null };
+type Funcionario = { id: string; nome: string; cidade?: Cidade | null };
 type Bonificacao = {
   id: string;
   funcionario: Funcionario;
@@ -110,11 +110,8 @@ export function FechamentoDetailView({
 
   async function handleExportar() {
     const XLSX = await import("xlsx");
-    // "Situação" entra como ÚLTIMA coluna de propósito: quem foi desligado no
-    // meio do mês continua recebendo o bônus daquele mês, e quem paga precisa
-    // ver isso na planilha. Coluna no fim não desloca as que o RH já usa.
     const wsData = [
-      ["Funcionário", "Internet", "Chip", "Demais", "Supervisor", "Total", "Situação"],
+      ["Funcionário", "Internet", "Chip", "Demais", "Supervisor", "Total"],
       ...(fechamento?.bonificacoes.map((b) => [
         b.funcionario.nome,
         b.valorInternet,
@@ -122,7 +119,6 @@ export function FechamentoDetailView({
         b.valorDemais,
         b.valorSupervisor,
         b.valorTotal,
-        b.funcionario.ativo === false ? "Desativado" : "Ativo",
       ]) ?? []),
     ];
     const ws = XLSX.utils.aoa_to_sheet(wsData);
@@ -222,14 +218,7 @@ export function FechamentoDetailView({
             )}
             {fechamento?.bonificacoes.map((b) => (
               <TableRow key={b.id}>
-                <TableCell className="font-medium">
-                  {b.funcionario.nome}
-                  {b.funcionario.ativo === false && (
-                    <span className="ml-2 rounded bg-muted px-1.5 py-0.5 text-xs font-normal text-muted-foreground">
-                      desativado
-                    </span>
-                  )}
-                </TableCell>
+                <TableCell className="font-medium">{b.funcionario.nome}</TableCell>
                 <TableCell className="text-right">{fmtMoeda(b.valorInternet)}</TableCell>
                 <TableCell className="text-right">{fmtMoeda(b.valorChip)}</TableCell>
                 <TableCell className="text-right">{fmtMoeda(b.valorDemais)}</TableCell>

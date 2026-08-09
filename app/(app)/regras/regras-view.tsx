@@ -62,12 +62,6 @@ const SERVICOS_POR_CARGO: Record<string, ServicoKey[]> = {
   VENDEDOR_EXTERNO: ["internet", "chip", "gps", "tv", "streaming", "telefoniaFixa"],
   SUPERVISOR: ["internet", "chip", "gps", "tv", "streaming", "telefoniaFixa"],
   ATENDIMENTO_ADM: ["internet", "demaisServicos"],
-  // Regras de 08/08/2026: técnico e agregado têm a mesma forma do ADM
-  // (R$ fixo por internet + % dos demais), mudam só os valores. O responsável
-  // de setor não tem serviço próprio — a regra dele é toda sobre a equipe.
-  TECNICO: ["internet", "demaisServicos"],
-  VENDEDOR_AGREGADO: ["internet", "demaisServicos"],
-  RESPONSAVEL_SETOR: [],
   OUTRO_SETOR: [],
 };
 
@@ -182,7 +176,7 @@ function RegraAtualCard({
         </Dialog>
       </CardHeader>
       <CardContent>
-        {!config || (servicos.length === 0 && !config.supervisor) ? (
+        {!config || servicos.length === 0 ? (
           <p className="text-sm text-muted-foreground">
             {cargo === "OUTRO_SETOR"
               ? "Este cargo não recebe bonificação por vendas."
@@ -206,7 +200,7 @@ function RegraAtualCard({
               })}
             </div>
 
-            {config.supervisor && (
+            {cargo === "SUPERVISOR" && config.supervisor && (
               <>
                 <Separator />
                 <SupervisorResumo supervisor={config.supervisor} />
@@ -220,18 +214,6 @@ function RegraAtualCard({
 }
 
 function SupervisorResumo({ supervisor }: { supervisor: SupervisorConfig }) {
-  // Meta zero com faixa única é o formato do responsável de setor: R$ X por
-  // venda de internet da equipe, desde a 1ª, sem degrau — o resumo em faixas
-  // só confundiria.
-  if (supervisor.metaPorPessoa === 0 && supervisor.valoresFaixa.length === 1) {
-    return (
-      <p className="text-sm text-muted-foreground">
-        Bônus de equipe: {fmtMoeda(supervisor.valoresFaixa[0])} por venda de internet dos membros da
-        equipe, desde a primeira venda.
-      </p>
-    );
-  }
-
   // Exemplo ilustrativo para uma equipe de 5 (transparência — OS §6).
   const tamanho = 5;
   const meta = supervisor.metaPorPessoa * tamanho;
@@ -321,15 +303,8 @@ function RegraForm({
     (sup?.valoresFaixa ?? [2, 3, 4]).map(String)
   );
 
-  // Responsável de setor: um único número — R$ por venda de internet da
-  // equipe, desde a 1ª. Vira supervisor de meta zero no buildConfig.
-  const [respValor, setRespValor] = useState(String(sup?.valoresFaixa?.[0] ?? 10));
-
   const isVendedorLike = cargo === "VENDEDOR_EXTERNO" || cargo === "SUPERVISOR";
-  // Mesma forma de regra do ADM (R$ fixo por internet + % dos demais):
-  // técnico e vendedor agregado entram aqui, só mudam os valores.
-  const isAdm = ["ATENDIMENTO_ADM", "TECNICO", "VENDEDOR_AGREGADO"].includes(cargo);
-  const isResponsavel = cargo === "RESPONSAVEL_SETOR";
+  const isAdm = cargo === "ATENDIMENTO_ADM";
 
   function buildConfig(): RegraConfig {
     const servicosConfig: RegraConfig["servicos"] = {};
@@ -367,15 +342,6 @@ function RegraForm({
         metaPorPessoa: Number(metaPorPessoa || 0),
         larguraPorPessoa: Number(larguraPorPessoa || 0),
         valoresFaixa: valoresFaixa.map((v) => Number(v || 0)),
-      };
-    }
-    if (isResponsavel) {
-      // Meta zero + faixa única = R$ X por venda de internet da equipe,
-      // sem degrau — a regra do responsável de setor (08/08/2026).
-      config.supervisor = {
-        metaPorPessoa: 0,
-        larguraPorPessoa: 1,
-        valoresFaixa: [Number(respValor || 0)],
       };
     }
     return config;
@@ -470,28 +436,6 @@ function RegraForm({
                 onChange={(e) => setAdmPercentual(e.target.value)}
               />
             </div>
-          </div>
-        </>
-      )}
-
-      {isResponsavel && (
-        <>
-          <Separator />
-          <p className="text-sm font-medium">Bônus por venda da equipe de técnicos</p>
-          <p className="text-xs text-muted-foreground">
-            Pago sobre cada venda de internet dos técnicos da equipe em que esta pessoa é a responsável,
-            desde a primeira venda, no fechamento mensal. A pessoa precisa estar como responsável de uma
-            Equipe em Cadastros → Equipes.
-          </p>
-          <div className="space-y-2">
-            <Label>Valor por venda de internet da equipe (R$)</Label>
-            <Input
-              type="number"
-              step="0.01"
-              className="w-32"
-              value={respValor}
-              onChange={(e) => setRespValor(e.target.value)}
-            />
           </div>
         </>
       )}

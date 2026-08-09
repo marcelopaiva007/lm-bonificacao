@@ -236,12 +236,7 @@ function FuncionarioForm({
         <Label>Cargo</Label>
         <Select
           value={cargo}
-          // Mesmo cuidado do papel de acesso: o cargo decide QUAL regra de
-          // bonificação se aplica à pessoa. Cair no padrão por um evento vazio
-          // mudaria quanto ela recebe, sem ninguém perceber.
-          onValueChange={(v) => {
-            if (v) setCargo(String(v));
-          }}
+          onValueChange={(v) => setCargo(v ?? "VENDEDOR_EXTERNO")}
           name="cargo"
           items={Object.fromEntries(CARGOS.map((c) => [c.value, c.label]))}
         >

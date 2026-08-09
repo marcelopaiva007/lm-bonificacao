@@ -26,16 +26,11 @@ export function parseDataBr(raw: string | null): Date | null {
 // "R$ 99,90").
 export function parseValorBr(raw: string | null): number {
   if (!raw) return 0;
-  const limpo = raw.replace(/[^\d,.-]/g, "");
-  // Com vírgula presente ela é o separador decimal, então TODO ponto é milhar.
-  // (A regra antiga só tirava o ponto seguido de 3 dígitos + vírgula/fim, que
-  // não casa no primeiro grupo de "1.234.567,89" — o valor virava 1,23.)
-  // Sem vírgula, o ponto só é milhar quando separa grupos de 3 dígitos:
-  // "1.234" -> 1234, mas "1234.56" continua sendo 1234.56.
-  const normalizado = limpo.includes(",")
-    ? limpo.replace(/\./g, "").replace(",", ".")
-    : limpo.replace(/\.(?=\d{3}(\.|$))/g, "");
-  const n = parseFloat(normalizado);
+  const limpo = raw
+    .replace(/[^\d,.-]/g, "")
+    .replace(/\.(?=\d{3}(,|$))/g, "")
+    .replace(",", ".");
+  const n = parseFloat(limpo);
   return Number.isNaN(n) ? 0 : n;
 }
 
@@ -227,97 +222,4 @@ export function acharFuncionario<T extends { id: string; nome: string }>(
     }
   }
   return { funcionario: melhor, modo: melhor ? "FUZZY" : null };
-}
-
-
-// ===================== Funil de Vendas - Gerencial =====================
-
-// "Ganha" e "Perdida" tanto quanto "Andamento" existem no relatório; só uma
-// negociação Ganha vira venda. Case-insensitive/trim porque o Elleven não
-// garante capitalização consistente entre exports.
-function isGanha(status: unknown): boolean {
-  return normalizarTexto(String(status ?? "")) === "ganha";
-}
-
-function isUpgrade(tipoNegociacao: unknown): boolean {
-  return normalizarTexto(String(tipoNegociacao ?? "")) === "upgrade";
-}
-
-export type LinhaFunil = Record<string, unknown>;
-
-/** Campos numéricos de um LancamentoVenda, sem identidade nem período. */
-export type AgregadoFunil = {
-  quantidade: number;
-  valorInstalado: number;
-  valorDemaisServicos: number;
-  qtdInternet: number;
-  qtdChip: number;
-  qtdGps: number;
-  qtdTv: number;
-  qtdStreaming: number;
-  qtdTelefoniaFixa: number;
-};
-
-/**
- * Decide o que é venda e agrupa por vendedor — SEM tocar no banco.
- *
- * Separado de propósito: é aqui que mora a decisão de quanto cada pessoa vende,
- * e portanto quanto recebe. Como função pura, dá para testar com linhas de
- * exemplo (scripts/test-importacao-funil.ts) em vez de descobrir em produção,
- * que foi como os dois defeitos de comissão de 06/08/2026 apareceram.
- *
- * Regras (OS): só negociação Ganha, só Venda (não Upgrade) e só com valor de
- * carrinho acima de zero — o que exclui o "CDNTV | Pacote Completo" a R$ 0,00,
- * brinde atrelado a outro plano.
- */
-export function agregarNegociacoesFunil(linhas: LinhaFunil[]): {
-  porVendedor: Map<string, AgregadoFunil>;
-  negociacoesFiltradas: number;
-  negociacoesSemVendedor: number;
-} {
-  const filtradas = linhas.filter((dados) => {
-    if (!isGanha(dados["Status Negociacao"])) return false;
-    if (isUpgrade(dados["Tipo Negociacao"])) return false;
-    return parseValorBr(String(dados["Valor Serv. Carrinho"] ?? "")) > 0;
-  });
-
-  const porVendedor = new Map<string, AgregadoFunil>();
-  let negociacoesSemVendedor = 0;
-
-  for (const dados of filtradas) {
-    const nome = String(dados["Vendedor"] ?? "").trim();
-    // Negociação sem vendedor não pode ser atribuída a ninguém — não dá para
-    // criar funcionário sem nome. Fica de fora e é reportada.
-    if (!nome) {
-      negociacoesSemVendedor++;
-      continue;
-    }
-
-    const ag =
-      porVendedor.get(nome) ??
-      {
-        quantidade: 0,
-        valorInstalado: 0,
-        valorDemaisServicos: 0,
-        qtdInternet: 0,
-        qtdChip: 0,
-        qtdGps: 0,
-        qtdTv: 0,
-        qtdStreaming: 0,
-        qtdTelefoniaFixa: 0,
-      };
-
-    ag.quantidade++;
-    const valor = parseValorBr(String(dados["Valor Serv. Carrinho"] ?? ""));
-    ag.valorInstalado += valor;
-    const cat = categoriaProdutoFunil(String(dados["Servico Carrinho"] ?? ""));
-    if (cat) ag[cat]++;
-    // Base da regra de 50% do Atendimento/ADM: tudo que não é internet, mesmo
-    // sem categoria reconhecida.
-    if (cat !== "qtdInternet") ag.valorDemaisServicos += valor;
-
-    porVendedor.set(nome, ag);
-  }
-
-  return { porVendedor, negociacoesFiltradas: filtradas.length, negociacoesSemVendedor };
 }

@@ -3,24 +3,9 @@
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { requireCapacidade } from "@/lib/auth-guard";
+import { requireAdmin } from "@/lib/auth-guard";
 import { recalcularFechamento } from "@/lib/bonificacao";
-import { registrarAlteracao } from "@/lib/auditoria";
-import { periodoLabel } from "@/lib/periodo";
 import type { ActionResult } from "@/lib/constants";
-
-// Nome de quem sofre a alteração — o registro precisa dizer "de quem" era o
-// lançamento ou o ajuste, não só o id.
-async function nomeDoFuncionario(funcionarioId: string): Promise<string> {
-  const f = await prisma.funcionario.findUnique({
-    where: { id: funcionarioId },
-    select: { nome: true },
-  });
-  return f?.nome ?? "funcionário desconhecido";
-}
-
-const emReais = (v: number) =>
-  v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
 const periodoRegex = /^\d{4}-\d{2}$/;
 
@@ -58,8 +43,8 @@ function parseLancamentoForm(formData: FormData) {
   });
 }
 
-async function assertFechamentoAberto(periodo: string): Promise<string | null> {
-  const fechamento = await prisma.fechamentoMensal.findUnique({ where: { periodo } });
+async function assertFechamentoAberto(periodo: string, tx = prisma): Promise<string | null> {
+  const fechamento = await tx.fechamentoMensal.findUnique({ where: { periodo } });
   if (fechamento?.status === "FECHADO") {
     return "Este mês já foi fechado e não pode mais ser alterado.";
   }
@@ -67,92 +52,72 @@ async function assertFechamentoAberto(periodo: string): Promise<string | null> {
 }
 
 export async function createLancamento(_prev: ActionResult, formData: FormData): Promise<ActionResult> {
-  const user = await requireCapacidade("EDITAR_LANCAMENTO");
+  await requireAdmin();
   const parsed = parseLancamentoForm(formData);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
 
-  const bloqueado = await assertFechamentoAberto(parsed.data.periodo);
-  if (bloqueado) return { ok: false, error: bloqueado };
+  try {
+    await prisma.$transaction(async (tx) => {
+      const bloqueado = await assertFechamentoAberto(parsed.data.periodo, tx);
+      if (bloqueado) throw new Error(bloqueado);
 
-  await prisma.lancamentoVenda.create({ data: { ...parsed.data, origem: "MANUAL" } });
+      await tx.lancamentoVenda.create({ data: { ...parsed.data, origem: "MANUAL" } });
+    });
+  } catch (err) {
+    const error = err instanceof Error ? err.message : "Erro ao criar lançamento.";
+    return { ok: false, error };
+  }
+
   await recalcularFechamento(parsed.data.periodo);
-
-  const nome = await nomeDoFuncionario(parsed.data.funcionarioId);
-  await registrarAlteracao({
-    acao: "LANCAMENTO_CRIADO",
-    usuarioId: user.id,
-    usuarioNome: user.name ?? user.username,
-    alvo: nome,
-    periodo: parsed.data.periodo,
-    resumo:
-      `Lançou à mão ${parsed.data.quantidade} venda(s) para ${nome} em ` +
-      `${periodoLabel(parsed.data.periodo)} (${emReais(parsed.data.valorInstalado)}).`,
-    depois: parsed.data,
-  });
-
   revalidatePath("/lancamentos");
   revalidatePath("/fechamento");
   return { ok: true };
 }
 
 export async function updateLancamento(id: string, _prev: ActionResult, formData: FormData): Promise<ActionResult> {
-  const user = await requireCapacidade("EDITAR_LANCAMENTO");
+  await requireAdmin();
   const parsed = parseLancamentoForm(formData);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
 
-  const bloqueado = await assertFechamentoAberto(parsed.data.periodo);
-  if (bloqueado) return { ok: false, error: bloqueado };
+  try {
+    await prisma.$transaction(async (tx) => {
+      const bloqueado = await assertFechamentoAberto(parsed.data.periodo, tx);
+      if (bloqueado) throw new Error(bloqueado);
 
-  const antes = await prisma.lancamentoVenda.findUnique({ where: { id } });
+      await tx.lancamentoVenda.update({ where: { id }, data: parsed.data });
+    });
+  } catch (err) {
+    const error = err instanceof Error ? err.message : "Erro ao atualizar lançamento.";
+    return { ok: false, error };
+  }
 
-  await prisma.lancamentoVenda.update({ where: { id }, data: parsed.data });
   await recalcularFechamento(parsed.data.periodo);
-
-  const nome = await nomeDoFuncionario(parsed.data.funcionarioId);
-  await registrarAlteracao({
-    acao: "LANCAMENTO_ALTERADO",
-    usuarioId: user.id,
-    usuarioNome: user.name ?? user.username,
-    alvo: nome,
-    periodo: parsed.data.periodo,
-    resumo:
-      `Alterou o lançamento de ${nome} em ${periodoLabel(parsed.data.periodo)}: ` +
-      `${antes?.quantidade ?? 0} → ${parsed.data.quantidade} venda(s), ` +
-      `${emReais(antes?.valorInstalado ?? 0)} → ${emReais(parsed.data.valorInstalado)}.`,
-    antes,
-    depois: parsed.data,
-  });
-
   revalidatePath("/lancamentos");
   revalidatePath("/fechamento");
   return { ok: true };
 }
 
 export async function deleteLancamento(id: string): Promise<ActionResult> {
-  const user = await requireCapacidade("EDITAR_LANCAMENTO");
-  const lancamento = await prisma.lancamentoVenda.findUnique({ where: { id } });
-  if (!lancamento) return { ok: false, error: "Lançamento não encontrado." };
+  await requireAdmin();
 
-  const bloqueado = await assertFechamentoAberto(lancamento.periodo);
-  if (bloqueado) return { ok: false, error: bloqueado };
+  let periodo = "";
+  try {
+    await prisma.$transaction(async (tx) => {
+      const lancamento = await tx.lancamentoVenda.findUnique({ where: { id } });
+      if (!lancamento) throw new Error("Lançamento não encontrado.");
+      periodo = lancamento.periodo;
 
-  await prisma.lancamentoVenda.delete({ where: { id } });
-  await recalcularFechamento(lancamento.periodo);
+      const bloqueado = await assertFechamentoAberto(periodo, tx);
+      if (bloqueado) throw new Error(bloqueado);
 
-  const nome = await nomeDoFuncionario(lancamento.funcionarioId);
-  await registrarAlteracao({
-    acao: "LANCAMENTO_REMOVIDO",
-    usuarioId: user.id,
-    usuarioNome: user.name ?? user.username,
-    alvo: nome,
-    periodo: lancamento.periodo,
-    resumo:
-      `Removeu o lançamento de ${nome} em ${periodoLabel(lancamento.periodo)}: ` +
-      `${lancamento.quantidade} venda(s), ${emReais(lancamento.valorInstalado)} ` +
-      `(origem ${lancamento.origem}).`,
-    antes: lancamento,
-  });
+      await tx.lancamentoVenda.delete({ where: { id } });
+    });
+  } catch (err) {
+    const error = err instanceof Error ? err.message : "Erro ao excluir lançamento.";
+    return { ok: false, error };
+  }
 
+  await recalcularFechamento(periodo);
   revalidatePath("/lancamentos");
   revalidatePath("/fechamento");
   return { ok: true };
@@ -168,7 +133,7 @@ const ajusteSchema = z.object({
 });
 
 export async function createAjuste(_prev: ActionResult, formData: FormData): Promise<ActionResult> {
-  const user = await requireCapacidade("EDITAR_LANCAMENTO");
+  await requireAdmin();
   const parsed = ajusteSchema.safeParse({
     funcionarioId: formData.get("funcionarioId"),
     periodo: formData.get("periodo"),
@@ -188,26 +153,12 @@ export async function createAjuste(_prev: ActionResult, formData: FormData): Pro
 
   await prisma.ajuste.create({ data: { ...parsed.data, fechamentoId: fechamento.id } });
   await recalcularFechamento(parsed.data.periodo);
-
-  const nome = await nomeDoFuncionario(parsed.data.funcionarioId);
-  await registrarAlteracao({
-    acao: "AJUSTE_CRIADO",
-    usuarioId: user.id,
-    usuarioNome: user.name ?? user.username,
-    alvo: nome,
-    periodo: parsed.data.periodo,
-    resumo:
-      `Lançou ajuste de ${emReais(parsed.data.valor)} para ${nome} em ` +
-      `${periodoLabel(parsed.data.periodo)} — motivo: "${parsed.data.descricao}".`,
-    depois: parsed.data,
-  });
-
   revalidatePath("/fechamento");
   return { ok: true };
 }
 
 export async function deleteAjuste(id: string): Promise<ActionResult> {
-  const user = await requireCapacidade("EDITAR_LANCAMENTO");
+  await requireAdmin();
   const ajuste = await prisma.ajuste.findUnique({ where: { id } });
   if (!ajuste) return { ok: false, error: "Ajuste não encontrado." };
 
@@ -216,20 +167,6 @@ export async function deleteAjuste(id: string): Promise<ActionResult> {
 
   await prisma.ajuste.delete({ where: { id } });
   await recalcularFechamento(ajuste.periodo);
-
-  const nome = await nomeDoFuncionario(ajuste.funcionarioId);
-  await registrarAlteracao({
-    acao: "AJUSTE_REMOVIDO",
-    usuarioId: user.id,
-    usuarioNome: user.name ?? user.username,
-    alvo: nome,
-    periodo: ajuste.periodo,
-    resumo:
-      `Removeu o ajuste de ${emReais(ajuste.valor)} de ${nome} em ` +
-      `${periodoLabel(ajuste.periodo)} — era: "${ajuste.descricao}".`,
-    antes: ajuste,
-  });
-
   revalidatePath("/fechamento");
   return { ok: true };
 }

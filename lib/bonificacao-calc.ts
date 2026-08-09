@@ -119,7 +119,10 @@ export function calcularServico(
   switch (regra.tipo) {
     case "faixas": {
       const qtd = contagemDoServico(servico, agregado);
-      const faixa = regra.faixas.find(
+      const faixasOrdenadas = Array.isArray(regra.faixas)
+        ? [...regra.faixas].sort((a, b) => a.min - b.min)
+        : [];
+      const faixa = faixasOrdenadas.find(
         (f) => qtd >= f.min && (f.max == null || qtd <= f.max)
       );
       return faixa ? faixa.valor * qtd : 0;

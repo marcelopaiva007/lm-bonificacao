@@ -19,10 +19,6 @@
     {
       "path": "/api/cron/cobranca-metas",
       "schedule": "0 12 * * *"
-    },
-    {
-      "path": "/api/cron/auditoria",
-      "schedule": "12 11 * * 1"
     }
   ]
 }

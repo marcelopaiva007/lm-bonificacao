@@ -17,13 +17,7 @@
 import { prisma } from "@/lib/prisma";
 import { normalizarTexto } from "@/lib/text";
 import { recalcularFechamento } from "@/lib/bonificacao";
-import { registrarRetrato } from "@/lib/retrato-vendas";
-import {
-  acharFuncionario,
-  agregarNegociacoesFunil,
-  type AgregadoFunil,
-  type LinhaFunil,
-} from "@/lib/elleven-core";
+import { acharFuncionario, categoriaProdutoFunil, parseValorBr } from "@/lib/elleven-core";
 import { ORIGEM_ELLEVEN_AUTO } from "@/lib/importar-elleven-auto";
 
 export type ResultadoImportacaoFunil = {
@@ -38,36 +32,55 @@ export type ResultadoImportacaoFunil = {
   funcionariosCriados: number;
 };
 
+// "Ganha" e "Perdida" tanto quanto "Andamento" existem no relatório; só uma
+// negociação Ganha vira venda. Case-insensitive/trim porque o Elleven não
+// garante capitalização consistente entre exports.
+function isGanha(status: unknown): boolean {
+  return normalizarTexto(String(status ?? "")) === "ganha";
+}
+
+function isUpgrade(tipoNegociacao: unknown): boolean {
+  return normalizarTexto(String(tipoNegociacao ?? "")) === "upgrade";
+}
+
 // Importa as negociações Ganhas do `periodo` (formato "AAAA-MM") do relatório
 // Funil de Vendas - Gerencial em lançamentos e recalcula o fechamento
 // (mantido ABERTO). Seguro para rodar várias vezes.
 export async function importarLancamentosEllevenFunil(
   periodo: string,
 ): Promise<ResultadoImportacaoFunil> {
-  // Mês FECHADO é intocável. recalcularFechamento já se recusa a recalcular,
-  // mas o apaga-e-regrava dos lançamentos logo abaixo rodaria mesmo assim —
-  // e mudaria os dados de um mês que já foi pago. A trava passou a importar
-  // com a chegada do ?periodo= (reprocessamento de mês passado, 08/08/2026):
-  // antes disso, só o mês corrente chegava aqui, sempre aberto.
-  const fechamento = await prisma.fechamentoMensal.findUnique({
-    where: { periodo },
-    select: { status: true },
-  });
-  if (fechamento?.status === "FECHADO") {
-    throw new Error(
-      `O fechamento de ${periodo} está FECHADO — a importação não altera mês pago. ` +
-        `Reabra o fechamento primeiro se for realmente necessário.`,
-    );
-  }
-
   const linhasBrutas = await prisma.elevenRelatorioLinha.findMany({
     where: { relatorio: "funil-de-vendas", periodo },
   });
 
-  // Toda a decisão de "o que conta como venda e de quem é" mora numa função
-  // pura, testável sem banco (ver agregarNegociacoesFunil).
-  const { porVendedor, negociacoesFiltradas, negociacoesSemVendedor } =
-    agregarNegociacoesFunil(linhasBrutas.map((l) => l.dados as LinhaFunil));
+  // Filtro de negócio (OS): só negociação Ganha, só Venda (não Upgrade) e só
+  // com valor de carrinho > 0 — exclui "CDNTV | Pacote Completo" a R$0,00
+  // (brinde atrelado a outro plano, decisão do cliente: fica fora do cálculo).
+  const filtradas = linhasBrutas.filter((l) => {
+    const dados = l.dados as Record<string, unknown>;
+    if (!isGanha(dados["Status Negociacao"])) return false;
+    if (isUpgrade(dados["Tipo Negociacao"])) return false;
+    const valor = parseValorBr(String(dados["Valor Serv. Carrinho"] ?? ""));
+    return valor > 0;
+  });
+
+  // Agrupa por vendedor. Negociação sem vendedor não pode ser atribuída a
+  // ninguém (não dá para criar um funcionário sem nome) — fica de fora e é
+  // reportada.
+  type LinhaDados = Record<string, unknown>;
+  const porVendedor = new Map<string, LinhaDados[]>();
+  let negociacoesSemVendedor = 0;
+  for (const l of filtradas) {
+    const dados = l.dados as LinhaDados;
+    const nome = String(dados["Vendedor"] ?? "").trim();
+    if (!nome) {
+      negociacoesSemVendedor++;
+      continue;
+    }
+    const lista = porVendedor.get(nome) ?? [];
+    lista.push(dados);
+    porVendedor.set(nome, lista);
+  }
 
   const funcionarios = await prisma.funcionario.findMany({ where: { ativo: true } });
   const porNomeExato = new Map(funcionarios.map((f) => [normalizarTexto(f.nome), f]));
@@ -75,7 +88,7 @@ export async function importarLancamentosEllevenFunil(
   const resultado: ResultadoImportacaoFunil = {
     periodo,
     negociacoesNoPeriodo: linhasBrutas.length,
-    negociacoesFiltradas,
+    negociacoesFiltradas: filtradas.length,
     negociacoesSemVendedor,
     vendedores: porVendedor.size,
     lancamentosGerados: 0,
@@ -88,8 +101,19 @@ export async function importarLancamentosEllevenFunil(
   // depois agrega os campos numéricos do LancamentoVenda direto (sem tabela
   // de cidade — o Funil de Vendas não tem coluna própria de cidade do
   // vendedor equivalente à de Ativação Contratos).
-  const linhas: ({ funcionarioId: string } & AgregadoFunil)[] = [];
-  for (const [nomeElleven, ag] of porVendedor) {
+  const linhas: {
+    funcionarioId: string;
+    quantidade: number;
+    valorInstalado: number;
+    valorDemaisServicos: number;
+    qtdInternet: number;
+    qtdChip: number;
+    qtdGps: number;
+    qtdTv: number;
+    qtdStreaming: number;
+    qtdTelefoniaFixa: number;
+  }[] = [];
+  for (const [nomeElleven, negociacoes] of porVendedor) {
     const { funcionario, modo } = acharFuncionario(nomeElleven, funcionarios, porNomeExato);
     let funcionarioId: string;
     if (funcionario) {
@@ -104,6 +128,25 @@ export async function importarLancamentosEllevenFunil(
       resultado.funcionariosCriados++;
       funcionarios.push(novo);
       porNomeExato.set(normalizarTexto(novo.nome), novo);
+    }
+
+    const ag = {
+      quantidade: negociacoes.length,
+      valorInstalado: 0,
+      valorDemaisServicos: 0,
+      qtdInternet: 0,
+      qtdChip: 0,
+      qtdGps: 0,
+      qtdTv: 0,
+      qtdStreaming: 0,
+      qtdTelefoniaFixa: 0,
+    };
+    for (const dados of negociacoes) {
+      const valor = parseValorBr(String(dados["Valor Serv. Carrinho"] ?? ""));
+      ag.valorInstalado += valor;
+      const cat = categoriaProdutoFunil(String(dados["Servico Carrinho"] ?? ""));
+      if (cat) ag[cat]++;
+      if (cat !== "qtdInternet") ag.valorDemaisServicos += valor;
     }
     linhas.push({ funcionarioId, ...ag });
   }
@@ -142,10 +185,6 @@ export async function importarLancamentosEllevenFunil(
   // Recalcula a bonificação do mês, mantendo o fechamento ABERTO até o
   // fechamento manual pela diretoria.
   await recalcularFechamento(periodo);
-
-  // Fotografa o estado depois da regravação: é o que permite dizer,
-  // amanhã, o que mudou de hoje para lá.
-  await registrarRetrato(periodo);
 
   return resultado;
 }

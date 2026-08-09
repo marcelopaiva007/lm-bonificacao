@@ -12,25 +12,22 @@ import {
 } from "@/lib/acompanhamento";
 import { ensureFuncionarioContato } from "@/lib/ensure-schema";
 
-// Fonte única de cargos (lib/constants) — era uma lista duplicada aqui, e
-// cargo fora dela chegava ao acompanhamento sem regra nenhuma (uma das causas
-// do parabéns falso corrigido em 1.2.2).
-import { CARGOS } from "@/lib/constants";
-const CARGOS_REGRA = CARGOS.map((c) => c.value);
+const CARGOS_REGRA = [
+  "VENDEDOR_EXTERNO",
+  "ATENDIMENTO_ADM",
+  "SUPERVISOR",
+  "OUTRO_SETOR",
+];
 
 // Carrega e calcula o acompanhamento de metas de todos os funcionários ativos
 // para o período. Reutilizado pela tela /metas e pelo cron de cobrança.
 export async function carregarAcompanhamento(
   periodo: string,
-  // Ids que quem pediu pode ver. `null`/ausente = todos — é o caso do cron de
-  // cobrança, que precisa alcançar o quadro inteiro para enviar as mensagens.
-  idsVisiveis?: string[] | null,
 ): Promise<AcompanhamentoFuncionario[]> {
   await ensureFuncionarioContato();
-  const recorte = idsVisiveis == null ? {} : { id: { in: idsVisiveis } };
   const [funcionarios, lancamentos, equipes] = await Promise.all([
     prisma.funcionario.findMany({
-      where: { ativo: true, ...recorte },
+      where: { ativo: true },
       select: {
         id: true,
         nome: true,
@@ -83,9 +80,7 @@ export async function carregarAcompanhamento(
 
     let supervisorCtx: { totalInternetEquipe: number; tamanhoEquipe: number } | null =
       null;
-    // Mesmo critério do recálculo (lib/bonificacao): tem bônus de equipe quem
-    // tem a seção `supervisor` na regra — SUPERVISOR e RESPONSAVEL_SETOR.
-    if (config?.supervisor) {
+    if (f.cargo === "SUPERVISOR") {
       const equipesSup = equipesPorSupervisor.get(f.id) ?? [];
       let totalInternet = 0;
       const ids = new Set<string>([f.id]);
