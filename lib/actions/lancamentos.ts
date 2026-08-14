@@ -3,6 +3,7 @@
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@/app/generated/prisma/client";
 import { requireAdmin } from "@/lib/auth-guard";
 import { recalcularFechamento } from "@/lib/bonificacao";
 import type { ActionResult } from "@/lib/constants";
@@ -43,7 +44,7 @@ function parseLancamentoForm(formData: FormData) {
   });
 }
 
-async function assertFechamentoAberto(periodo: string, tx = prisma): Promise<string | null> {
+async function assertFechamentoAberto(periodo: string, tx: Prisma.TransactionClient = prisma): Promise<string | null> {
   const fechamento = await tx.fechamentoMensal.findUnique({ where: { periodo } });
   if (fechamento?.status === "FECHADO") {
     return "Este mês já foi fechado e não pode mais ser alterado.";
