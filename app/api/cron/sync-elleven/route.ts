@@ -319,10 +319,6 @@ function dateFormats({ dd, mm, yyyy }: { dd: string; mm: string; yyyy: string })
   return { br: `${dd}/${mm}/${yyyy}`, iso: `${yyyy}-${mm}-${dd}` };
 }
 
-function todayFormats() {
-  return dateFormats(saoPauloParts(new Date()));
-}
-
 // Primeiro dia do mês corrente — usado como "Data Inicial" para puxar o relatório
 // do mês inteiro (a cada rodada, do dia 1º até hoje). O upsert por número de
 // contrato garante que reprocessar os mesmos dias não gera duplicata.
@@ -518,7 +514,7 @@ async function fillDateLikeInputs(
     valueAfter: string;
     debug?: string;
   }> = [];
-  const hoje = todayFormats(); const fimMes = (() => { const p = saoPauloParts(new Date()); const last = new Date(Date.UTC(Number(p.yyyy), Number(p.mm), 0)).getUTCDate(); return dateFormats({ dd: String(last).padStart(2, "0"), mm: p.mm, yyyy: p.yyyy }); })();
+  const fimMes = (() => { const p = saoPauloParts(new Date()); const last = new Date(Date.UTC(Number(p.yyyy), Number(p.mm), 0)).getUTCDate(); return dateFormats({ dd: String(last).padStart(2, "0"), mm: p.mm, yyyy: p.yyyy }); })();
   const inicioMes = firstOfMonthFormats();
   const candidates = (await describeInteractiveElements(frame)) as Array<
     Record<string, unknown>

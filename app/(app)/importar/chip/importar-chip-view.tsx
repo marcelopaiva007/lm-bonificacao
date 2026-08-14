@@ -66,7 +66,9 @@ export function ImportarChipView({ periodoInicial }: { periodoInicial: string })
   }, [periodo]);
 
   useEffect(() => {
-    carregar();
+    queueMicrotask(() => {
+      carregar();
+    });
   }, [carregar]);
 
   async function sincronizarAgora() {

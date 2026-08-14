@@ -12,6 +12,17 @@ import {
 } from "@/lib/elleven-core";
 import { normalizarTexto } from "@/lib/text";
 
+type ContratoRow = {
+  vendedor1: string | null;
+  cidade: string | null;
+  ativacaoContrato: string | null;
+  dataContrato: string | null;
+  statusContrato: string | null;
+  valServAtivado: string | null;
+  servicoAtivado: string | null;
+  [key: string]: unknown;
+};
+
 const periodo = process.argv[2] ?? "2026-07";
 const [ano, mes] = periodo.split("-").map(Number);
 
@@ -21,10 +32,10 @@ const url = env.match(/DATABASE_URL="?([^"\n]+)"?/)![1];
 const c = new Client({ connectionString: url, connectionTimeoutMillis: 20000 });
 await c.connect();
 const contratos = (
-  await c.query(
+  await c.query<ContratoRow>(
     `select vendedor1, cidade, "ativacaoContrato","dataContrato","statusContrato","valServAtivado","servicoAtivado" from contrato_ativacao_elleven`,
   )
-).rows as any[];
+).rows;
 const funcionarios = (
   await c.query(`select id, nome from "Funcionario" where ativo=true`)
 ).rows as { id: string; nome: string }[];
@@ -35,7 +46,7 @@ const doPeriodo = contratos.filter((ct) => {
   return d && d.getUTCFullYear() === ano && d.getUTCMonth() + 1 === mes;
 });
 
-const porVendedor = new Map<string, any[]>();
+const porVendedor = new Map<string, ContratoRow[]>();
 let semVendedor = 0;
 for (const ct of doPeriodo) {
   const nome = (ct.vendedor1 || "").trim();
