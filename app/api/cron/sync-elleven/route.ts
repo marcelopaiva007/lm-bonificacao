@@ -79,6 +79,27 @@ const REPORTS: Record<string, { path: string; nome: string; generico?: boolean }
     nome: "Listagem Pedidos de Venda",
     generico: true,
   },
+  // Base "vendas em andamento" (item 3): vendas fechadas que ainda não foram
+  // instaladas. Fonte é "Solicitações - Em andamento" no Exportador de Dados —
+  // a diretoria descartou tirar isso das negociações "Andamento" do Funil de
+  // Vendas porque aquela lista não representa o que está em campo esperando
+  // instalação. O filtro pelos 8 tipos de solicitação que compõem a base vive
+  // em lib/solicitacoes-andamento.ts.
+  //
+  // Path é o 3º formato de endereço do elleven visto até agora
+  // (legacy/analytics, além de legacy/reports e legacy/utilities) — se o
+  // wizard montar num iframe diferente dos dois já conhecidos, a rodada falha
+  // com a lista de frames no erro.
+  //
+  // Fora da agenda diária (vercel.json) por enquanto: a rodada de 08/08 às
+  // 19:05 caiu no login (CAPTCHA/MFA) depois de >12 sessões automatizadas no
+  // dia — mantido aqui só para disparo manual (?report=solicitacoes-andamento)
+  // até decidir se volta pro cron.
+  "solicitacoes-andamento": {
+    path: "/ui/565d5331-e2d6-4724-b2ba-b227b07abe38/legacy/analytics/a05fd286-4750-353f-0e2c-4baf97fcf60a",
+    nome: "Solicitações - Em andamento",
+    generico: true,
+  },
   // Faturamento por Vendedor (modal JS legado, sem iframe de relatório) e
   // CRE - Títulos Recebidos (exige campo obrigatório extra) NÃO são usados para
   // comissão — removidos da sincronização a pedido do usuário.
