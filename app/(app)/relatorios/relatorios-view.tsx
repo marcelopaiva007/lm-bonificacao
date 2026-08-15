@@ -33,6 +33,12 @@ const fmtMoeda = (v: number) =>
 type Tendencia = { periodo: string; label: string; vendido: number; bonificacao: number };
 type PorCidade = { cidade: string; valor: number };
 type BonificacaoLinha = { id: string; nome: string; cidade: string; valorTotal: number };
+type VendasAndamento = {
+  periodo: string;
+  semColeta: boolean;
+  total: number;
+  porTipo: { tipo: string; quantidade: number }[];
+};
 
 export function RelatoriosView({
   periodo,
@@ -42,6 +48,7 @@ export function RelatoriosView({
   totalVendido,
   totalBonificacao,
   bonificacoes,
+  vendasAndamento,
 }: {
   periodo: string;
   periodosDisponiveis: string[];
@@ -50,6 +57,7 @@ export function RelatoriosView({
   totalVendido: number;
   totalBonificacao: number;
   bonificacoes: BonificacaoLinha[];
+  vendasAndamento: VendasAndamento;
 }) {
   const router = useRouter();
   const top5 = bonificacoes.slice(0, 5);
@@ -115,6 +123,52 @@ export function RelatoriosView({
           </CardContent>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">
+            Vendas em andamento — {periodoLabel(periodo)}
+          </CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Vendas já fechadas que ainda aguardam instalação (fonte: Solicitações em
+            Andamento do elleven).
+          </p>
+        </CardHeader>
+        <CardContent>
+          {vendasAndamento.semColeta ? (
+            <p className="text-sm text-muted-foreground">
+              Ainda não há coleta desse relatório para {periodoLabel(periodo)}.
+            </p>
+          ) : (
+            <div className="space-y-4">
+              <p className="text-2xl font-semibold">
+                {vendasAndamento.total}{" "}
+                <span className="text-sm font-normal text-muted-foreground">
+                  venda(s) em andamento
+                </span>
+              </p>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Tipo de solicitação</TableHead>
+                    <TableHead className="text-right">Quantidade</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {[...vendasAndamento.porTipo]
+                    .sort((a, b) => b.quantidade - a.quantidade)
+                    .map((t) => (
+                      <TableRow key={t.tipo}>
+                        <TableCell className="max-w-md">{t.tipo}</TableCell>
+                        <TableCell className="text-right">{t.quantidade}</TableCell>
+                      </TableRow>
+                    ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

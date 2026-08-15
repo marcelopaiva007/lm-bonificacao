@@ -79,6 +79,28 @@ const REPORTS: Record<string, { path: string; nome: string; generico?: boolean }
     nome: "Listagem Pedidos de Venda",
     generico: true,
   },
+  // Base "vendas em andamento" (item 3): vendas fechadas que ainda não foram
+  // instaladas. Fonte é "Solicitações - Em andamento" no Exportador de Dados —
+  // a diretoria descartou tirar isso das negociações "Andamento" do Funil de
+  // Vendas porque aquela lista não representa o que está em campo esperando
+  // instalação. O filtro pelos 8 tipos de solicitação que compõem a base vive
+  // em lib/solicitacoes-andamento.ts.
+  //
+  // Path é o 3º formato de endereço do elleven visto até agora
+  // (legacy/analytics, além de legacy/reports e legacy/utilities) — se o
+  // wizard montar num iframe diferente dos dois já conhecidos, a rodada falha
+  // com a lista de frames no erro.
+  //
+  // A rodada de 08/08 às 19:05 caiu no login (CAPTCHA/MFA) depois de >12
+  // sessões automatizadas no dia — mas isso foi excesso de tentativas de teste
+  // naquele dia, não o padrão de 1x/dia dos outros relatórios. De volta à
+  // agenda diária (vercel.json) às 6:50, mesmo ritmo dos outros 3 relatórios
+  // do elleven (6:15/6:30/6:45).
+  "solicitacoes-andamento": {
+    path: "/ui/565d5331-e2d6-4724-b2ba-b227b07abe38/legacy/analytics/a05fd286-4750-353f-0e2c-4baf97fcf60a",
+    nome: "Solicitações - Em andamento",
+    generico: true,
+  },
   // Faturamento por Vendedor (modal JS legado, sem iframe de relatório) e
   // CRE - Títulos Recebidos (exige campo obrigatório extra) NÃO são usados para
   // comissão — removidos da sincronização a pedido do usuário.
@@ -319,10 +341,6 @@ function dateFormats({ dd, mm, yyyy }: { dd: string; mm: string; yyyy: string })
   return { br: `${dd}/${mm}/${yyyy}`, iso: `${yyyy}-${mm}-${dd}` };
 }
 
-function todayFormats() {
-  return dateFormats(saoPauloParts(new Date()));
-}
-
 // Primeiro dia do mês corrente — usado como "Data Inicial" para puxar o relatório
 // do mês inteiro (a cada rodada, do dia 1º até hoje). O upsert por número de
 // contrato garante que reprocessar os mesmos dias não gera duplicata.
@@ -518,7 +536,7 @@ async function fillDateLikeInputs(
     valueAfter: string;
     debug?: string;
   }> = [];
-  const hoje = todayFormats(); const fimMes = (() => { const p = saoPauloParts(new Date()); const last = new Date(Date.UTC(Number(p.yyyy), Number(p.mm), 0)).getUTCDate(); return dateFormats({ dd: String(last).padStart(2, "0"), mm: p.mm, yyyy: p.yyyy }); })();
+  const fimMes = (() => { const p = saoPauloParts(new Date()); const last = new Date(Date.UTC(Number(p.yyyy), Number(p.mm), 0)).getUTCDate(); return dateFormats({ dd: String(last).padStart(2, "0"), mm: p.mm, yyyy: p.yyyy }); })();
   const inicioMes = firstOfMonthFormats();
   const candidates = (await describeInteractiveElements(frame)) as Array<
     Record<string, unknown>
