@@ -5,9 +5,11 @@
 // Funil de Vendas, que a diretoria descartou por não representar o que está
 // em campo esperando instalação (ver comentário em sync-elleven/route.ts).
 //
-// Roda a partir do cron (sync-elleven), sem usuário logado — por isso vive
-// num módulo plano (sem "use server"), no mesmo padrão de
-// importar-elleven-funil.ts.
+// O filtro (filtrarLinhasAndamento) roda a partir do cron (sync-elleven), sem
+// usuário logado — por isso vive num módulo plano (sem "use server"), no
+// mesmo padrão de importar-elleven-funil.ts. resumoSolicitacoesAndamento é
+// só leitura e também é chamada direto pela tela de Relatórios (Server
+// Component), para a gerência de vendas acompanhar a base.
 
 import { prisma } from "@/lib/prisma";
 import { normalizarTexto } from "@/lib/text";
@@ -70,9 +72,7 @@ export type ResultadoSolicitacoesAndamento = {
 };
 
 // Lê as linhas cruas já coletadas pelo sync-elleven (relatorio =
-// "solicitacoes-andamento") e aplica o filtro dos 8 tipos. Não escreve em
-// lugar nenhum ainda — não há, por enquanto, uma tabela/UI destino definida
-// para "os números" (perguntar antes de inventar uma).
+// "solicitacoes-andamento") e aplica o filtro dos 8 tipos.
 export async function contarSolicitacoesAndamento(
   periodo: string,
 ): Promise<ResultadoSolicitacoesAndamento> {
@@ -87,5 +87,44 @@ export async function contarSolicitacoesAndamento(
     totalLinhas: linhas.length,
     totalNaBase: filtradas.length,
     linhas: filtradas,
+  };
+}
+
+export type ResumoSolicitacoesAndamento = {
+  periodo: string;
+  // true = nenhuma coleta rodou ainda para o período (não confundir com "0
+  // solicitações em andamento", que é um resultado válido de uma coleta real).
+  semColeta: boolean;
+  total: number;
+  porTipo: { tipo: string; quantidade: number }[];
+};
+
+// Resumo para a tela de Relatórios (gerência de vendas): total da base e
+// composição por tipo de solicitação, agrupado pelo rótulo canônico (não pelo
+// texto cru do CSV) para não fragmentar a contagem por diferença de grafia.
+export async function resumoSolicitacoesAndamento(
+  periodo: string,
+): Promise<ResumoSolicitacoesAndamento> {
+  const { totalLinhas, linhas } = await contarSolicitacoesAndamento(periodo);
+  const coluna = linhas.length > 0 ? acharColunaTipoSolicitacao(linhas[0]) : null;
+
+  const porTipoMap = new Map<string, number>();
+  for (const linha of linhas) {
+    const bruto = coluna ? String(linha[coluna] ?? "") : "";
+    const normBruto = normalizarTexto(bruto);
+    const tipo =
+      TIPOS_SOLICITACAO_ANDAMENTO.find((t) => normalizarTexto(t) === normBruto) ??
+      bruto;
+    porTipoMap.set(tipo, (porTipoMap.get(tipo) ?? 0) + 1);
+  }
+
+  return {
+    periodo,
+    semColeta: totalLinhas === 0,
+    total: linhas.length,
+    porTipo: TIPOS_SOLICITACAO_ANDAMENTO.map((tipo) => ({
+      tipo,
+      quantidade: porTipoMap.get(tipo) ?? 0,
+    })),
   };
 }

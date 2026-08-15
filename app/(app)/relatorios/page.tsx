@@ -1,6 +1,7 @@
 import { requireUser } from "@/lib/auth-guard";
 import { prisma } from "@/lib/prisma";
 import { periodoAtual, periodoLabel } from "@/lib/periodo";
+import { resumoSolicitacoesAndamento } from "@/lib/solicitacoes-andamento";
 import { Logo } from "@/components/logo";
 import { RelatoriosView } from "./relatorios-view";
 
@@ -19,7 +20,7 @@ export default async function RelatoriosPage({
   const periodo = params.periodo ?? fechamentos.at(-1)?.periodo ?? periodoAtual();
   const fechamentoSelecionado = fechamentos.find((f) => f.periodo === periodo) ?? null;
 
-  const [bonificacoes, lancamentos] = await Promise.all([
+  const [bonificacoes, lancamentos, vendasAndamento] = await Promise.all([
     prisma.bonificacaoCalculada.findMany({
       where: { fechamento: { periodo } },
       include: { funcionario: { include: { cidade: true } } },
@@ -29,6 +30,7 @@ export default async function RelatoriosPage({
       where: { periodo },
       include: { funcionario: { include: { cidade: true } } },
     }),
+    resumoSolicitacoesAndamento(periodo),
   ]);
 
   const tendencia = fechamentos.map((f) => ({
@@ -71,6 +73,7 @@ export default async function RelatoriosPage({
           cidade: b.funcionario.cidade?.nome ?? "—",
           valorTotal: b.valorTotal,
         }))}
+        vendasAndamento={vendasAndamento}
       />
     </div>
   );
