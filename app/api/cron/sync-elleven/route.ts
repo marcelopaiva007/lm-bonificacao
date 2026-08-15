@@ -91,10 +91,11 @@ const REPORTS: Record<string, { path: string; nome: string; generico?: boolean }
   // wizard montar num iframe diferente dos dois já conhecidos, a rodada falha
   // com a lista de frames no erro.
   //
-  // Fora da agenda diária (vercel.json) por enquanto: a rodada de 08/08 às
-  // 19:05 caiu no login (CAPTCHA/MFA) depois de >12 sessões automatizadas no
-  // dia — mantido aqui só para disparo manual (?report=solicitacoes-andamento)
-  // até decidir se volta pro cron.
+  // A rodada de 08/08 às 19:05 caiu no login (CAPTCHA/MFA) depois de >12
+  // sessões automatizadas no dia — mas isso foi excesso de tentativas de teste
+  // naquele dia, não o padrão de 1x/dia dos outros relatórios. De volta à
+  // agenda diária (vercel.json) às 6:50, mesmo ritmo dos outros 3 relatórios
+  // do elleven (6:15/6:30/6:45).
   "solicitacoes-andamento": {
     path: "/ui/565d5331-e2d6-4724-b2ba-b227b07abe38/legacy/analytics/a05fd286-4750-353f-0e2c-4baf97fcf60a",
     nome: "Solicitações - Em andamento",
