@@ -32,6 +32,23 @@ export type Versao = {
 /** Mais recente primeiro. */
 export const CHANGELOG: Versao[] = [
   {
+    numero: "1.10.0",
+    data: "2026-08-21",
+    titulo: "Detecção de vendedores duplicados mais esperta",
+    mudancas: [
+      {
+        tipo: "adicionado",
+        texto:
+          'A tela de Duplicados agora encontra fichas da mesma pessoa mesmo com erro de digitação (JEFERSON/JEFFERSON), abreviação (CLEBER DOUGLAS × SOUGLAS V.), nome parcial (Larissa Ferreira × Larissa Ferreira dos Santos), prefixo colado ("(SERASA)…") ou mesmo CPF — antes só pegava nome exatamente igual.',
+      },
+      {
+        tipo: "adicionado",
+        texto:
+          "Cada grupo mostra o motivo da suspeita (mesmo CPF, nome idêntico, um nome contém o outro, grafia parecida). A unificação continua sendo confirmada uma a uma, à mão.",
+      },
+    ],
+  },
+  {
     numero: "1.9.1",
     data: "2026-08-21",
     titulo: "Rótulos de cargo, mensagem de metas e cabeçalhos de segurança",
