@@ -32,6 +32,28 @@ export type Versao = {
 /** Mais recente primeiro. */
 export const CHANGELOG: Versao[] = [
   {
+    numero: "1.9.1",
+    data: "2026-08-21",
+    titulo: "Rótulos de cargo, mensagem de metas e cabeçalhos de segurança",
+    mudancas: [
+      {
+        tipo: "corrigido",
+        texto:
+          'Cargos Técnico, Responsável de Setor e Vendedor Agregado voltaram a aparecer com o nome certo no painel, nas metas e nos cadastros (antes vinham com o código cru, ex.: "TECNICO").',
+      },
+      {
+        tipo: "corrigido",
+        texto:
+          'Metas: quem ainda não tem venda com bonificação deixa de receber "Parabéns, você já desbloqueou as metas" — agora vê uma mensagem coerente.',
+      },
+      {
+        tipo: "adicionado",
+        texto:
+          "Cabeçalhos de segurança em todas as respostas (CSP, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy e HSTS com includeSubDomains).",
+      },
+    ],
+  },
+  {
     numero: "1.9.0",
     data: "2026-08-21",
     titulo: "Registro de versões e telas restauradas",

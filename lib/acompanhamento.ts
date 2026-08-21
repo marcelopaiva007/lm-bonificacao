@@ -141,6 +141,7 @@ export function montarMensagem(
   nome: string,
   metas: MetaServico[],
   supervisor: AcompanhamentoSupervisor | null,
+  bonificacaoAtual: number,
 ): string {
   const primeiroNome = nome.trim().split(/\s+/)[0] || nome;
   const linhas: string[] = [];
@@ -162,7 +163,13 @@ export function montarMensagem(
   }
 
   if (linhas.length === 0) {
-    return `Parabéns, ${primeiroNome}! Você já desbloqueou as metas com bonificação neste mês. Mantenha o ritmo para subir de faixa. 🚀`;
+    // Sem meta pendente vem de dois casos: quem já ganhou bônus (parabéns de
+    // verdade) e quem não tem meta aplicável e ganhou zero — para esse,
+    // "já desbloqueou" seria falso.
+    if (bonificacaoAtual > 0) {
+      return `Parabéns, ${primeiroNome}! Você já desbloqueou as metas com bonificação neste mês. Mantenha o ritmo para subir de faixa. 🚀`;
+    }
+    return `Olá, ${primeiroNome}! Você ainda não tem vendas com bonificação neste mês. 💡 Cada venda aprovada já conta.`;
   }
 
   return `Olá, ${primeiroNome}! ${linhas.join(" ")} 💡 Foque as próximas ativações onde falta menos para a próxima faixa — o ganho por venda aumenta.`;
@@ -216,6 +223,6 @@ export function calcularAcompanhamento(params: {
     metas,
     supervisor,
     bonificacaoAtual,
-    mensagem: montarMensagem(nome, metas, supervisor),
+    mensagem: montarMensagem(nome, metas, supervisor, bonificacaoAtual),
   };
 }
