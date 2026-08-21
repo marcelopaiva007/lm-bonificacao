@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { requireAdmin } from "@/lib/auth-guard";
 import { prisma } from "@/lib/prisma";
@@ -27,14 +27,24 @@ export default async function FuncionariosPage() {
             setores. Cadastre uma vez, reaproveite em todos os meses.
           </p>
         </div>
-        <Button
-          variant="outline"
-          nativeButton={false}
-          render={<Link href="/cadastros/funcionarios/elleven" />}
-        >
-          <RefreshCw className="size-4" />
-          Atualizar pelo elleven
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            variant="outline"
+            nativeButton={false}
+            render={<Link href="/cadastros/funcionarios/duplicados" />}
+          >
+            <Copy className="size-4" />
+            Duplicados
+          </Button>
+          <Button
+            variant="outline"
+            nativeButton={false}
+            render={<Link href="/cadastros/funcionarios/elleven" />}
+          >
+            <RefreshCw className="size-4" />
+            Atualizar pelo elleven
+          </Button>
+        </div>
       </div>
       <FuncionariosTable funcionarios={funcionarios} cidades={cidades} equipes={equipes} />
     </div>
