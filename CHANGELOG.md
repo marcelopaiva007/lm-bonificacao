@@ -8,6 +8,20 @@ Segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e
 > Ao publicar uma versão, atualize os dois — e o número em `package.json`.
 > Correção → _patch_ (1.9.x) · recurso → _minor_ (1.x.0) · quebra → _major_ (x.0.0).
 
+## [1.9.1] — 2026-08-21
+
+### Adicionado
+- Cabeçalhos de segurança em todas as respostas: CSP, `X-Frame-Options`,
+  `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy` e HSTS com
+  `includeSubDomains`.
+
+### Corrigido
+- Cargos **Técnico**, **Responsável de Setor** e **Vendedor Agregado** voltaram a
+  aparecer com o nome certo no painel, nas metas e nos cadastros (antes vinham
+  com o código cru, ex.: `TECNICO`).
+- **Metas:** quem ainda não tem venda com bonificação deixa de receber
+  "Parabéns, você já desbloqueou as metas" — agora vê uma mensagem coerente.
+
 ## [1.9.0] — 2026-08-21
 
 ### Adicionado
