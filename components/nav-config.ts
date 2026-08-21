@@ -15,6 +15,7 @@ import {
   Target,
   Scale,
   History,
+  Sparkles,
 } from "lucide-react";
 
 export type NavItem = {
@@ -40,12 +41,14 @@ export const adminNav: NavItem[] = [
   { href: "/batimento", label: "Batimento", icon: Scale },
   { href: "/registro", label: "Registro de Alterações", icon: History },
   { href: "/cadastros/usuarios", label: "Usuários", icon: UserCog },
+  { href: "/novidades", label: "Novidades", icon: Sparkles },
 ];
 
 export const diretoriaNav: NavItem[] = [
   { href: "/", label: "Painel", icon: LayoutDashboard },
   { href: "/relatorios", label: "Relatórios", icon: BarChart3 },
   { href: "/fechamento", label: "Fechamentos", icon: Lock },
+  { href: "/novidades", label: "Novidades", icon: Sparkles },
 ];
 
 // Lookup por role — adminNav/diretoriaNav continuam intactos (referenciados
