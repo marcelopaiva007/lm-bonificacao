@@ -17,9 +17,15 @@ const ROLE_LABELS: Record<string, string> = {
 export function AppSidebar({
   role,
   nome,
+  versao,
+  versaoDetalhe,
 }: {
   role: string;
   nome: string;
+  /** "v<número> · <data>" — ver lib/versao.ts. */
+  versao: string;
+  /** O sha do commit (ou "local"), para conferência técnica. */
+  versaoDetalhe: string;
 }) {
   const pathname = usePathname();
   const items = navByRole[role] ?? diretoriaNav;
@@ -79,6 +85,19 @@ export function AppSidebar({
           <LogOut className="size-4" />
           Sair
         </Button>
+        {/* Rodapé de versão: responde "estou na versão nova?" sem abrir o GitHub.
+            Detalhe é o commit — abre /novidades para o histórico completo. */}
+        <Link
+          href="/novidades"
+          className="mt-2 block rounded-md px-1 py-0.5 transition-colors hover:bg-muted"
+        >
+          <p className="text-[11px] font-medium leading-tight tabular-nums text-muted-foreground/80">
+            {versao}
+          </p>
+          <p className="text-[11px] leading-tight tabular-nums text-muted-foreground/50">
+            {versaoDetalhe}
+          </p>
+        </Link>
       </div>
     </aside>
   );
