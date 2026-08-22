@@ -32,6 +32,18 @@ export type Versao = {
 /** Mais recente primeiro. */
 export const CHANGELOG: Versao[] = [
   {
+    numero: "1.10.1",
+    data: "2026-08-22",
+    titulo: "Duplicados: CPF diferente separa os xarás",
+    mudancas: [
+      {
+        tipo: "corrigido",
+        texto:
+          'Na tela de Duplicados, duas fichas com CPF diferente deixam de ser sugeridas como a mesma pessoa — e um nome genérico (ex.: "JOSÉ DA SILVA") não junta mais xarás de CPFs distintos no mesmo grupo.',
+      },
+    ],
+  },
+  {
     numero: "1.10.0",
     data: "2026-08-21",
     titulo: "Detecção de vendedores duplicados mais esperta",

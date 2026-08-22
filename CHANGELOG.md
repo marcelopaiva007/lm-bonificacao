@@ -8,6 +8,13 @@ Segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e
 > Ao publicar uma versão, atualize os dois — e o número em `package.json`.
 > Correção → _patch_ (1.9.x) · recurso → _minor_ (1.x.0) · quebra → _major_ (x.0.0).
 
+## [1.10.1] — 2026-08-22
+
+### Corrigido
+- **Duplicados:** duas fichas com **CPF diferente** deixam de ser sugeridas como
+  a mesma pessoa, e um nome genérico (ex.: `JOSÉ DA SILVA`) não junta mais xarás
+  de CPFs distintos no mesmo grupo.
+
 ## [1.10.0] — 2026-08-21
 
 ### Adicionado

@@ -130,14 +130,42 @@ function cpfDigitos(cpf: string | null): string | null {
 
 type IndiceFicha = { chave: string; tokens: string[]; cpf: string | null };
 
-// O motivo (mais forte) pelo qual duas fichas são suspeitas — null se não são.
-function motivoSuspeita(a: IndiceFicha, b: IndiceFicha): string | null {
-  if (a.cpf && b.cpf && a.cpf === b.cpf) return "mesmo CPF";
-  if (a.chave && a.chave === b.chave) return "nome idêntico";
-  if (contidoEmOrdem(a.tokens, b.tokens) || contidoEmOrdem(b.tokens, a.tokens)) {
-    return "um nome contém o outro";
+// Nome curto (>=2 tokens) que é um TRECHO CONTÍGUO do longo — casa mais forte
+// que a subsequência espalhada: "José da Silva" é o prefixo de "José da Silva
+// Santos", mas NÃO é trecho contíguo de "José Ygor Santos Silva".
+function contiguo(menor: string[], maior: string[]): boolean {
+  if (menor.length < 2 || maior.length <= menor.length) return false;
+  for (let inicio = 0; inicio + menor.length <= maior.length; inicio++) {
+    let bate = true;
+    for (let k = 0; k < menor.length; k++) {
+      if (maior[inicio + k] !== menor[k]) {
+        bate = false;
+        break;
+      }
+    }
+    if (bate) return true;
   }
-  if (grafiaParecida(a.tokens, b.tokens)) return "grafia parecida";
+  return false;
+}
+
+type Aresta = { motivo: string; forca: number };
+
+// Por que — e com que força — duas fichas são suspeitas; null se não são.
+// CPF diferente ELIMINA a suspeita (são identidades distintas, e nem servem de
+// ponte). A força ordena o casamento: os laços fortes entram primeiro para a
+// trava de CPF resolver a ambiguidade — um nome genérico não junta pessoas de
+// CPFs diferentes.
+function arestaSuspeita(a: IndiceFicha, b: IndiceFicha): Aresta | null {
+  if (a.cpf && b.cpf && a.cpf !== b.cpf) return null;
+  if (a.cpf && b.cpf && a.cpf === b.cpf) return { motivo: "mesmo CPF", forca: 5 };
+  if (a.chave && a.chave === b.chave) return { motivo: "nome idêntico", forca: 4 };
+  if (contiguo(a.tokens, b.tokens) || contiguo(b.tokens, a.tokens)) {
+    return { motivo: "um nome contém o outro", forca: 3 };
+  }
+  if (contidoEmOrdem(a.tokens, b.tokens) || contidoEmOrdem(b.tokens, a.tokens)) {
+    return { motivo: "um nome contém o outro", forca: 2 };
+  }
+  if (grafiaParecida(a.tokens, b.tokens)) return { motivo: "grafia parecida", forca: 1 };
   return null;
 }
 
@@ -172,29 +200,43 @@ export async function listarSuspeitasDeDuplicidade(): Promise<GrupoSuspeito[]> {
 
   // União de componentes conexos: cada par suspeito é uma aresta; o grupo é o
   // componente. Assim "A~B" e "B~C" caem no mesmo grupo — as três fichas de
-  // JACIELE, por exemplo, viram um grupo só.
+  // JACIELE, por exemplo, viram um grupo só. A trava de CPF impede que um nome
+  // genérico ("JOSÉ DA SILVA") junte pessoas de CPFs diferentes.
   const pai = funcionarios.map((_, i) => i);
   const acha = (x: number): number => (pai[x] === x ? x : (pai[x] = acha(pai[x])));
-  const arestas: { i: number; motivo: string }[] = [];
+  // CPFs presentes em cada componente (por raiz).
+  const cpfsDaRaiz = new Map<number, Set<string>>(
+    funcionarios.map((_, i) => [i, new Set(idx[i].cpf ? [idx[i].cpf as string] : [])]),
+  );
 
+  const arestas: { i: number; j: number; motivo: string; forca: number }[] = [];
   for (let i = 0; i < funcionarios.length; i++) {
     for (let j = i + 1; j < funcionarios.length; j++) {
-      const motivo = motivoSuspeita(idx[i], idx[j]);
-      if (!motivo) continue;
-      arestas.push({ i, motivo });
-      const ri = acha(i);
-      const rj = acha(j);
-      if (ri !== rj) pai[ri] = rj;
+      const a = arestaSuspeita(idx[i], idx[j]);
+      if (a) arestas.push({ i, j, motivo: a.motivo, forca: a.forca });
     }
   }
+  // Do laço mais forte para o mais fraco: assim um nome genérico "gruda" antes no
+  // parente mais próximo (prefixo exato), e a trava de CPF barra os xarás.
+  arestas.sort((x, y) => y.forca - x.forca);
 
-  // Motivos por componente (com as uniões já resolvidas).
   const motivosDoGrupo = new Map<number, Set<string>>();
-  for (const { i, motivo } of arestas) {
-    const r = acha(i);
-    const set = motivosDoGrupo.get(r) ?? new Set<string>();
-    set.add(motivo);
-    motivosDoGrupo.set(r, set);
+  for (const e of arestas) {
+    const ri = acha(e.i);
+    const rj = acha(e.j);
+    if (ri !== rj) {
+      const unidos = new Set([...cpfsDaRaiz.get(ri)!, ...cpfsDaRaiz.get(rj)!]);
+      if (unidos.size > 1) continue; // barra: juntaria dois CPFs distintos
+      pai[ri] = rj;
+      cpfsDaRaiz.set(rj, unidos);
+    }
+    // Só registra o motivo quando as duas ficaram mesmo no mesmo grupo.
+    if (acha(e.i) === acha(e.j)) {
+      const raiz = acha(e.i);
+      const set = motivosDoGrupo.get(raiz) ?? new Set<string>();
+      set.add(e.motivo);
+      motivosDoGrupo.set(raiz, set);
+    }
   }
 
   const grupos = new Map<number, number[]>();
