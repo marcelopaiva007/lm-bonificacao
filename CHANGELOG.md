@@ -8,6 +8,16 @@ Segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e
 > Ao publicar uma versão, atualize os dois — e o número em `package.json`.
 > Correção → _patch_ (1.9.x) · recurso → _minor_ (1.x.0) · quebra → _major_ (x.0.0).
 
+## [1.10.0] — 2026-08-21
+
+### Adicionado
+- **Detecção de duplicados mais esperta:** a tela de Duplicados encontra fichas
+  da mesma pessoa mesmo com erro de digitação (JEFERSON/JEFFERSON), abreviação
+  (CLEBER DOUGLAS × SOUGLAS V.), nome parcial (Larissa Ferreira × Larissa
+  Ferreira dos Santos), prefixo colado (`(SERASA)…`) ou mesmo CPF — antes só
+  pegava nome exatamente igual. Cada grupo mostra o motivo; a unificação continua
+  confirmada à mão, uma a uma.
+
 ## [1.9.1] — 2026-08-21
 
 ### Adicionado

@@ -41,8 +41,8 @@ export function DuplicadosView({ grupos }: { grupos: GrupoSuspeito[] }) {
     return (
       <Alert>
         <AlertDescription>
-          Nenhuma suspeita de duplicidade entre os funcionários ativos. A auditoria semanal continua
-          vigiando — se uma importação criar ficha repetida, ela aparece aqui.
+          Nenhuma suspeita de duplicidade entre os funcionários ativos. Se uma importação criar
+          ficha parecida (nome, grafia ou CPF), ela aparece aqui.
         </AlertDescription>
       </Alert>
     );
@@ -70,6 +70,9 @@ export function DuplicadosView({ grupos }: { grupos: GrupoSuspeito[] }) {
         <Card key={grupo.chave}>
           <CardHeader>
             <CardTitle className="text-base">{grupo.fichas[0].nome}</CardTitle>
+            <p className="text-xs text-muted-foreground">
+              {grupo.fichas.length} fichas · suspeita por {grupo.motivo}
+            </p>
           </CardHeader>
           <CardContent className="space-y-3">
             {grupo.fichas.map((f) => (
