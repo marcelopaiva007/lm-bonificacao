@@ -8,6 +8,22 @@ Segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e
 > Ao publicar uma versão, atualize os dois — e o número em `package.json`.
 > Correção → _patch_ (1.9.x) · recurso → _minor_ (1.x.0) · quebra → _major_ (x.0.0).
 
+## [1.11.0] — 2026-08-22
+
+### Adicionado
+- Cadastro de funcionário **valida o dígito verificador do CPF** (barra fictícios
+  como `123.456.789-10`) e passa a **aceitar CNPJ** para vendedor pessoa jurídica
+  (ex.: ME TELECOM).
+
+### Corrigido
+- Salvar funcionário de cargo **Técnico**, **Responsável de Setor** ou **Vendedor
+  Agregado** voltou a funcionar — a validação ainda tinha só 4 cargos e recusava
+  esses em silêncio.
+
+### Alterado
+- Quando o CPF/CNPJ já está em outra ficha, o erro **diz de quem é** — ajuda a
+  achar a duplicata em vez de só "já existe".
+
 ## [1.10.1] — 2026-08-22
 
 ### Corrigido

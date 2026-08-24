@@ -223,12 +223,12 @@ function FuncionarioForm({
         <Input id="nome" name="nome" defaultValue={defaultValues?.nome ?? ""} required autoFocus />
       </div>
       <div className="space-y-2">
-        <Label htmlFor="cpf">CPF (opcional)</Label>
+        <Label htmlFor="cpf">CPF ou CNPJ (opcional)</Label>
         <Input
           id="cpf"
           name="cpf"
           defaultValue={defaultValues?.cpf ?? ""}
-          placeholder="Somente números"
+          placeholder="CPF (11) ou CNPJ (14) — só números"
           maxLength={14}
         />
       </div>
