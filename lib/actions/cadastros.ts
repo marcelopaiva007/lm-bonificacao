@@ -4,7 +4,8 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth-guard";
-import type { ActionResult } from "@/lib/constants";
+import { CARGOS, type ActionResult } from "@/lib/constants";
+import { documentoValido } from "@/lib/documento";
 
 // ---------- Cidade ----------
 
@@ -121,9 +122,12 @@ const funcionarioSchema = z.object({
     .string()
     .trim()
     .transform((v) => v.replace(/\D/g, ""))
-    .refine((v) => v === "" || v.length === 11, "CPF deve ter 11 dígitos")
+    .refine((v) => v === "" || documentoValido(v), "CPF ou CNPJ inválido — confira os dígitos")
     .optional(),
-  cargo: z.enum(["VENDEDOR_EXTERNO", "ATENDIMENTO_ADM", "SUPERVISOR", "OUTRO_SETOR"]),
+  // Deriva dos CARGOS (lib/constants) para não voltar a divergir da tela — antes
+  // faltavam Técnico/Responsável de Setor/Vendedor Agregado e salvar essas
+  // pessoas falhava em silêncio.
+  cargo: z.enum(CARGOS.map((c) => c.value) as [string, ...string[]]),
   cidadeId: z.string().trim().optional(),
   equipeId: z.string().trim().optional(),
   // Contato para as cobranças de meta (Telegram/e-mail).
@@ -140,6 +144,21 @@ const funcionarioSchema = z.object({
     .optional(),
   ativo: z.coerce.boolean().default(true),
 });
+
+// Erro amigável quando o CPF/CNPJ bate no @unique: diz de quem é a ficha que já
+// tem esse documento — assim dá para achar a duplicata em vez de só "já existe".
+async function erroDocumentoDuplicado(doc: string | undefined): Promise<string> {
+  if (doc) {
+    const dono = await prisma.funcionario.findUnique({
+      where: { cpf: doc },
+      select: { nome: true, ativo: true },
+    });
+    if (dono) {
+      return `Esse CPF/CNPJ já está na ficha de "${dono.nome}"${dono.ativo ? "" : " (inativa)"}.`;
+    }
+  }
+  return "Não foi possível salvar. Confira os dados e tente de novo.";
+}
 
 export async function createFuncionario(_prev: ActionResult, formData: FormData): Promise<ActionResult> {
   await requireAdmin();
@@ -170,7 +189,7 @@ export async function createFuncionario(_prev: ActionResult, formData: FormData)
       },
     });
   } catch {
-    return { ok: false, error: "Já existe um funcionário com esse CPF." };
+    return { ok: false, error: await erroDocumentoDuplicado(parsed.data.cpf) };
   }
   revalidatePath("/cadastros/funcionarios");
   return { ok: true };
@@ -206,7 +225,7 @@ export async function updateFuncionario(id: string, _prev: ActionResult, formDat
       },
     });
   } catch {
-    return { ok: false, error: "Já existe um funcionário com esse CPF." };
+    return { ok: false, error: await erroDocumentoDuplicado(parsed.data.cpf) };
   }
   revalidatePath("/cadastros/funcionarios");
   return { ok: true };

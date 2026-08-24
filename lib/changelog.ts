@@ -32,6 +32,28 @@ export type Versao = {
 /** Mais recente primeiro. */
 export const CHANGELOG: Versao[] = [
   {
+    numero: "1.11.0",
+    data: "2026-08-22",
+    titulo: "Validação de CPF/CNPJ no cadastro",
+    mudancas: [
+      {
+        tipo: "adicionado",
+        texto:
+          "O cadastro de funcionário passa a validar o dígito verificador do CPF (barra fictícios como 123.456.789-10) e a aceitar CNPJ para vendedor pessoa jurídica (ex.: ME TELECOM).",
+      },
+      {
+        tipo: "corrigido",
+        texto:
+          "Salvar funcionário de cargo Técnico, Responsável de Setor ou Vendedor Agregado voltou a funcionar — a validação da tela ainda tinha só 4 cargos e recusava esses em silêncio.",
+      },
+      {
+        tipo: "alterado",
+        texto:
+          'Quando o CPF/CNPJ já está em outra ficha, o erro agora diz de quem é — ajuda a achar a duplicata em vez de só "já existe".',
+      },
+    ],
+  },
+  {
     numero: "1.10.1",
     data: "2026-08-22",
     titulo: "Duplicados: CPF diferente separa os xarás",
