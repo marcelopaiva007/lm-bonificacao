@@ -32,6 +32,18 @@ export type Versao = {
 /** Mais recente primeiro. */
 export const CHANGELOG: Versao[] = [
   {
+    numero: "1.12.0",
+    data: "2026-08-24",
+    titulo: "Tela de Diagnóstico de sincronização",
+    mudancas: [
+      {
+        tipo: "adicionado",
+        texto:
+          "Nova tela Diagnóstico: mostra a última execução de cada automação (Elleven, Chip, Cobrança de Metas), o erro quando falha e — a partir da próxima rodada — um print da tela no momento em que o robô do Elleven é barrado no login (para ver se é 2FA, senha ou mudança na tela).",
+      },
+    ],
+  },
+  {
     numero: "1.11.0",
     data: "2026-08-22",
     titulo: "Validação de CPF/CNPJ no cadastro",

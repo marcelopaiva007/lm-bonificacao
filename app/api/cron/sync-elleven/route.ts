@@ -771,8 +771,34 @@ export async function GET(req: NextRequest) {
       step(`Login concluído. URL atual: ${page.url()}`);
 
       if (page.url().includes("/login")) {
+        // Captura o que o Elleven mostra no momento da recusa (2FA/MFA? "senha
+        // incorreta"? conta bloqueada?) para a tela de Diagnóstico — sem isso
+        // ficamos no escuro sobre por que o robô não passa do login.
+        const loginFailShot = await page
+          .screenshot({ timeout: 10000 })
+          .catch(() => null);
+        const tela = await withTimeout(
+          page.evaluate(() => {
+            const texto = document.body?.innerText || "";
+            return {
+              textoVisivel: texto.replace(/\s+/g, " ").slice(0, 1500),
+              temSenhaIncorreta: /senha|inv[aá]lid|incorret|credenc/i.test(texto),
+              temMfa: /c[oó]digo|token|autentica|verifica|2fa|\bmfa\b|sms/i.test(texto),
+            };
+          }),
+          EVAL_TIMEOUT_MS,
+          "login-fail-tela",
+        ).catch((e) => ({ erro: String(e) }));
+        wizardSteps.push({
+          name: "login-nao-avancou",
+          url: page.url(),
+          title: await page.title().catch(() => "?"),
+          tela,
+          consoleErrors: pageConsoleErrors.slice(0, 20),
+          screenshotBase64: loginFailShot ? loginFailShot.toString("base64") : null,
+        });
         throw new Error(
-          "Login não avançou — continua na tela de login (credenciais incorretas ou CAPTCHA/MFA apareceu).",
+          "Login não avançou — continua na tela de login (possível 2FA/MFA, senha do robô, ou mudança na tela). Veja o print em Diagnóstico.",
         );
       }
 

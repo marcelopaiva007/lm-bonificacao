@@ -8,6 +8,14 @@ Segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e
 > Ao publicar uma versão, atualize os dois — e o número em `package.json`.
 > Correção → _patch_ (1.9.x) · recurso → _minor_ (1.x.0) · quebra → _major_ (x.0.0).
 
+## [1.12.0] — 2026-08-24
+
+### Adicionado
+- **Tela de Diagnóstico de sincronização:** última execução de cada automação
+  (Elleven, Chip, Cobrança de Metas), o erro quando falha e — a partir da próxima
+  rodada — um **print da tela** no momento em que o robô do Elleven é barrado no
+  login (para ver se é 2FA, senha ou mudança na tela).
+
 ## [1.11.0] — 2026-08-22
 
 ### Adicionado
