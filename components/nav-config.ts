@@ -16,6 +16,7 @@ import {
   Scale,
   History,
   Sparkles,
+  Activity,
 } from "lucide-react";
 
 export type NavItem = {
@@ -41,6 +42,7 @@ export const adminNav: NavItem[] = [
   { href: "/batimento", label: "Batimento", icon: Scale },
   { href: "/registro", label: "Registro de Alterações", icon: History },
   { href: "/cadastros/usuarios", label: "Usuários", icon: UserCog },
+  { href: "/diagnostico", label: "Diagnóstico", icon: Activity },
   { href: "/novidades", label: "Novidades", icon: Sparkles },
 ];
 
