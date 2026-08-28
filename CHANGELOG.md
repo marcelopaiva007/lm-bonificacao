@@ -12,10 +12,11 @@ Segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e
 
 ### Corrigido
 - **Cores de situação voltam a aparecer:** em Gestão, Batimento, Pagamentos e no
-  painel de gestão, as etiquetas de situação (verde = bom, vermelho = crítico) não
-  recebiam cor — o estilo existia (`text-ok`/`bg-ok`/`text-bad`/`num`) mas sem token
-  de cor definido. Foram criados os tokens semânticos (`--ok`, `--bad`, `--warning`)
-  e a utility `num` (números tabulares). Sem mudança nos temas nem no acento.
+  painel de gestão, as etiquetas de situação (verde = bom, âmbar = atenção,
+  vermelho = crítico) não recebiam cor — o estilo existia
+  (`text-ok`/`bg-ok`/`text-warn`/`text-bad`/`num`) mas sem token de cor definido.
+  Foram criados os tokens semânticos (`--ok`, `--warn`, `--bad`) e a utility `num`
+  (números tabulares). Sem mudança nos temas nem no acento.
 
 ## [1.14.0] — 2026-08-28
 

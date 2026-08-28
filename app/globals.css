@@ -33,7 +33,7 @@
      tinham token e a cor não era aplicada. */
   --color-ok: var(--ok);
   --color-bad: var(--bad);
-  --color-warning: var(--warning);
+  --color-warn: var(--warn);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
   --color-muted-foreground: var(--muted-foreground);
@@ -74,7 +74,7 @@
   --success: #10b981;
   --ok: #10b981;
   --bad: #ef4444;
-  --warning: #f59e0b;
+  --warn: #f59e0b;
   --border: #1e293b;
   --input: #1e293b;
   --ring: #00d4ff;
@@ -113,7 +113,7 @@
   --success: #10b981;
   --ok: #10b981;
   --bad: #ef4444;
-  --warning: #f59e0b;
+  --warn: #f59e0b;
   --border: #1e293b;
   --input: #1e293b;
   --ring: #00d4ff;

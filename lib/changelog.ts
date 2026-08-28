@@ -39,7 +39,7 @@ export const CHANGELOG: Versao[] = [
       {
         tipo: "corrigido",
         texto:
-          "Em Gestão, Batimento, Pagamentos e no painel de gestão, as etiquetas de situação (verde para bom, vermelho para crítico) não estavam recebendo cor — o estilo existia no código mas sem a definição da cor. Agora aparecem certas, e os números dessas telas ficaram alinhados (tabular).",
+          "Em Gestão, Batimento, Pagamentos e no painel de gestão, as etiquetas de situação (verde para bom, âmbar para atenção, vermelho para crítico) não estavam recebendo cor — o estilo existia no código mas sem a definição da cor. Agora aparecem certas, e os números dessas telas ficaram alinhados (tabular).",
       },
     ],
   },
