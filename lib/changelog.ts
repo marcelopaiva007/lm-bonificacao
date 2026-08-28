@@ -32,6 +32,18 @@ export type Versao = {
 /** Mais recente primeiro. */
 export const CHANGELOG: Versao[] = [
   {
+    numero: "1.13.0",
+    data: "2026-08-28",
+    titulo: "Navegação adaptada ao celular",
+    mudancas: [
+      {
+        tipo: "adicionado",
+        texto:
+          "No celular, o menu lateral vira um botão (☰) no topo que abre a navegação deslizante e fecha sozinho ao escolher uma tela — antes o menu ocupava o espaço e espremia o conteúdo. No computador nada muda.",
+      },
+    ],
+  },
+  {
     numero: "1.12.0",
     data: "2026-08-24",
     titulo: "Tela de Diagnóstico de sincronização",
