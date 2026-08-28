@@ -32,6 +32,18 @@ export type Versao = {
 /** Mais recente primeiro. */
 export const CHANGELOG: Versao[] = [
   {
+    numero: "1.15.1",
+    data: "2026-08-28",
+    titulo: "Tela de login repaginada",
+    mudancas: [
+      {
+        tipo: "alterado",
+        texto:
+          "A tela de entrada ganhou um visual em duas colunas: à esquerda, o painel de marca com gradiente azul→ciano e destaques do sistema; à direita, o formulário em cartão de vidro com campos de usuário e senha (com ícones) e botão com indicador de carregamento. No celular, aparece apenas o cartão centralizado. Nada muda na forma de entrar.",
+      },
+    ],
+  },
+  {
     numero: "1.15.0",
     data: "2026-08-28",
     titulo: "Painel repaginado: visual premium de SaaS de dados",
