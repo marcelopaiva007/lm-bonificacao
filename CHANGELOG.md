@@ -11,10 +11,16 @@ Segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e
 ## [1.15.2] — 2026-08-28
 
 ### Corrigido
-- **Login — logo volta a aparecer:** o logo (versão branca) ficava sobre o painel
-  de fundo claro (gradiente azul→ciano) e desaparecia. O painel de marca voltou a
-  ser escuro (navy) com um brilho sutil do gradiente e halos, restaurando o
-  contraste do logo e dos textos brancos.
+- **Login — logo volta a aparecer:** a causa raiz era o `matcher` do middleware
+  de auth (`proxy.ts`), que não excluía os arquivos estáticos do `/public` —
+  então, para o usuário deslogado, as imagens (ex.: `/lm-telecom-logo*.png`) eram
+  redirecionadas para `/login` e não carregavam justamente na tela de login. O
+  matcher passou a ignorar arquivos com extensão (png/svg/glb…).
+
+### Alterado
+- **Login — painel de marca escuro:** o painel da esquerda ficou navy com um
+  brilho sutil do gradiente e halos, dando mais contraste ao logo e aos textos
+  brancos.
 
 ## [1.15.1] — 2026-08-28
 

@@ -39,7 +39,12 @@ export const CHANGELOG: Versao[] = [
       {
         tipo: "corrigido",
         texto:
-          "Na tela de login, o logo (versão branca) ficava sobre o painel de fundo claro e sumia. O painel de marca voltou a ser escuro (navy) com um brilho sutil do gradiente, e o logo e os textos brancos voltaram a aparecer com nitidez.",
+          "O logo não aparecia na tela de login: o controle de acesso estava redirecionando as imagens do sistema (como o logo) para a própria tela de login quando o usuário ainda não tinha entrado. Agora os arquivos de imagem são liberados e o logo carrega normalmente na entrada.",
+      },
+      {
+        tipo: "alterado",
+        texto:
+          "O painel de marca do login ficou escuro (navy) com um brilho sutil do gradiente, dando mais contraste ao logo e aos textos brancos.",
       },
     ],
   },
