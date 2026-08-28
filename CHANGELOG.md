@@ -8,6 +8,20 @@ Segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e
 > Ao publicar uma versão, atualize os dois — e o número em `package.json`.
 > Correção → _patch_ (1.9.x) · recurso → _minor_ (1.x.0) · quebra → _major_ (x.0.0).
 
+## [1.15.2] — 2026-08-28
+
+### Corrigido
+- **Login — logo volta a aparecer:** a causa raiz era o `matcher` do middleware
+  de auth (`proxy.ts`), que não excluía os arquivos estáticos do `/public` —
+  então, para o usuário deslogado, as imagens (ex.: `/lm-telecom-logo*.png`) eram
+  redirecionadas para `/login` e não carregavam justamente na tela de login. O
+  matcher passou a ignorar arquivos com extensão (png/svg/glb…).
+
+### Alterado
+- **Login — painel de marca escuro:** o painel da esquerda ficou navy com um
+  brilho sutil do gradiente e halos, dando mais contraste ao logo e aos textos
+  brancos.
+
 ## [1.15.1] — 2026-08-28
 
 ### Alterado

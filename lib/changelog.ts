@@ -32,6 +32,23 @@ export type Versao = {
 /** Mais recente primeiro. */
 export const CHANGELOG: Versao[] = [
   {
+    numero: "1.15.2",
+    data: "2026-08-28",
+    titulo: "Login: logo volta a aparecer",
+    mudancas: [
+      {
+        tipo: "corrigido",
+        texto:
+          "O logo não aparecia na tela de login: o controle de acesso estava redirecionando as imagens do sistema (como o logo) para a própria tela de login quando o usuário ainda não tinha entrado. Agora os arquivos de imagem são liberados e o logo carrega normalmente na entrada.",
+      },
+      {
+        tipo: "alterado",
+        texto:
+          "O painel de marca do login ficou escuro (navy) com um brilho sutil do gradiente, dando mais contraste ao logo e aos textos brancos.",
+      },
+    ],
+  },
+  {
     numero: "1.15.1",
     data: "2026-08-28",
     titulo: "Tela de login repaginada",
