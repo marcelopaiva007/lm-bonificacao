@@ -15,10 +15,13 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-screen w-full flex-1 flex-col lg:flex-row">
       {/* Coluna de marca — só no desktop */}
-      <div className="relative hidden flex-1 flex-col justify-between overflow-hidden p-10 lg:flex">
+      <div className="relative hidden flex-1 flex-col justify-between overflow-hidden border-r border-sidebar-border bg-sidebar p-10 lg:flex">
+        {/* Base escura com um leve banho do gradiente de marca — mantém o painel
+            navy para o logo/texto brancos lerem com nitidez, sem o gradiente
+            claro chapado (que apagava o logo). */}
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-0"
+          className="pointer-events-none absolute inset-0 opacity-25"
           style={{ backgroundImage: "var(--gradient-brand)" }}
         />
         <div
@@ -26,7 +29,7 @@ export default function LoginPage() {
           className="pointer-events-none absolute inset-0"
           style={{
             backgroundImage:
-              "radial-gradient(60rem 40rem at 20% -10%, rgba(255,255,255,0.18), transparent 60%), radial-gradient(40rem 30rem at 110% 90%, rgba(0,212,255,0.28), transparent 55%)",
+              "radial-gradient(55rem 38rem at 15% -10%, oklch(0.62 0.19 260 / 35%), transparent 60%), radial-gradient(42rem 30rem at 110% 90%, oklch(0.82 0.13 208 / 22%), transparent 55%)",
           }}
         />
 

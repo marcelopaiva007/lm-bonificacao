@@ -8,6 +8,14 @@ Segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e
 > Ao publicar uma versão, atualize os dois — e o número em `package.json`.
 > Correção → _patch_ (1.9.x) · recurso → _minor_ (1.x.0) · quebra → _major_ (x.0.0).
 
+## [1.15.2] — 2026-08-28
+
+### Corrigido
+- **Login — logo volta a aparecer:** o logo (versão branca) ficava sobre o painel
+  de fundo claro (gradiente azul→ciano) e desaparecia. O painel de marca voltou a
+  ser escuro (navy) com um brilho sutil do gradiente e halos, restaurando o
+  contraste do logo e dos textos brancos.
+
 ## [1.15.1] — 2026-08-28
 
 ### Alterado
