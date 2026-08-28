@@ -8,6 +8,15 @@ Segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e
 > Ao publicar uma versão, atualize os dois — e o número em `package.json`.
 > Correção → _patch_ (1.9.x) · recurso → _minor_ (1.x.0) · quebra → _major_ (x.0.0).
 
+## [1.15.1] — 2026-08-28
+
+### Alterado
+- **Tela de login repaginada:** layout em duas colunas — painel de marca à
+  esquerda (gradiente azul→ciano, frase de valor e destaques do sistema) e
+  formulário em cartão de vidro à direita, com campos de usuário/senha com
+  ícones e botão com indicador de carregamento. No mobile, apenas o cartão
+  centralizado. Sem mudança no fluxo de autenticação (NextAuth).
+
 ## [1.15.0] — 2026-08-28
 
 ### Alterado

@@ -3,12 +3,10 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
+import { User, Lock, Loader2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent } from "@/components/ui/card";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { LM3DLogo } from "@/components/lm-3d-logo";
 
 export function LoginForm() {
   const router = useRouter();
@@ -35,54 +33,67 @@ export function LoginForm() {
   }
 
   return (
-    <Card className="border-cyan-500/30 bg-gradient-to-br from-slate-900/40 to-slate-950/40 backdrop-blur-md shadow-2xl shadow-cyan-500/20">
-      <CardContent className="pt-6">
-        <div className="space-y-6">
-          <div className="text-center">
-            <LM3DLogo />
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">
-              LM Telecom
-            </h1>
-            <p className="text-sm text-slate-400 mt-1">Sistema de Bonificação</p>
-          </div>
+    <div className="surface rounded-2xl p-6 sm:p-8">
+      <div className="mb-6 text-center lg:text-left">
+        <h1 className="text-xl font-bold tracking-tight">Bem-vindo de volta</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Entre com seu usuário e senha para acessar o sistema.
+        </p>
+      </div>
 
-          <form action={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="username" className="text-slate-300">Usuário</Label>
-              <Input
-                id="username"
-                name="username"
-                autoComplete="username"
-                required
-                className="bg-slate-800/50 border-slate-700/50 text-slate-100 placeholder:text-slate-500 focus:border-cyan-500/50 focus:ring-cyan-500/30"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password" className="text-slate-300">Senha</Label>
-              <Input
-                id="password"
-                name="password"
-                type="password"
-                autoComplete="current-password"
-                required
-                className="bg-slate-800/50 border-slate-700/50 text-slate-100 placeholder:text-slate-500 focus:border-cyan-500/50 focus:ring-cyan-500/30"
-              />
-            </div>
-            {error && (
-              <Alert variant="destructive" className="bg-red-950/50 border-red-800/50">
-                <AlertDescription className="text-red-200">{error}</AlertDescription>
-              </Alert>
-            )}
-            <Button
-              type="submit"
-              className="w-full bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 text-slate-950 font-semibold shadow-lg shadow-cyan-500/30 disabled:opacity-50"
-              disabled={isPending}
-            >
-              {isPending ? "Entrando..." : "Entrar"}
-            </Button>
-          </form>
+      {error && (
+        <div
+          role="alert"
+          className="mb-5 flex items-start gap-2.5 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2.5 text-sm text-destructive"
+        >
+          <AlertCircle className="mt-0.5 size-4 shrink-0" />
+          <span>{error}</span>
         </div>
-      </CardContent>
-    </Card>
+      )}
+
+      <form action={handleSubmit} className="space-y-4">
+        <div className="space-y-1.5">
+          <Label htmlFor="username">Usuário</Label>
+          <div className="relative">
+            <User className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              id="username"
+              name="username"
+              autoComplete="username"
+              placeholder="Digite seu usuário"
+              required
+              className="h-10 pl-9"
+            />
+          </div>
+        </div>
+
+        <div className="space-y-1.5">
+          <Label htmlFor="password">Senha</Label>
+          <div className="relative">
+            <Lock className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              id="password"
+              name="password"
+              type="password"
+              autoComplete="current-password"
+              placeholder="Digite sua senha"
+              required
+              className="h-10 pl-9"
+            />
+          </div>
+        </div>
+
+        <Button type="submit" disabled={isPending} className="mt-2 h-10 w-full gap-2 font-semibold">
+          {isPending ? (
+            <>
+              <Loader2 className="size-4 animate-spin" />
+              Entrando...
+            </>
+          ) : (
+            "Entrar"
+          )}
+        </Button>
+      </form>
+    </div>
   );
 }
