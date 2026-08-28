@@ -8,6 +8,14 @@ Segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e
 > Ao publicar uma versão, atualize os dois — e o número em `package.json`.
 > Correção → _patch_ (1.9.x) · recurso → _minor_ (1.x.0) · quebra → _major_ (x.0.0).
 
+## [1.13.0] — 2026-08-28
+
+### Adicionado
+- **Navegação adaptada ao celular:** o menu lateral vira um botão (☰) no topo
+  que abre a navegação deslizante (drawer) e fecha sozinho ao escolher uma tela.
+  Antes, no celular, o menu ocupava o espaço e espremia o conteúdo. No
+  computador o layout continua igual.
+
 ## [1.12.0] — 2026-08-24
 
 ### Adicionado
