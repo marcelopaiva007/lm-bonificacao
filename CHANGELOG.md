@@ -8,6 +8,16 @@ Segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e
 > Ao publicar uma versão, atualize os dois — e o número em `package.json`.
 > Correção → _patch_ (1.9.x) · recurso → _minor_ (1.x.0) · quebra → _major_ (x.0.0).
 
+## [1.14.0] — 2026-08-28
+
+### Alterado
+- **Painel — hierarquia dos indicadores:** _Valor vendido_ e _Bonificação total_
+  ganharam destaque (número maior e leve realce de acento) para o essencial saltar
+  primeiro; os demais indicadores ficaram como apoio. Rótulos em caixa alta e
+  números com alinhamento tabular.
+- **Tabelas (todo o sistema):** cabeçalhos mais discretos (caixa alta menor, tom
+  suave), separando melhor o título da coluna dos dados.
+
 ## [1.13.0] — 2026-08-28
 
 ### Adicionado

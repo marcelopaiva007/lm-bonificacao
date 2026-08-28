@@ -32,6 +32,23 @@ export type Versao = {
 /** Mais recente primeiro. */
 export const CHANGELOG: Versao[] = [
   {
+    numero: "1.14.0",
+    data: "2026-08-28",
+    titulo: "Painel mais legível: destaque nos números e tabelas mais limpas",
+    mudancas: [
+      {
+        tipo: "alterado",
+        texto:
+          "No Painel, Valor vendido e Bonificação total ganharam destaque (número maior e leve realce) para o olho pegar o essencial primeiro; os outros indicadores ficaram como apoio. Rótulos em caixa alta e números alinhados (tabular).",
+      },
+      {
+        tipo: "alterado",
+        texto:
+          "Cabeçalhos de todas as tabelas do sistema ficaram mais discretos (caixa alta menor), separando melhor o título da coluna dos dados.",
+      },
+    ],
+  },
+  {
     numero: "1.13.0",
     data: "2026-08-28",
     titulo: "Navegação adaptada ao celular",

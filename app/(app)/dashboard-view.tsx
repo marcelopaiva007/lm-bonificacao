@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/table";
 import { periodoLabel } from "@/lib/periodo";
 import { CARGOS } from "@/lib/constants";
+import { cn } from "@/lib/utils";
 
 export type ResumoPeriodo = {
   vendido: number;
@@ -100,19 +101,27 @@ function KpiCard({
   valor,
   sub,
   delta,
+  destaque = false,
 }: {
   titulo: string;
   valor: string;
   sub?: string;
   delta?: React.ReactNode;
+  // Métricas principais (valor vendido, bonificação): anel de acento e número
+  // maior, para puxar o olho antes dos indicadores de apoio.
+  destaque?: boolean;
 }) {
   return (
-    <Card>
+    <Card className={cn(destaque && "bg-primary/[0.04] ring-primary/25")}>
       <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-medium text-muted-foreground">{titulo}</CardTitle>
+        <CardTitle className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+          {titulo}
+        </CardTitle>
       </CardHeader>
       <CardContent className="space-y-1">
-        <p className="text-2xl font-semibold">{valor}</p>
+        <p className={cn("font-semibold tabular-nums", destaque ? "text-3xl" : "text-2xl")}>
+          {valor}
+        </p>
         {sub && <p className="text-xs text-muted-foreground">{sub}</p>}
         {delta}
       </CardContent>
@@ -212,6 +221,7 @@ export function DashboardView({
         <KpiCard
           titulo="Valor vendido"
           valor={fmtMoeda(resumo.vendido)}
+          destaque
           delta={
             <DeltaLinha
               variacao={variacaoPct(resumo.vendido, resumoAnterior.vendido)}
@@ -222,6 +232,7 @@ export function DashboardView({
         <KpiCard
           titulo="Bonificação total"
           valor={fmtMoeda(resumo.bonificacao)}
+          destaque
           sub={resumo.vendido > 0 ? `${fmtPct(pctBonificacao)} do valor vendido` : undefined}
           delta={
             <DeltaLinha
@@ -537,14 +548,14 @@ function RankingTable({
         )}
         {linhas.map((l, i) => (
           <TableRow key={l.id}>
-            <TableCell className="text-muted-foreground">{i + 1}</TableCell>
+            <TableCell className="text-muted-foreground tabular-nums">{i + 1}</TableCell>
             <TableCell className="font-medium">{l.nome}</TableCell>
             <TableCell>{l.cidade}</TableCell>
             <TableCell>{cargoLabel(l.cargo)}</TableCell>
-            <TableCell className="text-right">{fmtNum(l.aprovadas)}</TableCell>
-            <TableCell className="text-right">{fmtMoeda(l.valor)}</TableCell>
-            <TableCell className="text-right">{fmtMoeda(l.bonificacao)}</TableCell>
-            <TableCell className="text-right">
+            <TableCell className="text-right tabular-nums">{fmtNum(l.aprovadas)}</TableCell>
+            <TableCell className="text-right tabular-nums">{fmtMoeda(l.valor)}</TableCell>
+            <TableCell className="text-right tabular-nums">{fmtMoeda(l.bonificacao)}</TableCell>
+            <TableCell className="text-right tabular-nums">
               {totalBonificacao > 0 ? fmtPct((l.bonificacao / totalBonificacao) * 100) : "—"}
             </TableCell>
           </TableRow>
