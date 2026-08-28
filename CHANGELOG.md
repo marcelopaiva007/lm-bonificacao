@@ -8,6 +8,24 @@ Segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e
 > Ao publicar uma versão, atualize os dois — e o número em `package.json`.
 > Correção → _patch_ (1.9.x) · recurso → _minor_ (1.x.0) · quebra → _major_ (x.0.0).
 
+## [1.15.0] — 2026-08-28
+
+### Alterado
+- **Painel repaginado (visual premium de SaaS de dados):** cartões de indicador
+  com ícone, variação colorida (verde/vermelho) e minigráfico de tendência
+  (sparkline); blocos de gráfico e tabelas sobre superfície de vidro
+  (glassmorphism), cabeçalho de coluna fixo, zebrado sutil e ranking com destaque
+  para o top 3. Componentes reutilizáveis novos: `KpiCard`, `ChartCard`,
+  `DataTable`, `PageHeader`, `Sparkline`.
+- **Menu lateral agrupado:** itens organizados por seção (Visão geral, Cadastros,
+  Operação, Análise, Sistema), com a página atual marcada por uma barra de acento
+  em ciano.
+- **Identidade visual refinada:** paleta em navy com hierarquia de camadas
+  (`background → card → elevated`), acento ciano e números em fonte monoespaçada
+  com alinhamento tabular — melhor contraste e hierarquia no escuro em todas as
+  telas. Novo token `--elevated` e utilities `surface` / `glow-accent` /
+  `text-gradient-brand`.
+
 ## [1.14.1] — 2026-08-28
 
 ### Corrigido

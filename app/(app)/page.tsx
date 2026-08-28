@@ -1,5 +1,7 @@
 import Link from "next/link";
+import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/ui/page-header";
 import { requireUser } from "@/lib/auth-guard";
 import { prisma } from "@/lib/prisma";
 import { periodoAtual, periodoAnterior } from "@/lib/periodo";
@@ -142,19 +144,17 @@ export default async function HomePage({
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">
-            Olá, {user.name ?? user.username}
-          </h1>
-          <p className="text-muted-foreground">
-            Visão geral do sistema de bonificação de vendas.
-          </p>
-        </div>
-        <Button variant="outline" nativeButton={false} render={<Link href="/relatorios" />}>
-          Ver relatórios completos
-        </Button>
-      </div>
+      <PageHeader
+        eyebrow="Painel"
+        title={`Olá, ${user.name ?? user.username}`}
+        description="Visão geral do sistema de bonificação de vendas"
+        actions={
+          <Button variant="outline" nativeButton={false} render={<Link href="/relatorios" />}>
+            Ver relatórios completos
+            <ArrowRight className="size-4" />
+          </Button>
+        }
+      />
 
       <DashboardView
         periodo={periodo}

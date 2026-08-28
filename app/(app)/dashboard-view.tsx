@@ -3,34 +3,38 @@
 import { useRouter } from "next/navigation";
 import {
   ResponsiveContainer,
-  LineChart,
-  Line,
+  AreaChart,
+  Area,
   BarChart,
   Bar,
+  PieChart,
+  Pie,
   XAxis,
   YAxis,
   Tooltip,
   CartesianGrid,
-  Legend,
-  LabelList,
   Cell,
 } from "recharts";
-import { TrendingUp, TrendingDown, Minus } from "lucide-react";
+import {
+  BadgeDollarSign,
+  Banknote,
+  CheckCircle2,
+  XCircle,
+  Coins,
+  UserCheck,
+  MapPin,
+  SlidersHorizontal,
+  Trophy,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { KpiCard } from "@/components/ui/kpi-card";
+import { ChartCard, ChartTooltip } from "@/components/ui/chart-card";
+import { DataTable, type Column } from "@/components/ui/data-table";
 import { periodoLabel } from "@/lib/periodo";
 import { CARGOS } from "@/lib/constants";
-import { cn } from "@/lib/utils";
+import { brl, int, pct } from "@/lib/format";
 
 export type ResumoPeriodo = {
   vendido: number;
@@ -50,11 +54,14 @@ export type RankingLinha = {
   bonificacao: number;
 };
 
-const fmtMoeda = (v: number) =>
-  v.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
-const fmtNum = (v: number) => v.toLocaleString("pt-BR");
-const fmtPct = (v: number) =>
-  `${v.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`;
+const CHART = ["var(--chart-1)", "var(--chart-2)", "var(--chart-3)", "var(--chart-4)", "var(--chart-5)"];
+
+const axis = {
+  stroke: "var(--muted-foreground)",
+  fontSize: 11,
+  tickLine: false,
+  axisLine: false,
+} as const;
 
 const cargoLabel = (cargo: string) =>
   CARGOS.find((c) => c.value === cargo)?.label ?? cargo;
@@ -62,71 +69,6 @@ const cargoLabel = (cargo: string) =>
 function variacaoPct(atual: number, anterior: number): number | null {
   if (anterior === 0) return null;
   return ((atual - anterior) / anterior) * 100;
-}
-
-function DeltaLinha({
-  variacao,
-  sufixo = "%",
-  legenda,
-  inverter = false,
-}: {
-  variacao: number | null;
-  sufixo?: string;
-  legenda: string;
-  // Para métricas onde queda é bom (ex.: taxa de cancelamento).
-  inverter?: boolean;
-}) {
-  if (variacao === null) {
-    return <p className="text-xs text-muted-foreground">Sem base de comparação</p>;
-  }
-  const subiu = variacao > 0.05;
-  const caiu = variacao < -0.05;
-  const Icone = subiu ? TrendingUp : caiu ? TrendingDown : Minus;
-  const positivo = inverter ? caiu : subiu;
-  const negativo = inverter ? subiu : caiu;
-  const cor = positivo ? "text-success" : negativo ? "text-destructive" : "text-muted-foreground";
-  const sinal = variacao > 0 ? "+" : "";
-  return (
-    <p className={`flex items-center gap-1 text-xs ${cor}`}>
-      <Icone className="size-3.5" />
-      {sinal}
-      {variacao.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}
-      {sufixo} <span className="text-muted-foreground">{legenda}</span>
-    </p>
-  );
-}
-
-function KpiCard({
-  titulo,
-  valor,
-  sub,
-  delta,
-  destaque = false,
-}: {
-  titulo: string;
-  valor: string;
-  sub?: string;
-  delta?: React.ReactNode;
-  // Métricas principais (valor vendido, bonificação): anel de acento e número
-  // maior, para puxar o olho antes dos indicadores de apoio.
-  destaque?: boolean;
-}) {
-  return (
-    <Card className={cn(destaque && "bg-primary/[0.04] ring-primary/25")}>
-      <CardHeader className="pb-2">
-        <CardTitle className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-          {titulo}
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-1">
-        <p className={cn("font-semibold tabular-nums", destaque ? "text-3xl" : "text-2xl")}>
-          {valor}
-        </p>
-        {sub && <p className="text-xs text-muted-foreground">{sub}</p>}
-        {delta}
-      </CardContent>
-    </Card>
-  );
 }
 
 export function DashboardView({
@@ -174,13 +116,12 @@ export function DashboardView({
   const pctBonificacao = resumo.vendido > 0 ? (resumo.bonificacao / resumo.vendido) * 100 : 0;
 
   const tendenciaData = tendencia.map((t) => ({ ...t, label: periodoLabel(t.periodo) }));
+  const sparkVendido = tendencia.map((t) => t.vendido);
+  const sparkBonificacao = tendencia.map((t) => t.bonificacao);
   const porCargoData = porCargo.map((c) => ({ ...c, label: cargoLabel(c.cargo) }));
-  const aproveitamento = [
-    { etapa: "Lançadas", qtd: resumo.lancadas, cor: "var(--chart-2)" },
-    { etapa: "Aprovadas", qtd: resumo.aprovadas, cor: "var(--success)" },
-    { etapa: "Canceladas", qtd: resumo.canceladas, cor: "var(--destructive)" },
-  ];
   const composicaoVisivel = composicao.filter((c) => c.valor !== 0);
+  const totalComposicao = composicaoVisivel.reduce((s, c) => s + c.valor, 0);
+  const cidadeMax = porCidade.length > 0 ? Math.max(...porCidade.map((c) => c.valor)) : 0;
 
   const topBonificacao = [...ranking].sort((a, b) => b.bonificacao - a.bonificacao).slice(0, 10);
   const topVendas = [...ranking].sort((a, b) => b.valor - a.valor).slice(0, 10);
@@ -188,7 +129,8 @@ export function DashboardView({
   const semDados = resumo.lancadas === 0 && resumo.vendido === 0;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
+      {/* Controles: período + situação do fechamento */}
       <div className="flex flex-wrap items-center gap-3">
         <Input
           type="month"
@@ -217,350 +159,363 @@ export function DashboardView({
         )}
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
+      {/* KPIs */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <KpiCard
-          titulo="Valor vendido"
-          valor={fmtMoeda(resumo.vendido)}
-          destaque
-          delta={
-            <DeltaLinha
-              variacao={variacaoPct(resumo.vendido, resumoAnterior.vendido)}
-              legenda={legendaAnterior}
-            />
-          }
+          label="Valor vendido"
+          value={brl(resumo.vendido)}
+          delta={variacaoPct(resumo.vendido, resumoAnterior.vendido)}
+          icon={BadgeDollarSign}
+          tone="primary"
+          spark={sparkVendido}
+          hint={legendaAnterior}
         />
         <KpiCard
-          titulo="Bonificação total"
-          valor={fmtMoeda(resumo.bonificacao)}
-          destaque
-          sub={resumo.vendido > 0 ? `${fmtPct(pctBonificacao)} do valor vendido` : undefined}
-          delta={
-            <DeltaLinha
-              variacao={variacaoPct(resumo.bonificacao, resumoAnterior.bonificacao)}
-              legenda={legendaAnterior}
-            />
-          }
+          label="Bonificação total"
+          value={brl(resumo.bonificacao)}
+          delta={variacaoPct(resumo.bonificacao, resumoAnterior.bonificacao)}
+          icon={Banknote}
+          tone="accent"
+          spark={sparkBonificacao}
+          hint={resumo.vendido > 0 ? `${pct(pctBonificacao).replace("+", "")} do vendido` : legendaAnterior}
         />
         <KpiCard
-          titulo="Vendas aprovadas"
-          valor={fmtNum(resumo.aprovadas)}
-          sub={`de ${fmtNum(resumo.lancadas)} lançadas`}
-          delta={
-            <DeltaLinha
-              variacao={variacaoPct(resumo.aprovadas, resumoAnterior.aprovadas)}
-              legenda={legendaAnterior}
-            />
-          }
+          label="Vendas aprovadas"
+          value={int(resumo.aprovadas)}
+          delta={variacaoPct(resumo.aprovadas, resumoAnterior.aprovadas)}
+          icon={CheckCircle2}
+          tone="success"
+          hint={`de ${int(resumo.lancadas)} lançadas`}
         />
         <KpiCard
-          titulo="Taxa de cancelamento"
-          valor={fmtPct(taxaCancelamento)}
-          sub={`${fmtNum(resumo.canceladas)} canceladas`}
+          label="Taxa de cancelamento"
+          value={pct(taxaCancelamento).replace("+", "")}
           delta={
-            <DeltaLinha
-              variacao={
-                resumoAnterior.lancadas > 0 ? taxaCancelamento - taxaCancelamentoAnterior : null
-              }
-              sufixo=" p.p."
-              legenda={legendaAnterior}
-              inverter
-            />
+            resumoAnterior.lancadas > 0 ? taxaCancelamento - taxaCancelamentoAnterior : null
           }
+          deltaSuffix=" p.p."
+          icon={XCircle}
+          tone="destructive"
+          invert
+          hint={`${int(resumo.canceladas)} canceladas`}
         />
         <KpiCard
-          titulo="Ticket médio"
-          valor={fmtMoeda(ticketMedio)}
-          sub="por venda aprovada"
-          delta={
-            <DeltaLinha
-              variacao={variacaoPct(ticketMedio, ticketMedioAnterior)}
-              legenda={legendaAnterior}
-            />
-          }
+          label="Ticket médio"
+          value={brl(ticketMedio)}
+          delta={variacaoPct(ticketMedio, ticketMedioAnterior)}
+          icon={Coins}
+          tone="primary"
+          hint="por venda aprovada"
         />
         <KpiCard
-          titulo="Vendedores com venda"
-          valor={fmtNum(vendedoresComVenda)}
-          sub={`de ${fmtNum(totalFuncionarios)} funcionários ativos em ${fmtNum(totalCidades)} cidades`}
+          label="Vendedores com venda"
+          value={int(vendedoresComVenda)}
+          icon={UserCheck}
+          tone="success"
+          hint={`de ${int(totalFuncionarios)} ativos`}
+        />
+        <KpiCard
+          label="Cidades atendidas"
+          value={int(totalCidades)}
+          icon={MapPin}
+          tone="accent"
+        />
+        <KpiCard
+          label="Ajustes"
+          value={brl(totalAjustes)}
+          icon={SlidersHorizontal}
+          tone="warn"
+          hint="no período"
         />
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Tendência mensal — últimos 12 meses</CardTitle>
-        </CardHeader>
-        <CardContent className="h-72">
+      {/* Tendência + composição da bonificação */}
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
+        <ChartCard
+          title="Tendência — últimos 12 meses"
+          subtitle="Valor vendido x bonificação paga"
+          className="xl:col-span-2"
+          actions={
+            <div className="hidden items-center gap-3 text-[11px] text-muted-foreground sm:flex">
+              <span className="flex items-center gap-1.5">
+                <span className="size-2 rounded-full bg-chart-1" /> Vendido
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="size-2 rounded-full bg-accent" /> Bonificação
+              </span>
+            </div>
+          }
+        >
           {tendenciaData.length === 0 ? (
             <p className="text-sm text-muted-foreground">Sem histórico suficiente ainda.</p>
           ) : (
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={tendenciaData} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                <XAxis dataKey="label" tick={{ fontSize: 12 }} />
-                <YAxis tick={{ fontSize: 12 }} tickFormatter={(v) => fmtMoeda(Number(v))} width={90} />
-                <Tooltip formatter={(v) => fmtMoeda(Number(v))} />
-                <Legend />
-                <Line
+            <ResponsiveContainer width="100%" height={264}>
+              <AreaChart data={tendenciaData} margin={{ left: -12, right: 6, top: 6 }}>
+                <defs>
+                  <linearGradient id="gVend" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="var(--chart-1)" stopOpacity={0.45} />
+                    <stop offset="100%" stopColor="var(--chart-1)" stopOpacity={0} />
+                  </linearGradient>
+                  <linearGradient id="gBon" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="var(--accent)" stopOpacity={0.3} />
+                    <stop offset="100%" stopColor="var(--accent)" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                <XAxis dataKey="label" {...axis} />
+                <YAxis {...axis} tickFormatter={(v) => brl(Number(v), true)} width={64} />
+                <Tooltip
+                  cursor={{ stroke: "var(--accent)", strokeOpacity: 0.35 }}
+                  content={<ChartTooltip formatter={(v) => brl(v)} />}
+                />
+                <Area
                   type="monotone"
                   dataKey="vendido"
-                  name="Valor Vendido"
-                  stroke="var(--chart-2)"
+                  name="Vendido"
+                  stroke="var(--chart-1)"
                   strokeWidth={2}
-                  dot={false}
+                  fill="url(#gVend)"
                 />
-                <Line
+                <Area
                   type="monotone"
                   dataKey="bonificacao"
                   name="Bonificação"
-                  stroke="var(--chart-4)"
+                  stroke="var(--accent)"
                   strokeWidth={2}
-                  strokeDasharray="6 3"
-                  dot={false}
+                  fill="url(#gBon)"
                 />
-              </LineChart>
+              </AreaChart>
             </ResponsiveContainer>
           )}
-        </CardContent>
-      </Card>
+        </ChartCard>
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">
-              Valor vendido por cidade — {periodoLabel(periodo)}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="h-80">
-            {porCidade.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Sem lançamentos neste período.</p>
-            ) : (
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={porCidade} layout="vertical" margin={{ left: 24, right: 16 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                  <XAxis
-                    type="number"
-                    tick={{ fontSize: 12 }}
-                    tickFormatter={(v) => fmtMoeda(Number(v))}
-                  />
-                  <YAxis dataKey="cidade" type="category" tick={{ fontSize: 12 }} width={90} />
-                  <Tooltip
-                    formatter={(v, name) =>
-                      name === "Valor Vendido" ? fmtMoeda(Number(v)) : fmtNum(Number(v))
-                    }
-                  />
-                  <Bar dataKey="valor" name="Valor Vendido" fill="var(--chart-2)" radius={4} />
-                </BarChart>
-              </ResponsiveContainer>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">
-              Mix de produtos — {periodoLabel(periodo)}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="h-80">
-            {semDados ? (
-              <p className="text-sm text-muted-foreground">Sem lançamentos neste período.</p>
-            ) : (
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={mixProdutos} layout="vertical" margin={{ left: 24, right: 40 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                  <XAxis type="number" tick={{ fontSize: 12 }} allowDecimals={false} />
-                  <YAxis dataKey="produto" type="category" tick={{ fontSize: 12 }} width={100} />
-                  <Tooltip formatter={(v) => fmtNum(Number(v))} />
-                  <Bar dataKey="qtd" name="Quantidade" fill="var(--chart-3)" radius={4}>
-                    <LabelList
-                      dataKey="qtd"
-                      position="right"
-                      className="fill-muted-foreground"
-                      fontSize={12}
-                      formatter={(v) => fmtNum(Number(v))}
-                    />
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">
-              Composição da bonificação — {periodoLabel(periodo)}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="h-80">
-            {composicaoVisivel.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                Sem bonificações calculadas neste período.
-              </p>
-            ) : (
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  data={composicaoVisivel}
-                  layout="vertical"
-                  margin={{ left: 24, right: 56 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                  <XAxis
-                    type="number"
-                    tick={{ fontSize: 12 }}
-                    tickFormatter={(v) => fmtMoeda(Number(v))}
-                  />
-                  <YAxis dataKey="componente" type="category" tick={{ fontSize: 12 }} width={90} />
-                  <Tooltip formatter={(v) => fmtMoeda(Number(v))} />
-                  <Bar dataKey="valor" name="Valor" fill="var(--chart-4)" radius={4}>
-                    <LabelList
-                      dataKey="valor"
-                      position="right"
-                      className="fill-muted-foreground"
-                      fontSize={12}
-                      formatter={(v) => fmtMoeda(Number(v))}
-                    />
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">
-              Aproveitamento de vendas — {periodoLabel(periodo)}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="h-80">
-            {semDados ? (
-              <p className="text-sm text-muted-foreground">Sem lançamentos neste período.</p>
-            ) : (
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={aproveitamento} layout="vertical" margin={{ left: 24, right: 40 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                  <XAxis type="number" tick={{ fontSize: 12 }} allowDecimals={false} />
-                  <YAxis dataKey="etapa" type="category" tick={{ fontSize: 12 }} width={90} />
-                  <Tooltip formatter={(v) => fmtNum(Number(v))} />
-                  <Bar dataKey="qtd" name="Quantidade" radius={4}>
-                    {aproveitamento.map((a) => (
-                      <Cell key={a.etapa} fill={a.cor} />
+        <ChartCard
+          title="Composição da bonificação"
+          subtitle={totalComposicao > 0 ? `Total ${brl(totalComposicao)}` : "Sem bonificação no período"}
+        >
+          {composicaoVisivel.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              Sem bonificações calculadas neste período.
+            </p>
+          ) : (
+            <>
+              <ResponsiveContainer width="100%" height={190}>
+                <PieChart>
+                  <Pie
+                    data={composicaoVisivel}
+                    dataKey="valor"
+                    nameKey="componente"
+                    innerRadius={58}
+                    outerRadius={84}
+                    paddingAngle={2}
+                    stroke="var(--card)"
+                    strokeWidth={2}
+                  >
+                    {composicaoVisivel.map((_, i) => (
+                      <Cell key={i} fill={CHART[i % CHART.length]} />
                     ))}
-                    <LabelList
-                      dataKey="qtd"
-                      position="right"
-                      className="fill-muted-foreground"
-                      fontSize={12}
-                      formatter={(v) => fmtNum(Number(v))}
-                    />
-                  </Bar>
-                </BarChart>
+                  </Pie>
+                  <Tooltip content={<ChartTooltip formatter={(v) => brl(v)} />} />
+                </PieChart>
               </ResponsiveContainer>
-            )}
-          </CardContent>
-        </Card>
+              <ul className="mt-3 space-y-1.5">
+                {composicaoVisivel.map((c, i) => (
+                  <li key={c.componente} className="flex items-center gap-2 text-xs">
+                    <span
+                      className="size-2 shrink-0 rounded-full"
+                      style={{ background: CHART[i % CHART.length] }}
+                    />
+                    <span className="min-w-0 truncate text-muted-foreground">{c.componente}</span>
+                    <span className="ml-auto font-mono font-medium tabular-nums">{brl(c.valor)}</span>
+                    <span className="w-12 text-right font-mono text-muted-foreground tabular-nums">
+                      {((c.valor / totalComposicao) * 100).toFixed(1)}%
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+        </ChartCard>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">
-            Desempenho por cargo — {periodoLabel(periodo)}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="h-72">
-          {porCargoData.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Sem dados neste período.</p>
+      {/* Mix de produtos + desempenho por cidade */}
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+        <ChartCard title="Mix de produtos" subtitle={`Vendas aprovadas em ${periodoLabel(periodo)}`}>
+          {semDados ? (
+            <p className="text-sm text-muted-foreground">Sem lançamentos neste período.</p>
           ) : (
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={porCargoData} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                <XAxis dataKey="label" tick={{ fontSize: 12 }} />
-                <YAxis tick={{ fontSize: 12 }} tickFormatter={(v) => fmtMoeda(Number(v))} width={90} />
-                <Tooltip formatter={(v) => fmtMoeda(Number(v))} />
-                <Legend />
-                <Bar dataKey="vendido" name="Valor Vendido" fill="var(--chart-2)" radius={4} />
-                <Bar dataKey="bonificacao" name="Bonificação" fill="var(--chart-4)" radius={4} />
+            <ResponsiveContainer width="100%" height={268}>
+              <BarChart data={mixProdutos} margin={{ left: -18, right: 6, top: 6 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                <XAxis dataKey="produto" {...axis} interval={0} angle={-12} textAnchor="end" height={48} />
+                <YAxis {...axis} allowDecimals={false} />
+                <Tooltip
+                  cursor={{ fill: "var(--accent)", fillOpacity: 0.06 }}
+                  content={<ChartTooltip formatter={(v) => int(v)} />}
+                />
+                <Bar dataKey="qtd" name="Vendas" radius={[6, 6, 0, 0]} maxBarSize={44}>
+                  {mixProdutos.map((_, i) => (
+                    <Cell key={i} fill={CHART[i % CHART.length]} />
+                  ))}
+                </Bar>
               </BarChart>
             </ResponsiveContainer>
           )}
-        </CardContent>
-      </Card>
+        </ChartCard>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">
-            Ranking de funcionários — {periodoLabel(periodo)}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Tabs defaultValue="bonificacao">
-            <TabsList>
-              <TabsTrigger value="bonificacao">Top bonificação</TabsTrigger>
-              <TabsTrigger value="vendas">Top vendas</TabsTrigger>
-            </TabsList>
-            <TabsContent value="bonificacao">
-              <RankingTable linhas={topBonificacao} totalBonificacao={resumo.bonificacao} />
-            </TabsContent>
-            <TabsContent value="vendas">
-              <RankingTable linhas={topVendas} totalBonificacao={resumo.bonificacao} />
-            </TabsContent>
-          </Tabs>
-          {totalAjustes !== 0 && (
-            <p className="mt-3 text-xs text-muted-foreground">
-              Ajustes manuais no período: {fmtMoeda(totalAjustes)} (já considerados na composição).
-            </p>
+        <ChartCard title="Desempenho por cidade" subtitle="Valor vendido e vendas aprovadas">
+          {porCidade.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Sem lançamentos neste período.</p>
+          ) : (
+            <ul className="space-y-3.5">
+              {porCidade.map((c) => (
+                <li key={c.cidade}>
+                  <div className="flex items-baseline justify-between gap-3 text-sm">
+                    <span className="truncate font-medium">{c.cidade}</span>
+                    <span className="shrink-0 font-mono font-semibold tabular-nums">{brl(c.valor)}</span>
+                  </div>
+                  <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-elevated">
+                    <div
+                      className="h-full rounded-full transition-[width] duration-700"
+                      style={{
+                        width: cidadeMax > 0 ? `${(c.valor / cidadeMax) * 100}%` : "0%",
+                        backgroundImage: "var(--gradient-brand)",
+                      }}
+                    />
+                  </div>
+                  <div className="mt-1 text-[11px] text-muted-foreground">
+                    <span className="font-mono tabular-nums">{int(c.aprovadas)}</span> aprovadas
+                  </div>
+                </li>
+              ))}
+            </ul>
           )}
-        </CardContent>
-      </Card>
+        </ChartCard>
+      </div>
+
+      {/* Desempenho por cargo + ranking */}
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
+        <ChartCard title="Desempenho por cargo" subtitle="Vendido x bonificação">
+          {porCargoData.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Sem dados neste período.</p>
+          ) : (
+            <ResponsiveContainer width="100%" height={280}>
+              <BarChart data={porCargoData} layout="vertical" margin={{ left: 8, right: 12 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
+                <XAxis type="number" {...axis} tickFormatter={(v) => brl(Number(v), true)} />
+                <YAxis type="category" dataKey="label" {...axis} width={104} />
+                <Tooltip
+                  cursor={{ fill: "var(--accent)", fillOpacity: 0.06 }}
+                  content={<ChartTooltip formatter={(v) => brl(v)} />}
+                />
+                <Bar dataKey="vendido" name="Vendido" fill="var(--chart-1)" radius={[0, 4, 4, 0]} maxBarSize={14} />
+                <Bar dataKey="bonificacao" name="Bonificação" fill="var(--accent)" radius={[0, 4, 4, 0]} maxBarSize={14} />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+        </ChartCard>
+
+        <section className="surface flex flex-col overflow-hidden rounded-xl xl:col-span-2">
+          <header className="border-b border-border/60 px-5 py-4">
+            <h2 className="text-sm font-semibold tracking-tight">Ranking de vendedores</h2>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              Top 10 em {periodoLabel(periodo)}
+            </p>
+          </header>
+          <div className="p-3">
+            <Tabs defaultValue="bonificacao">
+              <TabsList>
+                <TabsTrigger value="bonificacao">Top bonificação</TabsTrigger>
+                <TabsTrigger value="vendas">Top vendas</TabsTrigger>
+              </TabsList>
+              <TabsContent value="bonificacao" className="mt-3">
+                <RankingTabela linhas={topBonificacao} totalBonificacao={resumo.bonificacao} />
+              </TabsContent>
+              <TabsContent value="vendas" className="mt-3">
+                <RankingTabela linhas={topVendas} totalBonificacao={resumo.bonificacao} />
+              </TabsContent>
+            </Tabs>
+            {totalAjustes !== 0 && (
+              <p className="mt-3 px-2 text-xs text-muted-foreground">
+                Ajustes manuais no período: {brl(totalAjustes)} (já considerados na composição).
+              </p>
+            )}
+          </div>
+        </section>
+      </div>
     </div>
   );
 }
 
-function RankingTable({
+function RankingTabela({
   linhas,
   totalBonificacao,
 }: {
   linhas: RankingLinha[];
   totalBonificacao: number;
 }) {
+  const cols: Column<RankingLinha & { pos: number }>[] = [
+    {
+      key: "pos",
+      header: "#",
+      width: "56px",
+      cell: (r) => (
+        <span
+          className={[
+            "inline-grid size-6 place-items-center rounded-md font-mono text-[11px] font-bold tabular-nums",
+            r.pos === 1
+              ? "bg-warn/15 text-warn"
+              : r.pos === 2
+                ? "bg-accent/15 text-accent"
+                : r.pos === 3
+                  ? "bg-primary/15 text-primary"
+                  : "text-muted-foreground",
+          ].join(" ")}
+        >
+          {r.pos}
+        </span>
+      ),
+    },
+    {
+      key: "nome",
+      header: "Vendedor",
+      cell: (r) => (
+        <div className="flex min-w-0 items-center gap-2">
+          <span className="truncate font-medium">{r.nome}</span>
+          {r.pos <= 3 && <Trophy className="size-3.5 shrink-0 text-warn/80" />}
+        </div>
+      ),
+    },
+    { key: "cidade", header: "Cidade", cell: (r) => <span className="text-muted-foreground">{r.cidade}</span> },
+    { key: "cargo", header: "Cargo", cell: (r) => <span className="text-muted-foreground">{cargoLabel(r.cargo)}</span> },
+    { key: "aprovadas", header: "Aprovadas", align: "right", cell: (r) => int(r.aprovadas) },
+    { key: "vendido", header: "Valor vendido", align: "right", cell: (r) => brl(r.valor) },
+    {
+      key: "bonificacao",
+      header: "Bonificação",
+      align: "right",
+      cell: (r) => <span className="font-semibold text-accent">{brl(r.bonificacao)}</span>,
+    },
+    {
+      key: "pctbon",
+      header: "% da bonif.",
+      align: "right",
+      cell: (r) =>
+        totalBonificacao > 0 ? `${((r.bonificacao / totalBonificacao) * 100).toFixed(1)}%` : "—",
+    },
+  ];
+
+  const rows = linhas.map((l, i) => ({ ...l, pos: i + 1 }));
+
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead className="w-10">#</TableHead>
-          <TableHead>Funcionário</TableHead>
-          <TableHead>Cidade</TableHead>
-          <TableHead>Cargo</TableHead>
-          <TableHead className="text-right">Aprovadas</TableHead>
-          <TableHead className="text-right">Valor vendido</TableHead>
-          <TableHead className="text-right">Bonificação</TableHead>
-          <TableHead className="text-right">% da bonificação</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {linhas.length === 0 && (
-          <TableRow>
-            <TableCell colSpan={8} className="py-6 text-center text-muted-foreground">
-              Sem dados neste período.
-            </TableCell>
-          </TableRow>
-        )}
-        {linhas.map((l, i) => (
-          <TableRow key={l.id}>
-            <TableCell className="text-muted-foreground tabular-nums">{i + 1}</TableCell>
-            <TableCell className="font-medium">{l.nome}</TableCell>
-            <TableCell>{l.cidade}</TableCell>
-            <TableCell>{cargoLabel(l.cargo)}</TableCell>
-            <TableCell className="text-right tabular-nums">{fmtNum(l.aprovadas)}</TableCell>
-            <TableCell className="text-right tabular-nums">{fmtMoeda(l.valor)}</TableCell>
-            <TableCell className="text-right tabular-nums">{fmtMoeda(l.bonificacao)}</TableCell>
-            <TableCell className="text-right tabular-nums">
-              {totalBonificacao > 0 ? fmtPct((l.bonificacao / totalBonificacao) * 100) : "—"}
-            </TableCell>
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+    <DataTable
+      columns={cols}
+      rows={rows}
+      rowKey={(r) => r.id}
+      maxHeight="380px"
+      minWidth="720px"
+      emptyTitle="Sem dados neste período"
+      emptyHint="Nenhum vendedor com lançamentos no período selecionado."
+    />
   );
 }
