@@ -32,6 +32,28 @@ export type Versao = {
 /** Mais recente primeiro. */
 export const CHANGELOG: Versao[] = [
   {
+    numero: "1.15.0",
+    data: "2026-08-28",
+    titulo: "Painel repaginado: visual premium de SaaS de dados",
+    mudancas: [
+      {
+        tipo: "alterado",
+        texto:
+          "O Painel foi redesenhado num padrão mais moderno e legível: cartões de indicador com ícone, variação colorida (verde/vermelho) e minigráfico de tendência; blocos de gráfico e tabelas sobre superfície de vidro, com cabeçalho de coluna fixo e ranking com destaque para o top 3.",
+      },
+      {
+        tipo: "alterado",
+        texto:
+          "O menu lateral passou a agrupar os itens por seção (Visão geral, Cadastros, Operação, Análise, Sistema), com a página atual destacada por uma barra de acento em ciano.",
+      },
+      {
+        tipo: "alterado",
+        texto:
+          "A identidade visual foi refinada (paleta em navy com camadas background → cartão → elevado, acento ciano e números em fonte monoespaçada alinhados), melhorando o contraste e a hierarquia no escuro em todas as telas.",
+      },
+    ],
+  },
+  {
     numero: "1.14.1",
     data: "2026-08-28",
     titulo: "Cores de situação voltam a aparecer (verde/vermelho)",
