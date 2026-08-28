@@ -8,6 +8,15 @@ Segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e
 > Ao publicar uma versão, atualize os dois — e o número em `package.json`.
 > Correção → _patch_ (1.9.x) · recurso → _minor_ (1.x.0) · quebra → _major_ (x.0.0).
 
+## [1.14.1] — 2026-08-28
+
+### Corrigido
+- **Cores de situação voltam a aparecer:** em Gestão, Batimento, Pagamentos e no
+  painel de gestão, as etiquetas de situação (verde = bom, vermelho = crítico) não
+  recebiam cor — o estilo existia (`text-ok`/`bg-ok`/`text-bad`/`num`) mas sem token
+  de cor definido. Foram criados os tokens semânticos (`--ok`, `--bad`, `--warning`)
+  e a utility `num` (números tabulares). Sem mudança nos temas nem no acento.
+
 ## [1.14.0] — 2026-08-28
 
 ### Alterado
