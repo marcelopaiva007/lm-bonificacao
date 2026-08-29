@@ -104,7 +104,7 @@ export function PainelGestaoView({
       )}
 
       <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="accent-card p-3">
+        <div className="surface rounded-xl ring-1 ring-accent/30 p-3">
           <p className="text-xs uppercase tracking-wide text-muted-foreground">
             Projeção do mês
           </p>
@@ -116,7 +116,7 @@ export function PainelGestaoView({
           </p>
         </div>
 
-        <div className="accent-card p-3">
+        <div className="surface rounded-xl ring-1 ring-accent/30 p-3">
           <p className="text-xs uppercase tracking-wide text-muted-foreground">
             Custo da comissão
           </p>
@@ -128,7 +128,7 @@ export function PainelGestaoView({
           </p>
         </div>
 
-        <div className="surface-card p-3">
+        <div className="surface rounded-xl p-3">
           <p className="text-xs uppercase tracking-wide text-muted-foreground">
             Vendido até aqui
           </p>
@@ -138,7 +138,7 @@ export function PainelGestaoView({
           </p>
         </div>
 
-        <div className="surface-card p-3">
+        <div className="surface rounded-xl p-3">
           <p className="text-xs uppercase tracking-wide text-muted-foreground">
             Comissão prevista
           </p>
@@ -149,7 +149,7 @@ export function PainelGestaoView({
         </div>
       </div>
 
-      <div className="surface-card space-y-2 p-3">
+      <div className="surface rounded-xl space-y-2 p-3">
         <p className="text-sm font-medium">Ritmo do mês</p>
         <div className="relative h-6 overflow-hidden rounded bg-muted">
           <div
@@ -181,7 +181,7 @@ export function PainelGestaoView({
       </div>
 
       <div className="grid gap-2 lg:grid-cols-2">
-        <div className="surface-card overflow-x-auto">
+        <div className="surface rounded-xl overflow-x-auto">
           <p className="border-b p-3 text-sm font-medium">Precisa de atenção</p>
           <Table>
             <TableHeader>
@@ -222,7 +222,7 @@ export function PainelGestaoView({
           </Table>
         </div>
 
-        <div className="surface-card overflow-x-auto">
+        <div className="surface rounded-xl overflow-x-auto">
           <p className="border-b p-3 text-sm font-medium">
             Equipes <span className="font-normal text-muted-foreground">— base do bônus de supervisor</span>
           </p>

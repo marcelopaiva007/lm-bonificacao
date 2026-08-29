@@ -82,7 +82,7 @@ export function BatimentoView({
         </Button>
       </div>
 
-      <div className="surface-card p-4 text-sm">
+      <div className="surface rounded-xl p-4 text-sm">
         {diaAnterior ? (
           <>
             Comparando <strong>{fmtDia(diaAtual)}</strong> com{" "}
@@ -116,7 +116,7 @@ export function BatimentoView({
       </div>
 
       {mudancas.length > 0 && (
-        <div className="surface-card overflow-x-auto">
+        <div className="surface rounded-xl overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>

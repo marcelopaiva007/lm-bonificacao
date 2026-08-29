@@ -2,6 +2,7 @@ import { requireAdmin } from "@/lib/auth-guard";
 import { listarPagamentos, resumirPagamentos } from "@/lib/pagamento";
 import { periodoAtual, periodoLabel } from "@/lib/periodo";
 import { prisma } from "@/lib/prisma";
+import { PageHeader } from "@/components/ui/page-header";
 import { PagamentosView } from "./pagamentos-view";
 
 export const dynamic = "force-dynamic";
@@ -25,15 +26,11 @@ export default async function PagamentosPage({
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">
-          Pagamentos — {periodoLabel(periodo)}
-        </h1>
-        <p className="text-muted-foreground">
-          Quem já recebeu a bonificação do mês, quem está para receber e quem está
-          retido. Cada marcação guarda quem fez e quando.
-        </p>
-      </div>
+      <PageHeader
+        eyebrow="Operação"
+        title={`Pagamentos — ${periodoLabel(periodo)}`}
+        description="Quem já recebeu a bonificação do mês, quem está para receber e quem está retido. Cada marcação guarda quem fez e quando."
+      />
       <PagamentosView
         periodo={periodo}
         linhas={linhas.map((l) => ({

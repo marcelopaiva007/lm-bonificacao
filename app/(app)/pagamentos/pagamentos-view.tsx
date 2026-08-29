@@ -91,7 +91,7 @@ export function PagamentosView({
       </div>
 
       {!mesFechado && linhas.length > 0 && (
-        <div className="surface-card p-3 text-sm text-warn">
+        <div className="surface rounded-xl p-3 text-sm text-warn">
           Este mês ainda está aberto — os valores podem mudar até o fechamento.
         </div>
       )}
@@ -102,7 +102,7 @@ export function PagamentosView({
           const s = ESTILO[mapa[chave]];
           const dado = resumo[chave];
           return (
-            <div key={chave} className="surface-card p-3">
+            <div key={chave} className="surface rounded-xl p-3">
               <p className="text-xs uppercase tracking-wide text-muted-foreground">
                 {s.rotulo}
               </p>
@@ -113,7 +113,7 @@ export function PagamentosView({
         })}
       </div>
 
-      <div className="surface-card overflow-x-auto">
+      <div className="surface rounded-xl overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>

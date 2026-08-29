@@ -63,12 +63,12 @@ export function ConferenciaView({
   return (
     <div className="space-y-4">
       <div className="grid gap-2 sm:grid-cols-3">
-        <div className="surface-card p-3">
+        <div className="surface rounded-xl p-3">
           <p className="text-xs uppercase tracking-wide text-muted-foreground">Na fonte</p>
           <p className="num text-xl font-semibold">{totalFonte}</p>
           <p className="text-xs text-muted-foreground">Elleven + chip</p>
         </div>
-        <div className="surface-card p-3">
+        <div className="surface rounded-xl p-3">
           <p className="text-xs uppercase tracking-wide text-muted-foreground">Lançado</p>
           <p className="num text-xl font-semibold">{totalLancado}</p>
           <p className={`text-xs ${diferencaTotal === 0 ? "text-ok" : "text-bad"}`}>
@@ -77,7 +77,7 @@ export function ConferenciaView({
               : `${diferencaTotal > 0 ? "+" : ""}${diferencaTotal} vs. fonte`}
           </p>
         </div>
-        <div className="surface-card p-3">
+        <div className="surface rounded-xl p-3">
           <p className="text-xs uppercase tracking-wide text-muted-foreground">
             Precisam de atenção
           </p>
@@ -92,7 +92,7 @@ export function ConferenciaView({
         </div>
       </div>
 
-      <div className="surface-card overflow-x-auto">
+      <div className="surface rounded-xl overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>
