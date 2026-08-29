@@ -1,5 +1,6 @@
 import { requireAdmin } from "@/lib/auth-guard";
 import { prisma } from "@/lib/prisma";
+import { PageHeader } from "@/components/ui/page-header";
 import { UsuariosTable } from "./usuarios-table";
 
 export default async function UsuariosPage() {
@@ -12,13 +13,11 @@ export default async function UsuariosPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Usuários</h1>
-        <p className="text-muted-foreground">
-          Cadastre quem acessa o sistema, com login e senha. Administrativo/Financeiro
-          tem acesso total; Diretoria/Gestão vê apenas relatórios e fechamentos.
-        </p>
-      </div>
+      <PageHeader
+        eyebrow="Cadastros"
+        title="Usuários"
+        description="Cadastre quem acessa o sistema, com login e senha. Administrativo/Financeiro tem acesso total; Diretoria/Gestão vê apenas relatórios e fechamentos."
+      />
       <UsuariosTable
         usuarios={usuarios.map((u) => ({
           ...u,

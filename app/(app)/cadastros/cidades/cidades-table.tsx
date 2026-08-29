@@ -14,14 +14,7 @@ import {
   DialogFooter,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { DataTable, type Column } from "@/components/ui/data-table";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { createCidade, updateCidade, deleteCidade } from "@/lib/actions/cadastros";
 import type { ActionResult } from "@/lib/constants";
@@ -38,58 +31,62 @@ export function CidadesTable({ cidades }: { cidades: Cidade[] }) {
   const [createOpen, setCreateOpen] = useState(false);
   const [editCidade, setEditCidade] = useState<Cidade | null>(null);
 
+  const cols: Column<Cidade>[] = [
+    { key: "nome", header: "Cidade", cell: (c) => <span className="font-medium">{c.nome}</span> },
+    {
+      key: "func",
+      header: "Funcionários",
+      align: "right",
+      width: "140px",
+      cell: (c) => c._count.funcionarios,
+    },
+    {
+      key: "acoes",
+      header: "Ações",
+      align: "right",
+      width: "96px",
+      cell: (c) => (
+        <div className="flex justify-end gap-1">
+          <Button variant="ghost" size="icon" aria-label="Editar" onClick={() => setEditCidade(c)}>
+            <Pencil className="size-4" />
+          </Button>
+          <DeleteCidadeButton cidade={c} />
+        </div>
+      ),
+    },
+  ];
+
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
-        <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-          <DialogTrigger render={<Button />}>
-            <Plus className="size-4" />
-            Nova Cidade
-          </DialogTrigger>
-          <DialogContent>
-            <CidadeForm
-              action={createCidade}
-              title="Nova Cidade"
-              onSuccess={() => setCreateOpen(false)}
-            />
-          </DialogContent>
-        </Dialog>
-      </div>
+      <section className="surface overflow-hidden rounded-xl">
+        <div className="flex items-center justify-between gap-3 border-b border-border/60 p-4">
+          <p className="text-xs text-muted-foreground">
+            <span className="num">{cidades.length}</span> {cidades.length === 1 ? "cidade" : "cidades"}
+          </p>
+          <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+            <DialogTrigger render={<Button size="sm" className="shrink-0" />}>
+              <Plus className="size-4" />
+              Nova cidade
+            </DialogTrigger>
+            <DialogContent>
+              <CidadeForm
+                action={createCidade}
+                title="Nova Cidade"
+                onSuccess={() => setCreateOpen(false)}
+              />
+            </DialogContent>
+          </Dialog>
+        </div>
 
-      <div className="rounded-md border bg-background">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Cidade</TableHead>
-              <TableHead>Funcionários</TableHead>
-              <TableHead className="w-24 text-right">Ações</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {cidades.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={3} className="py-8 text-center text-muted-foreground">
-                  Nenhuma cidade cadastrada ainda.
-                </TableCell>
-              </TableRow>
-            )}
-            {cidades.map((cidade) => (
-              <TableRow key={cidade.id}>
-                <TableCell className="font-medium">{cidade.nome}</TableCell>
-                <TableCell>{cidade._count.funcionarios}</TableCell>
-                <TableCell className="text-right">
-                  <div className="flex justify-end gap-1">
-                    <Button variant="ghost" size="icon" onClick={() => setEditCidade(cidade)}>
-                      <Pencil className="size-4" />
-                    </Button>
-                    <DeleteCidadeButton cidade={cidade} />
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
+        <DataTable
+          columns={cols}
+          rows={cidades}
+          rowKey={(c) => c.id}
+          minWidth="420px"
+          emptyTitle="Nenhuma cidade cadastrada ainda"
+          emptyHint="Clique em “Nova cidade” para começar."
+        />
+      </section>
 
       <Dialog open={!!editCidade} onOpenChange={(open) => !open && setEditCidade(null)}>
         <DialogContent>

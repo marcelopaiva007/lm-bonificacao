@@ -1,5 +1,6 @@
 import { requireAdmin } from "@/lib/auth-guard";
 import { prisma } from "@/lib/prisma";
+import { PageHeader } from "@/components/ui/page-header";
 import { EquipesTable } from "./equipes-table";
 
 export default async function EquipesPage() {
@@ -18,13 +19,11 @@ export default async function EquipesPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Equipes</h1>
-        <p className="text-muted-foreground">
-          Equipes de vendedores externos, cada uma com um supervisor e uma faixa de
-          bonificação (3 ou 5 vendedores).
-        </p>
-      </div>
+      <PageHeader
+        eyebrow="Cadastros"
+        title="Equipes"
+        description="Equipes de vendedores externos, cada uma com um supervisor e uma faixa de bonificação (3 ou 5 vendedores)."
+      />
       <EquipesTable equipes={equipes} supervisores={supervisores} />
     </div>
   );

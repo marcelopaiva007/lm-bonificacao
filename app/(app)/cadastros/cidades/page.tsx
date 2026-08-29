@@ -1,5 +1,6 @@
 import { requireAdmin } from "@/lib/auth-guard";
 import { prisma } from "@/lib/prisma";
+import { PageHeader } from "@/components/ui/page-header";
 import { CidadesTable } from "./cidades-table";
 
 export default async function CidadesPage() {
@@ -12,12 +13,11 @@ export default async function CidadesPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Cidades</h1>
-        <p className="text-muted-foreground">
-          Cidades atendidas pela LM Telecom. Cadastre uma vez, use em todos os meses.
-        </p>
-      </div>
+      <PageHeader
+        eyebrow="Cadastros"
+        title="Cidades"
+        description="Cidades atendidas pela LM Telecom. Cadastre uma vez, use em todos os meses."
+      />
       <CidadesTable cidades={cidades} />
     </div>
   );

@@ -8,6 +8,14 @@ Segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e
 > Ao publicar uma versão, atualize os dois — e o número em `package.json`.
 > Correção → _patch_ (1.9.x) · recurso → _minor_ (1.x.0) · quebra → _major_ (x.0.0).
 
+## [1.19.0] — 2026-08-29
+
+### Alterado
+- **Cadastros (Cidades, Equipes, Usuários) no padrão premium:** cartão de vidro
+  com cabeçalho fixo e zebra (`DataTable`), toolbar com contagem de registros e
+  botão de novo, e `PageHeader` padronizado. Mesmo CRUD (criar/editar/excluir)
+  do Funcionários. Reusa os componentes do design system.
+
 ## [1.18.0] — 2026-08-29
 
 ### Alterado
