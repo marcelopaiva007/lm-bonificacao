@@ -34,12 +34,12 @@ export const CHANGELOG: Versao[] = [
   {
     numero: "1.19.1",
     data: "2026-08-29",
-    titulo: "Números na fonte monoespaçada (padrão do design)",
+    titulo: "Nova tipografia: texto em Inter, números em mono",
     mudancas: [
       {
         tipo: "alterado",
         texto:
-          "Os números do sistema passam a usar a fonte Geist Mono com espaçamento ajustado — o mesmo tratamento do design de referência —, deixando valores e datas mais alinhados e legíveis. A fonte de texto continua a mesma (Geist).",
+          "O sistema passa a usar a fonte Inter no texto — mais limpa e legível para telas densas de dados. Os números (valores, datas, contadores) passam a usar a fonte monoespaçada Geist Mono com espaçamento ajustado, deixando as colunas mais alinhadas.",
       },
     ],
   },

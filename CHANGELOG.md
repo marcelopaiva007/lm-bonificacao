@@ -11,9 +11,11 @@ Segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e
 ## [1.19.1] — 2026-08-29
 
 ### Alterado
-- **Números em Geist Mono:** a utility `num` passa a aplicar `font-family` Geist
-  Mono + `letter-spacing: -0.01em` (além de `tabular-nums`), igual ao design de
-  referência do Lovable — a fonte de texto (Geist) permanece a mesma.
+- **Nova tipografia:** texto do sistema passa a usar **Inter** (via `next/font`,
+  exposta como `--font-sans`), mais limpa para telas de dados. Os números (utility
+  `num` e `font-mono`) usam **Geist Mono** + `letter-spacing: -0.01em` +
+  `tabular-nums`, deixando colunas mais alinhadas. Também corrige a fiação do token
+  `--font-sans` (antes referenciava a si mesmo).
 
 ## [1.19.0] — 2026-08-29
 
