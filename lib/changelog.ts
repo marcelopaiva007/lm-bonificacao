@@ -32,6 +32,18 @@ export type Versao = {
 /** Mais recente primeiro. */
 export const CHANGELOG: Versao[] = [
   {
+    numero: "1.19.1",
+    data: "2026-08-29",
+    titulo: "Números na fonte monoespaçada (padrão do design)",
+    mudancas: [
+      {
+        tipo: "alterado",
+        texto:
+          "Os números do sistema passam a usar a fonte Geist Mono com espaçamento ajustado — o mesmo tratamento do design de referência —, deixando valores e datas mais alinhados e legíveis. A fonte de texto continua a mesma (Geist).",
+      },
+    ],
+  },
+  {
     numero: "1.19.0",
     data: "2026-08-29",
     titulo: "Cidades, Equipes e Usuários no padrão premium",

@@ -8,6 +8,13 @@ Segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e
 > Ao publicar uma versão, atualize os dois — e o número em `package.json`.
 > Correção → _patch_ (1.9.x) · recurso → _minor_ (1.x.0) · quebra → _major_ (x.0.0).
 
+## [1.19.1] — 2026-08-29
+
+### Alterado
+- **Números em Geist Mono:** a utility `num` passa a aplicar `font-family` Geist
+  Mono + `letter-spacing: -0.01em` (além de `tabular-nums`), igual ao design de
+  referência do Lovable — a fonte de texto (Geist) permanece a mesma.
+
 ## [1.19.0] — 2026-08-29
 
 ### Alterado
