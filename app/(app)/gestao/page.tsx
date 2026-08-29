@@ -6,6 +6,7 @@ import {
   desembolsoPorMes,
 } from "@/lib/gestao";
 import { getRegraVigente, asRegraConfig } from "@/lib/bonificacao";
+import { PageHeader } from "@/components/ui/page-header";
 import { GestaoView } from "./gestao-view";
 
 export const dynamic = "force-dynamic";
@@ -34,15 +35,11 @@ export default async function GestaoPage({
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">
-          Gestão — {periodoLabel(periodo)}
-        </h1>
-        <p className="text-muted-foreground">
-          O que se consulta antes de uma decisão que custa dinheiro: promover,
-          desligar, abrir vaga numa cidade ou mudar a regra de comissão.
-        </p>
-      </div>
+      <PageHeader
+        eyebrow="Gestão"
+        title={`Gestão — ${periodoLabel(periodo)}`}
+        description="O que se consulta antes de uma decisão que custa dinheiro: promover, desligar, abrir vaga numa cidade ou mudar a regra de comissão."
+      />
       <GestaoView
         periodo={periodo}
         consistencia={consistencia}

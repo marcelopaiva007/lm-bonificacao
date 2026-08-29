@@ -32,6 +32,18 @@ export type Versao = {
 /** Mais recente primeiro. */
 export const CHANGELOG: Versao[] = [
   {
+    numero: "1.17.0",
+    data: "2026-08-29",
+    titulo: "Tela de Gestão repaginada no padrão premium",
+    mudancas: [
+      {
+        tipo: "alterado",
+        texto:
+          "A tela de Gestão ganhou o mesmo acabamento do Painel: cabeçalho padronizado, tabelas em cartões de vidro com cabeçalho fixo e zebra, minigráfico (sparkline) de 6 meses colorido pela tendência de cada vendedor, e o Simulador de regra em destaque com borda de acento. Mesmos dados e cálculos — só o visual.",
+      },
+    ],
+  },
+  {
     numero: "1.16.0",
     data: "2026-08-29",
     titulo: "Tema claro (opcional) com botão para alternar",

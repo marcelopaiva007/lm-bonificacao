@@ -5,14 +5,9 @@ import { TrendingUp, TrendingDown, Minus, FlaskConical } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { ChartCard } from "@/components/ui/chart-card";
+import { DataTable, type Column } from "@/components/ui/data-table";
+import { Sparkline } from "@/components/ui/sparkline";
 import { simular, type RespostaSimulacao } from "@/lib/actions/simulacao";
 
 type Consistencia = {
@@ -57,25 +52,10 @@ function classeCusto(v: number | null) {
 }
 
 const TENDENCIA = {
-  subindo: { Icone: TrendingUp, classe: "text-ok", rotulo: "subindo" },
-  caindo: { Icone: TrendingDown, classe: "text-bad", rotulo: "caindo" },
-  estavel: { Icone: Minus, classe: "text-muted-foreground", rotulo: "estável" },
+  subindo: { Icone: TrendingUp, classe: "text-ok", rotulo: "subindo", tone: "success" },
+  caindo: { Icone: TrendingDown, classe: "text-bad", rotulo: "caindo", tone: "destructive" },
+  estavel: { Icone: Minus, classe: "text-muted-foreground", rotulo: "estável", tone: "primary" },
 } as const;
-
-function Sparkline({ serie }: { serie: number[] }) {
-  const max = Math.max(...serie, 1);
-  return (
-    <span className="inline-flex h-6 items-end gap-0.5" aria-hidden>
-      {serie.map((v, i) => (
-        <span
-          key={i}
-          className={`w-1.5 rounded-t bg-brand ${i === serie.length - 1 ? "" : "opacity-50"}`}
-          style={{ height: `${Math.max((v / max) * 100, 4)}%` }}
-        />
-      ))}
-    </span>
-  );
-}
 
 export function GestaoView({
   periodo,
@@ -92,139 +72,154 @@ export function GestaoView({
   faixasAtuais: Faixa[];
   metaChipAtual: { metaQtd: number; valor: number };
 }) {
-  return (
-    <div className="space-y-6">
-      <section className="space-y-2">
-        <h2 className="text-lg font-medium">
-          Consistência das pessoas{" "}
-          <span className="text-sm font-normal text-muted-foreground">
-            — quem sustenta resultado, não quem teve um mês bom
-          </span>
-        </h2>
-        <div className="surface-card overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Vendedor</TableHead>
-                <TableHead className="w-28">6 meses</TableHead>
-                <TableHead className="w-28 text-right">Meses com venda</TableHead>
-                <TableHead className="w-32 text-right">Média/mês</TableHead>
-                <TableHead className="w-28 text-right">Tendência</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {consistencia.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={5} className="py-6 text-center text-muted-foreground">
-                    Sem histórico suficiente ainda.
-                  </TableCell>
-                </TableRow>
-              )}
-              {consistencia.map((c) => {
-                const t = TENDENCIA[c.tendencia];
-                return (
-                  <TableRow key={c.nome}>
-                    <TableCell className="font-medium">{c.nome}</TableCell>
-                    <TableCell>
-                      <Sparkline serie={c.serie} />
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <span
-                        className={`rounded px-1.5 py-0.5 text-xs font-medium ${
-                          c.mesesComVenda === c.totalMeses
-                            ? "bg-ok/15 text-ok"
-                            : c.mesesComVenda >= c.totalMeses / 2
-                              ? "bg-warn/15 text-warn"
-                              : "bg-bad/15 text-bad"
-                        }`}
-                      >
-                        {c.mesesComVenda} de {c.totalMeses}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-right">{fmtMoeda(c.mediaMes)}</TableCell>
-                    <TableCell className={`text-right ${t.classe}`}>
-                      <span className="inline-flex items-center gap-1 text-xs">
-                        <t.Icone className="size-3.5" />
-                        {t.rotulo}
-                      </span>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
+  const colsConsistencia: Column<Consistencia>[] = [
+    { key: "nome", header: "Vendedor", cell: (c) => <span className="font-medium">{c.nome}</span> },
+    {
+      key: "serie",
+      header: "6 meses",
+      width: "132px",
+      cell: (c) => (
+        <div className="w-28">
+          <Sparkline data={c.serie} tone={TENDENCIA[c.tendencia].tone} />
         </div>
-      </section>
+      ),
+    },
+    {
+      key: "meses",
+      header: "Meses com venda",
+      align: "center",
+      width: "128px",
+      cell: (c) => (
+        <span
+          className={`inline-flex rounded-md px-1.5 py-0.5 text-xs font-medium ${
+            c.mesesComVenda === c.totalMeses
+              ? "bg-ok/15 text-ok"
+              : c.mesesComVenda >= c.totalMeses / 2
+                ? "bg-warn/15 text-warn"
+                : "bg-bad/15 text-bad"
+          }`}
+        >
+          {c.mesesComVenda} de {c.totalMeses}
+        </span>
+      ),
+    },
+    {
+      key: "media",
+      header: "Média/mês",
+      align: "right",
+      width: "128px",
+      cell: (c) => fmtMoeda(c.mediaMes),
+    },
+    {
+      key: "tendencia",
+      header: "Tendência",
+      align: "center",
+      width: "120px",
+      cell: (c) => {
+        const t = TENDENCIA[c.tendencia];
+        return (
+          <span className={`inline-flex items-center gap-1 text-xs font-medium ${t.classe}`}>
+            <t.Icone className="size-3.5" />
+            {t.rotulo}
+          </span>
+        );
+      },
+    },
+  ];
+
+  const colsCidades: Column<Cidade>[] = [
+    { key: "cidade", header: "Cidade", cell: (c) => <span className="font-medium">{c.cidade}</span> },
+    { key: "vend", header: "Vend.", align: "right", width: "64px", cell: (c) => c.vendedores },
+    {
+      key: "porVend",
+      header: "Por vendedor",
+      align: "right",
+      width: "128px",
+      cell: (c) => fmtMoeda(c.porVendedor),
+    },
+    {
+      key: "custo",
+      header: "Custo",
+      align: "right",
+      width: "88px",
+      cell: (c) => <span className={classeCusto(c.custoComissao)}>{fmtPct(c.custoComissao)}</span>,
+    },
+  ];
+
+  const colsDesembolso: Column<Desembolso>[] = [
+    { key: "mes", header: "Mês", cell: (d) => <span className="font-medium">{d.label}</span> },
+    { key: "vendido", header: "Vendido", align: "right", width: "112px", cell: (d) => fmtMoeda(d.vendido) },
+    {
+      key: "comissao",
+      header: "Comissão",
+      align: "right",
+      width: "112px",
+      cell: (d) => fmtMoeda(d.comissao),
+    },
+    {
+      key: "pct",
+      header: "%",
+      align: "right",
+      width: "76px",
+      cell: (d) => (
+        <span className={`font-medium ${classeCusto(d.percentual)}`}>{fmtPct(d.percentual)}</span>
+      ),
+    },
+  ];
+
+  return (
+    <div className="space-y-4">
+      <ChartCard
+        title="Consistência das pessoas"
+        subtitle="Quem sustenta resultado, não quem teve um mês bom"
+        className="p-0 [&>div]:p-0"
+      >
+        <DataTable
+          columns={colsConsistencia}
+          rows={consistencia}
+          rowKey={(c) => c.nome}
+          minWidth="620px"
+          emptyTitle="Sem histórico suficiente ainda"
+          emptyHint="Assim que houver alguns meses de vendas, a consistência de cada pessoa aparece aqui."
+        />
+      </ChartCard>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <section className="space-y-2">
-          <h2 className="text-lg font-medium">
-            Cidades{" "}
-            <span className="text-sm font-normal text-muted-foreground">
-              — rendimento por vendedor
-            </span>
-          </h2>
-          <div className="surface-card overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Cidade</TableHead>
-                  <TableHead className="w-16 text-right">Vend.</TableHead>
-                  <TableHead className="w-32 text-right">Por vendedor</TableHead>
-                  <TableHead className="w-24 text-right">Custo</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {cidades.map((c) => (
-                  <TableRow key={c.cidade}>
-                    <TableCell className="font-medium">{c.cidade}</TableCell>
-                    <TableCell className="text-right">{c.vendedores}</TableCell>
-                    <TableCell className="text-right">{fmtMoeda(c.porVendedor)}</TableCell>
-                    <TableCell className={`text-right ${classeCusto(c.custoComissao)}`}>
-                      {fmtPct(c.custoComissao)}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-          <p className="text-xs text-muted-foreground">
-            O total sempre elege a cidade maior. Dividido por cabeça, aparece onde a
-            próxima vaga rende mais.
+        <ChartCard
+          title="Cidades"
+          subtitle="Rendimento por vendedor"
+          className="p-0 [&>div]:p-0"
+        >
+          <DataTable
+            columns={colsCidades}
+            rows={cidades}
+            rowKey={(c) => c.cidade}
+            minWidth="420px"
+            emptyTitle="Sem cidades no período"
+          />
+          <p className="px-5 py-3 text-xs text-muted-foreground">
+            O total sempre elege a cidade maior. Dividido por cabeça, aparece onde a próxima
+            vaga rende mais.
           </p>
-        </section>
+        </ChartCard>
 
-        <section className="space-y-2">
-          <h2 className="text-lg font-medium">Desembolso por mês</h2>
-          <div className="surface-card overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Mês</TableHead>
-                  <TableHead className="w-28 text-right">Vendido</TableHead>
-                  <TableHead className="w-28 text-right">Comissão</TableHead>
-                  <TableHead className="w-20 text-right">%</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {desembolso.map((d) => (
-                  <TableRow key={d.periodo}>
-                    <TableCell className="font-medium">{d.label}</TableCell>
-                    <TableCell className="text-right">{fmtMoeda(d.vendido)}</TableCell>
-                    <TableCell className="text-right">{fmtMoeda(d.comissao)}</TableCell>
-                    <TableCell className={`text-right font-medium ${classeCusto(d.percentual)}`}>
-                      {fmtPct(d.percentual)}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-          <p className="text-xs text-muted-foreground">
-            A coluna de percentual é o alarme: o total sobe junto com as vendas, o
-            percentual diz se a comissão está ficando mais cara.
+        <ChartCard
+          title="Desembolso por mês"
+          subtitle="O percentual é o alarme do custo"
+          className="p-0 [&>div]:p-0"
+        >
+          <DataTable
+            columns={colsDesembolso}
+            rows={desembolso}
+            rowKey={(d) => d.periodo}
+            minWidth="420px"
+            emptyTitle="Sem desembolso no período"
+          />
+          <p className="px-5 py-3 text-xs text-muted-foreground">
+            O total sobe junto com as vendas; o percentual diz se a comissão está ficando
+            mais cara.
           </p>
-        </section>
+        </ChartCard>
       </div>
 
       <Simulador periodo={periodo} faixasAtuais={faixasAtuais} metaChipAtual={metaChipAtual} />
@@ -260,15 +255,16 @@ function Simulador({
   }
 
   return (
-    <section className="space-y-2">
-      <h2 className="text-lg font-medium">
-        Simulador de regra{" "}
-        <span className="text-sm font-normal text-muted-foreground">— testa antes de valer</span>
-      </h2>
-      <div className="accent-card space-y-4 p-4">
+    <ChartCard
+      title="Simulador de regra"
+      subtitle="Testa uma regra hipotética antes de valer — nada é gravado"
+      className="ring-1 ring-accent/30"
+      actions={<FlaskConical className="size-4 text-accent" />}
+    >
+      <div className="space-y-4">
         <p className="text-sm text-muted-foreground">
-          Aplica uma regra hipotética sobre as vendas de <strong>{periodo}</strong> e
-          mostra o que teria custado. <strong>Nada é gravado.</strong>
+          Aplica uma regra hipotética sobre as vendas de <strong>{periodo}</strong> e mostra o
+          que teria custado. <strong>Nada é gravado.</strong>
         </p>
 
         <div className="space-y-2">
@@ -344,54 +340,62 @@ function Simulador({
           </Button>
         </div>
 
-        {resposta && !resposta.ok && (
-          <p className="text-sm text-bad">{resposta.error}</p>
-        )}
+        {resposta && !resposta.ok && <p className="text-sm text-bad">{resposta.error}</p>}
 
         {resposta?.ok && (
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Cenário</TableHead>
-                  <TableHead className="w-32 text-right">Teria custado</TableHead>
-                  <TableHead className="w-24 text-right">Custo</TableHead>
-                  <TableHead className="w-32 text-right">Diferença</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                <TableRow>
-                  <TableCell>Regra atual</TableCell>
-                  <TableCell className="text-right">
+          <div className="overflow-x-auto rounded-lg border border-border/60">
+            <table className="w-full border-collapse text-sm" style={{ minWidth: "520px" }}>
+              <thead>
+                <tr className="bg-elevated/90">
+                  <th className="border-b border-border px-4 py-2.5 text-left text-[11px] font-semibold tracking-[0.1em] text-muted-foreground uppercase">
+                    Cenário
+                  </th>
+                  <th className="border-b border-border px-4 py-2.5 text-right text-[11px] font-semibold tracking-[0.1em] text-muted-foreground uppercase">
+                    Teria custado
+                  </th>
+                  <th className="border-b border-border px-4 py-2.5 text-right text-[11px] font-semibold tracking-[0.1em] text-muted-foreground uppercase">
+                    Custo
+                  </th>
+                  <th className="border-b border-border px-4 py-2.5 text-right text-[11px] font-semibold tracking-[0.1em] text-muted-foreground uppercase">
+                    Diferença
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr className="border-b border-border/40">
+                  <td className="px-4 py-2.5">Regra atual</td>
+                  <td className="px-4 py-2.5 text-right font-mono tabular-nums">
                     {fmtMoeda(resposta.resultado.comissaoAtual)}
-                  </TableCell>
-                  <TableCell className={`text-right ${classeCusto(resposta.resultado.custoAtual)}`}>
+                  </td>
+                  <td
+                    className={`px-4 py-2.5 text-right font-mono tabular-nums ${classeCusto(resposta.resultado.custoAtual)}`}
+                  >
                     {fmtPct(resposta.resultado.custoAtual)}
-                  </TableCell>
-                  <TableCell className="text-right text-muted-foreground">—</TableCell>
-                </TableRow>
-                <TableRow>
-                  <TableCell className="font-medium">Regra simulada</TableCell>
-                  <TableCell className="text-right font-medium">
+                  </td>
+                  <td className="px-4 py-2.5 text-right text-muted-foreground">—</td>
+                </tr>
+                <tr>
+                  <td className="px-4 py-2.5 font-medium">Regra simulada</td>
+                  <td className="px-4 py-2.5 text-right font-mono font-medium tabular-nums">
                     {fmtMoeda(resposta.resultado.comissaoSimulada)}
-                  </TableCell>
-                  <TableCell
-                    className={`text-right font-medium ${classeCusto(resposta.resultado.custoSimulado)}`}
+                  </td>
+                  <td
+                    className={`px-4 py-2.5 text-right font-mono font-medium tabular-nums ${classeCusto(resposta.resultado.custoSimulado)}`}
                   >
                     {fmtPct(resposta.resultado.custoSimulado)}
-                  </TableCell>
-                  <TableCell
-                    className={`text-right font-medium ${
+                  </td>
+                  <td
+                    className={`px-4 py-2.5 text-right font-mono font-medium tabular-nums ${
                       resposta.resultado.diferenca > 0 ? "text-bad" : "text-ok"
                     }`}
                   >
                     {resposta.resultado.diferenca > 0 ? "+" : ""}
                     {fmtMoeda(resposta.resultado.diferenca)}
-                  </TableCell>
-                </TableRow>
-              </TableBody>
-            </Table>
-            <p className="p-2 text-xs text-muted-foreground">
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+            <p className="px-4 py-2.5 text-xs text-muted-foreground">
               {resposta.resultado.pessoasQueGanhamMais} pessoa(s) ganhariam mais ·{" "}
               {resposta.resultado.pessoasQueGanhamMenos} ganhariam menos.
               {resposta.resultado.custoSimulado !== null &&
@@ -401,6 +405,6 @@ function Simulador({
           </div>
         )}
       </div>
-    </section>
+    </ChartCard>
   );
 }
