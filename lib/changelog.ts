@@ -32,6 +32,23 @@ export type Versao = {
 /** Mais recente primeiro. */
 export const CHANGELOG: Versao[] = [
   {
+    numero: "1.20.0",
+    data: "2026-08-29",
+    titulo: "Pagamentos e Registro no padrão premium (e cards corrigidos)",
+    mudancas: [
+      {
+        tipo: "alterado",
+        texto:
+          "As telas de Pagamentos e Registro de alterações ganharam o cabeçalho padronizado e o acabamento premium (cartões de vidro). O Registro mantém as linhas expansíveis (ver antes/depois).",
+      },
+      {
+        tipo: "corrigido",
+        texto:
+          "Vários blocos em Pagamentos, Batimento e no painel de gestão apareciam sem cartão (sem borda/fundo) porque usavam um estilo que não existia mais. Agora aparecem com o cartão de vidro correto.",
+      },
+    ],
+  },
+  {
     numero: "1.19.1",
     data: "2026-08-29",
     titulo: "Nova tipografia: texto em Inter, números em mono",

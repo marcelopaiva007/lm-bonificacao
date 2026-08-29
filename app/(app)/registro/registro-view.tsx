@@ -61,7 +61,8 @@ export function RegistroView({
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-end gap-2">
+      <section className="surface overflow-hidden rounded-xl">
+        <div className="flex flex-wrap items-end gap-2 border-b border-border/60 p-4">
         <div className="space-y-1">
           <label htmlFor="periodo" className="text-sm text-muted-foreground">
             Filtrar por período
@@ -91,7 +92,6 @@ export function RegistroView({
         )}
       </div>
 
-      <div className="rounded-md border bg-background">
         <Table>
           <TableHeader>
             <TableRow>
@@ -115,7 +115,7 @@ export function RegistroView({
             ))}
           </TableBody>
         </Table>
-      </div>
+      </section>
 
       {alteracoes.length >= 300 && (
         <p className="text-sm text-muted-foreground">

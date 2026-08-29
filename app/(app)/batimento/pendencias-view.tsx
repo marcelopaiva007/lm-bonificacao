@@ -34,7 +34,7 @@ export function PendenciasView({
 
   if (nada) {
     return (
-      <div className="surface-card p-4 text-sm text-ok">
+      <div className="surface rounded-xl p-4 text-sm text-ok">
         Nenhuma pendência: todas as vendas do período têm vendedor identificado e
         nenhum nome precisou ser adivinhado.
       </div>
@@ -44,7 +44,7 @@ export function PendenciasView({
   return (
     <div className="space-y-4">
       {aproximados.length > 0 && (
-        <div className="surface-card overflow-x-auto">
+        <div className="surface rounded-xl overflow-x-auto">
           <div className="flex items-start gap-2 border-b p-3">
             <AlertTriangle className="mt-0.5 size-4 shrink-0 text-warn" />
             <div>
@@ -79,7 +79,7 @@ export function PendenciasView({
       )}
 
       {vendasSemVendedor > 0 && (
-        <div className="surface-card flex items-start gap-2 p-3">
+        <div className="surface rounded-xl flex items-start gap-2 p-3">
           <UserSearch className="mt-0.5 size-4 shrink-0 text-bad" />
           <div>
             <p className="text-sm font-medium">
@@ -95,7 +95,7 @@ export function PendenciasView({
       )}
 
       {semCadastro.length > 0 && (
-        <div className="surface-card flex items-start gap-2 p-3">
+        <div className="surface rounded-xl flex items-start gap-2 p-3">
           <UserPlus className="mt-0.5 size-4 shrink-0 text-warn" />
           <div>
             <p className="text-sm font-medium">

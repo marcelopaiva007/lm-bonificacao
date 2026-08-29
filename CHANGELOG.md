@@ -8,6 +8,18 @@ Segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e
 > Ao publicar uma versão, atualize os dois — e o número em `package.json`.
 > Correção → _patch_ (1.9.x) · recurso → _minor_ (1.x.0) · quebra → _major_ (x.0.0).
 
+## [1.20.0] — 2026-08-29
+
+### Alterado
+- **Pagamentos e Registro no padrão premium:** `PageHeader` padronizado e
+  acabamento em cartões de vidro. O Registro mantém as linhas expansíveis
+  (antes/depois).
+
+### Corrigido
+- **Cards sem estilo:** blocos em Pagamentos, Batimento e painel de gestão usavam
+  as classes `surface-card`/`accent-card`, que não existem mais no CSS — ficavam
+  sem borda/fundo. Trocados pela utility `surface` (cartão de vidro) correta.
+
 ## [1.19.1] — 2026-08-29
 
 ### Alterado
