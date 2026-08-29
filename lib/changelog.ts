@@ -32,6 +32,18 @@ export type Versao = {
 /** Mais recente primeiro. */
 export const CHANGELOG: Versao[] = [
   {
+    numero: "1.18.0",
+    data: "2026-08-29",
+    titulo: "Funcionários e Regras no padrão premium",
+    mudancas: [
+      {
+        tipo: "alterado",
+        texto:
+          "Funcionários ganhou o padrão premium de tabela: busca no topo, cabeçalho fixo, situação em selo colorido (verde/cinza), inicial do nome em avatar e contagem de registros no rodapé. A tela de Regras de Bonificação ganhou o cabeçalho padronizado e um aviso explicando que cada mudança cria uma nova vigência. Mesmas funções — cadastrar, editar, excluir e criar vigência continuam iguais.",
+      },
+    ],
+  },
+  {
     numero: "1.17.0",
     data: "2026-08-29",
     titulo: "Tela de Gestão repaginada no padrão premium",
