@@ -2,7 +2,7 @@
 
 import { useActionState, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil, Trash2, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,15 +22,7 @@ import {
   DialogFooter,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
+import { DataTable, StatusBadge, type Column } from "@/components/ui/data-table";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   createFuncionario,
@@ -85,85 +77,108 @@ export function FuncionariosTable({
     );
   }, [funcionarios, busca]);
 
+  const cols: Column<Funcionario>[] = [
+    {
+      key: "nome",
+      header: "Nome",
+      cell: (f) => (
+        <div className="flex min-w-0 items-center gap-2.5">
+          <span className="grid size-7 shrink-0 place-items-center rounded-full bg-primary/15 text-[10px] font-bold text-accent">
+            {f.nome
+              .split(" ")
+              .map((p) => p[0])
+              .slice(0, 2)
+              .join("")}
+          </span>
+          <span className={`truncate font-medium ${f.ativo ? "" : "text-muted-foreground"}`}>
+            {f.nome}
+          </span>
+        </div>
+      ),
+    },
+    { key: "cpf", header: "CPF", cell: (f) => <span className="num text-muted-foreground">{f.cpf ?? "—"}</span> },
+    { key: "cargo", header: "Cargo", cell: (f) => cargoLabel(f.cargo) },
+    { key: "cidade", header: "Cidade", cell: (f) => f.cidade?.nome ?? "—" },
+    { key: "equipe", header: "Equipe", cell: (f) => f.equipe?.nome ?? "—" },
+    {
+      key: "status",
+      header: "Situação",
+      cell: (f) => (
+        <button
+          type="button"
+          className="cursor-pointer"
+          onClick={async () => {
+            const result = await toggleFuncionarioAtivo(f.id, !f.ativo);
+            if (result.ok)
+              toast.success(f.ativo ? "Funcionário desativado." : "Funcionário ativado.");
+          }}
+        >
+          <StatusBadge status={f.ativo ? "Ativo" : "Inativo"} />
+        </button>
+      ),
+    },
+    {
+      key: "acoes",
+      header: "Ações",
+      align: "right",
+      width: "96px",
+      cell: (f) => (
+        <div className="flex justify-end gap-1">
+          <Button variant="ghost" size="icon" aria-label="Editar" onClick={() => setEditFuncionario(f)}>
+            <Pencil className="size-4" />
+          </Button>
+          <DeleteFuncionarioButton funcionario={f} />
+        </div>
+      ),
+    },
+  ];
+
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-4">
-        <Input
-          placeholder="Buscar por nome, cidade ou cargo..."
-          value={busca}
-          onChange={(e) => setBusca(e.target.value)}
-          className="max-w-sm"
-        />
-        <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-          <DialogTrigger render={<Button />}>
-            <Plus className="size-4" />
-            Novo Funcionário
-          </DialogTrigger>
-          <DialogContent>
-            <FuncionarioForm
-              action={createFuncionario}
-              title="Novo Funcionário"
-              cidades={cidades}
-              equipes={equipes}
-              onSuccess={() => setCreateOpen(false)}
+      <section className="surface overflow-hidden rounded-xl">
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-border/60 p-4">
+          <div className="relative min-w-0">
+            <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Buscar por nome, cidade ou cargo..."
+              value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+              className="h-9 bg-background/60 pl-9"
             />
-          </DialogContent>
-        </Dialog>
-      </div>
+          </div>
+          <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+            <DialogTrigger render={<Button className="shrink-0" />}>
+              <Plus className="size-4" />
+              Novo funcionário
+            </DialogTrigger>
+            <DialogContent>
+              <FuncionarioForm
+                action={createFuncionario}
+                title="Novo Funcionário"
+                cidades={cidades}
+                equipes={equipes}
+                onSuccess={() => setCreateOpen(false)}
+              />
+            </DialogContent>
+          </Dialog>
+        </div>
 
-      <div className="rounded-md border bg-background">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Nome</TableHead>
-              <TableHead>CPF</TableHead>
-              <TableHead>Cargo</TableHead>
-              <TableHead>Cidade</TableHead>
-              <TableHead>Equipe</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="w-24 text-right">Ações</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filtrados.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={7} className="py-8 text-center text-muted-foreground">
-                  Nenhum funcionário encontrado.
-                </TableCell>
-              </TableRow>
-            )}
-            {filtrados.map((f) => (
-              <TableRow key={f.id} className={f.ativo ? "" : "opacity-60"}>
-                <TableCell className="font-medium">{f.nome}</TableCell>
-                <TableCell>{f.cpf ?? "—"}</TableCell>
-                <TableCell>{cargoLabel(f.cargo)}</TableCell>
-                <TableCell>{f.cidade?.nome ?? "—"}</TableCell>
-                <TableCell>{f.equipe?.nome ?? "—"}</TableCell>
-                <TableCell>
-                  <button
-                    onClick={async () => {
-                      const result = await toggleFuncionarioAtivo(f.id, !f.ativo);
-                      if (result.ok) toast.success(f.ativo ? "Funcionário desativado." : "Funcionário ativado.");
-                    }}
-                  >
-                    <Badge variant={f.ativo ? "default" : "secondary"}>
-                      {f.ativo ? "Ativo" : "Inativo"}
-                    </Badge>
-                  </button>
-                </TableCell>
-                <TableCell className="text-right">
-                  <div className="flex justify-end gap-1">
-                    <Button variant="ghost" size="icon" onClick={() => setEditFuncionario(f)}>
-                      <Pencil className="size-4" />
-                    </Button>
-                    <DeleteFuncionarioButton funcionario={f} />
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
+        <DataTable
+          columns={cols}
+          rows={filtrados}
+          rowKey={(f) => f.id}
+          minWidth="820px"
+          maxHeight="620px"
+          emptyTitle="Nenhum funcionário encontrado"
+          emptyHint="Revise o termo buscado ou cadastre um novo funcionário."
+        />
+
+        <div className="border-t border-border/60 px-4 py-3 text-xs text-muted-foreground">
+          <span className="num">
+            {filtrados.length} de {funcionarios.length} registros
+          </span>
+        </div>
+      </section>
 
       <Dialog open={!!editFuncionario} onOpenChange={(open) => !open && setEditFuncionario(null)}>
         <DialogContent>

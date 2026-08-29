@@ -8,6 +8,19 @@ Segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e
 > Ao publicar uma versão, atualize os dois — e o número em `package.json`.
 > Correção → _patch_ (1.9.x) · recurso → _minor_ (1.x.0) · quebra → _major_ (x.0.0).
 
+## [1.18.0] — 2026-08-29
+
+### Alterado
+- **Funcionários (padrão premium de tabela):** busca no topo, cartão de vidro com
+  cabeçalho fixo e zebra (`DataTable`), avatar com inicial do nome, situação em
+  selo colorido (`StatusBadge`) e contagem de registros no rodapé. `PageHeader`
+  padronizado. Cadastrar/editar/excluir/ativar continuam idênticos.
+- **Regras de Bonificação:** `PageHeader` padronizado e um aviso (banner de
+  acento) explicando que cada mudança cria uma nova vigência sem sobrescrever o
+  histórico. Nenhuma mudança na lógica do formulário/vigências.
+- Estabelece os dois padrões-referência (tabela e formulário) portados do design
+  premium para o restante das telas seguir.
+
 ## [1.17.0] — 2026-08-29
 
 ### Alterado
