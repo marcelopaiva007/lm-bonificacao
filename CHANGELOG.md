@@ -8,6 +8,16 @@ Segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e
 > Ao publicar uma versão, atualize os dois — e o número em `package.json`.
 > Correção → _patch_ (1.9.x) · recurso → _minor_ (1.x.0) · quebra → _major_ (x.0.0).
 
+## [1.16.0] — 2026-08-29
+
+### Adicionado
+- **Tema claro (opcional):** dá para escolher entre o tema **escuro** (padrão,
+  como sempre foi) e um **tema claro**. O botão (sol/lua) fica no rodapé do menu
+  lateral e no canto da tela de login; a escolha fica salva no navegador. O tema
+  é gerido pelo `next-themes` (classe `dark` no `<html>`), com paleta clara real
+  em `:root` e a navy em `.dark`. O painel de marca do login permanece escuro nos
+  dois temas (texto branco). Nada muda para quem ficar no escuro.
+
 ## [1.15.2] — 2026-08-28
 
 ### Corrigido

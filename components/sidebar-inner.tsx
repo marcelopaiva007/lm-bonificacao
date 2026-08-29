@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { gruposByRole, diretoriaGrupos } from "@/components/nav-config";
 import { Logo } from "@/components/logo";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 const ROLE_LABELS: Record<string, string> = {
   ADMIN: "Administrativo/Financeiro",
@@ -110,6 +111,7 @@ export function SidebarInner({
           </div>
           <KeyRound className="size-4 shrink-0 text-muted-foreground" />
         </Link>
+        <ThemeToggle />
         <Button
           variant="ghost"
           size="sm"
