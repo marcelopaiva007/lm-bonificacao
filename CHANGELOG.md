@@ -8,6 +8,16 @@ Segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e
 > Ao publicar uma versão, atualize os dois — e o número em `package.json`.
 > Correção → _patch_ (1.9.x) · recurso → _minor_ (1.x.0) · quebra → _major_ (x.0.0).
 
+## [1.17.0] — 2026-08-29
+
+### Alterado
+- **Tela de Gestão repaginada (padrão premium):** cabeçalho padronizado
+  (`PageHeader`), tabelas em cartões de vidro com cabeçalho fixo e zebra
+  (`DataTable`), sparkline de 6 meses colorido pela tendência de cada vendedor
+  (`Sparkline`) e o Simulador de regra em destaque com borda de acento. Mesmos
+  dados, cálculos e lógica do simulador — só o visual. Reusa os componentes do
+  design system (v1.15.0) em vez de recriar tabelas.
+
 ## [1.16.0] — 2026-08-29
 
 ### Adicionado
