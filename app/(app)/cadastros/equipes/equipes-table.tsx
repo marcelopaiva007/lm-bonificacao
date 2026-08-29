@@ -21,14 +21,7 @@ import {
   DialogFooter,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { DataTable, type Column } from "@/components/ui/data-table";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { createEquipe, updateEquipe, deleteEquipe } from "@/lib/actions/cadastros";
@@ -56,69 +49,75 @@ export function EquipesTable({
   const [createOpen, setCreateOpen] = useState(false);
   const [editEquipe, setEditEquipe] = useState<Equipe | null>(null);
 
+  const cols: Column<Equipe>[] = [
+    { key: "nome", header: "Equipe", cell: (e) => <span className="font-medium">{e.nome}</span> },
+    { key: "sup", header: "Supervisor", cell: (e) => e.supervisor?.nome ?? "—" },
+    {
+      key: "membros",
+      header: "Membros",
+      align: "right",
+      width: "100px",
+      cell: (e) => e._count.membros,
+    },
+    {
+      key: "tamanho",
+      header: "Tamanho (bônus)",
+      width: "160px",
+      cell: (e) =>
+        e.supervisor ? (
+          <Badge variant="secondary">{e._count.membros + 1} pessoas</Badge>
+        ) : (
+          <span className="text-muted-foreground">sem supervisor</span>
+        ),
+    },
+    {
+      key: "acoes",
+      header: "Ações",
+      align: "right",
+      width: "96px",
+      cell: (e) => (
+        <div className="flex justify-end gap-1">
+          <Button variant="ghost" size="icon" aria-label="Editar" onClick={() => setEditEquipe(e)}>
+            <Pencil className="size-4" />
+          </Button>
+          <DeleteEquipeButton equipe={e} />
+        </div>
+      ),
+    },
+  ];
+
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
-        <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-          <DialogTrigger render={<Button />}>
-            <Plus className="size-4" />
-            Nova Equipe
-          </DialogTrigger>
-          <DialogContent>
-            <EquipeForm
-              action={createEquipe}
-              title="Nova Equipe"
-              supervisores={supervisores}
-              onSuccess={() => setCreateOpen(false)}
-            />
-          </DialogContent>
-        </Dialog>
-      </div>
+      <section className="surface overflow-hidden rounded-xl">
+        <div className="flex items-center justify-between gap-3 border-b border-border/60 p-4">
+          <p className="text-xs text-muted-foreground">
+            <span className="num">{equipes.length}</span> {equipes.length === 1 ? "equipe" : "equipes"}
+          </p>
+          <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+            <DialogTrigger render={<Button size="sm" className="shrink-0" />}>
+              <Plus className="size-4" />
+              Nova equipe
+            </DialogTrigger>
+            <DialogContent>
+              <EquipeForm
+                action={createEquipe}
+                title="Nova Equipe"
+                supervisores={supervisores}
+                onSuccess={() => setCreateOpen(false)}
+              />
+            </DialogContent>
+          </Dialog>
+        </div>
 
-      <div className="rounded-md border bg-background">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Equipe</TableHead>
-              <TableHead>Supervisor</TableHead>
-              <TableHead>Membros</TableHead>
-              <TableHead>Tamanho (bônus)</TableHead>
-              <TableHead className="w-24 text-right">Ações</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {equipes.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={5} className="py-8 text-center text-muted-foreground">
-                  Nenhuma equipe cadastrada ainda.
-                </TableCell>
-              </TableRow>
-            )}
-            {equipes.map((equipe) => (
-              <TableRow key={equipe.id}>
-                <TableCell className="font-medium">{equipe.nome}</TableCell>
-                <TableCell>{equipe.supervisor?.nome ?? "—"}</TableCell>
-                <TableCell>{equipe._count.membros}</TableCell>
-                <TableCell>
-                  {equipe.supervisor ? (
-                    <Badge variant="secondary">{equipe._count.membros + 1} pessoas</Badge>
-                  ) : (
-                    <span className="text-muted-foreground">sem supervisor</span>
-                  )}
-                </TableCell>
-                <TableCell className="text-right">
-                  <div className="flex justify-end gap-1">
-                    <Button variant="ghost" size="icon" onClick={() => setEditEquipe(equipe)}>
-                      <Pencil className="size-4" />
-                    </Button>
-                    <DeleteEquipeButton equipe={equipe} />
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
+        <DataTable
+          columns={cols}
+          rows={equipes}
+          rowKey={(e) => e.id}
+          minWidth="620px"
+          emptyTitle="Nenhuma equipe cadastrada ainda"
+          emptyHint="Clique em “Nova equipe” para começar."
+        />
+      </section>
 
       <Dialog open={!!editEquipe} onOpenChange={(open) => !open && setEditEquipe(null)}>
         <DialogContent>

@@ -21,14 +21,7 @@ import {
   DialogFooter,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { DataTable, type Column } from "@/components/ui/data-table";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { createUsuario, updateUsuario, deleteUsuario } from "@/lib/actions/usuarios";
@@ -56,69 +49,74 @@ export function UsuariosTable({
   const [createOpen, setCreateOpen] = useState(false);
   const [editUsuario, setEditUsuario] = useState<Usuario | null>(null);
 
+  const cols: Column<Usuario>[] = [
+    {
+      key: "nome",
+      header: "Nome",
+      cell: (u) => (
+        <span className="font-medium">
+          {u.nome}
+          {u.id === currentUserId && (
+            <span className="ml-2 text-xs font-normal text-muted-foreground">(você)</span>
+          )}
+        </span>
+      ),
+    },
+    { key: "login", header: "Login", cell: (u) => <span className="text-muted-foreground">{u.username}</span> },
+    {
+      key: "papel",
+      header: "Papel",
+      cell: (u) => (
+        <Badge variant={u.role === "ADMIN" ? "default" : "secondary"}>{roleLabel(u.role)}</Badge>
+      ),
+    },
+    {
+      key: "acoes",
+      header: "Ações",
+      align: "right",
+      width: "96px",
+      cell: (u) => (
+        <div className="flex justify-end gap-1">
+          <Button variant="ghost" size="icon" aria-label="Editar" onClick={() => setEditUsuario(u)}>
+            <Pencil className="size-4" />
+          </Button>
+          {u.id !== currentUserId && <DeleteUsuarioButton usuario={u} />}
+        </div>
+      ),
+    },
+  ];
+
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
-        <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-          <DialogTrigger render={<Button />}>
-            <Plus className="size-4" />
-            Novo Usuário
-          </DialogTrigger>
-          <DialogContent>
-            <UsuarioForm
-              action={createUsuario}
-              title="Novo Usuário"
-              onSuccess={() => setCreateOpen(false)}
-            />
-          </DialogContent>
-        </Dialog>
-      </div>
+      <section className="surface overflow-hidden rounded-xl">
+        <div className="flex items-center justify-between gap-3 border-b border-border/60 p-4">
+          <p className="text-xs text-muted-foreground">
+            <span className="num">{usuarios.length}</span> {usuarios.length === 1 ? "usuário" : "usuários"}
+          </p>
+          <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+            <DialogTrigger render={<Button size="sm" className="shrink-0" />}>
+              <Plus className="size-4" />
+              Novo usuário
+            </DialogTrigger>
+            <DialogContent>
+              <UsuarioForm
+                action={createUsuario}
+                title="Novo Usuário"
+                onSuccess={() => setCreateOpen(false)}
+              />
+            </DialogContent>
+          </Dialog>
+        </div>
 
-      <div className="rounded-md border bg-background">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Nome</TableHead>
-              <TableHead>Login</TableHead>
-              <TableHead>Papel</TableHead>
-              <TableHead className="w-24 text-right">Ações</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {usuarios.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={4} className="py-8 text-center text-muted-foreground">
-                  Nenhum usuário cadastrado ainda.
-                </TableCell>
-              </TableRow>
-            )}
-            {usuarios.map((u) => (
-              <TableRow key={u.id}>
-                <TableCell className="font-medium">
-                  {u.nome}
-                  {u.id === currentUserId && (
-                    <span className="ml-2 text-xs text-muted-foreground">(você)</span>
-                  )}
-                </TableCell>
-                <TableCell>{u.username}</TableCell>
-                <TableCell>
-                  <Badge variant={u.role === "ADMIN" ? "default" : "secondary"}>
-                    {roleLabel(u.role)}
-                  </Badge>
-                </TableCell>
-                <TableCell className="text-right">
-                  <div className="flex justify-end gap-1">
-                    <Button variant="ghost" size="icon" onClick={() => setEditUsuario(u)}>
-                      <Pencil className="size-4" />
-                    </Button>
-                    {u.id !== currentUserId && <DeleteUsuarioButton usuario={u} />}
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
+        <DataTable
+          columns={cols}
+          rows={usuarios}
+          rowKey={(u) => u.id}
+          minWidth="520px"
+          emptyTitle="Nenhum usuário cadastrado ainda"
+          emptyHint="Clique em “Novo usuário” para começar."
+        />
+      </section>
 
       <Dialog open={!!editUsuario} onOpenChange={(open) => !open && setEditUsuario(null)}>
         <DialogContent>

@@ -32,6 +32,18 @@ export type Versao = {
 /** Mais recente primeiro. */
 export const CHANGELOG: Versao[] = [
   {
+    numero: "1.19.0",
+    data: "2026-08-29",
+    titulo: "Cidades, Equipes e Usuários no padrão premium",
+    mudancas: [
+      {
+        tipo: "alterado",
+        texto:
+          "As telas de Cadastros (Cidades, Equipes e Usuários) ganharam o mesmo padrão de tabela do Funcionários: cartão de vidro com cabeçalho fixo, contagem de registros e cabeçalho de página padronizado. Cadastrar, editar e excluir continuam iguais.",
+      },
+    ],
+  },
+  {
     numero: "1.18.0",
     data: "2026-08-29",
     titulo: "Funcionários e Regras no padrão premium",
