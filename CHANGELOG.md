@@ -8,6 +8,15 @@ Segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e
 > Ao publicar uma versão, atualize os dois — e o número em `package.json`.
 > Correção → _patch_ (1.9.x) · recurso → _minor_ (1.x.0) · quebra → _major_ (x.0.0).
 
+## [1.19.1] — 2026-08-29
+
+### Alterado
+- **Nova tipografia:** texto do sistema passa a usar **Inter** (via `next/font`,
+  exposta como `--font-sans`), mais limpa para telas de dados. Os números (utility
+  `num` e `font-mono`) usam **Geist Mono** + `letter-spacing: -0.01em` +
+  `tabular-nums`, deixando colunas mais alinhadas. Também corrige a fiação do token
+  `--font-sans` (antes referenciava a si mesmo).
+
 ## [1.19.0] — 2026-08-29
 
 ### Alterado

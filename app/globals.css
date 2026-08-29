@@ -156,7 +156,9 @@
 /* Números tabulares (dígitos alinhados em coluna). Usada como `num` em várias
    telas. */
 @utility num {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
   font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
 }
 
 /* Painel de vidro: superfície translúcida com blur e sombra de profundidade.

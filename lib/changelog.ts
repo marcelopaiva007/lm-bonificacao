@@ -32,6 +32,18 @@ export type Versao = {
 /** Mais recente primeiro. */
 export const CHANGELOG: Versao[] = [
   {
+    numero: "1.19.1",
+    data: "2026-08-29",
+    titulo: "Nova tipografia: texto em Inter, números em mono",
+    mudancas: [
+      {
+        tipo: "alterado",
+        texto:
+          "O sistema passa a usar a fonte Inter no texto — mais limpa e legível para telas densas de dados. Os números (valores, datas, contadores) passam a usar a fonte monoespaçada Geist Mono com espaçamento ajustado, deixando as colunas mais alinhadas.",
+      },
+    ],
+  },
+  {
     numero: "1.19.0",
     data: "2026-08-29",
     titulo: "Cidades, Equipes e Usuários no padrão premium",
