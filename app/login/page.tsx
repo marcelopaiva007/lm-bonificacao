@@ -1,6 +1,7 @@
 import { Activity, CalendarCheck, Trophy } from "lucide-react";
 import { LoginForm } from "./login-form";
 import { Logo } from "@/components/logo";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { versaoDoSistema } from "@/lib/versao";
 
 const DESTAQUES = [
@@ -14,8 +15,13 @@ export default function LoginPage() {
 
   return (
     <div className="flex min-h-screen w-full flex-1 flex-col lg:flex-row">
-      {/* Coluna de marca — só no desktop */}
-      <div className="relative hidden flex-1 flex-col justify-between overflow-hidden border-r border-sidebar-border bg-sidebar p-10 lg:flex">
+      {/* Coluna de marca — só no desktop. Fica SEMPRE escura (nos dois temas):
+          é um showcase de marca com texto branco; deixá-la clara apagaria o
+          texto. Fundo navy fixo, independente do tema. */}
+      <div
+        className="relative hidden flex-1 flex-col justify-between overflow-hidden border-r border-white/10 p-10 lg:flex"
+        style={{ background: "oklch(0.18 0.055 268)" }}
+      >
         {/* Base escura com um leve banho do gradiente de marca — mantém o painel
             navy para o logo/texto brancos lerem com nitidez, sem o gradiente
             claro chapado (que apagava o logo). */}
@@ -65,6 +71,9 @@ export default function LoginPage() {
 
       {/* Coluna do formulário */}
       <div className="relative flex flex-1 items-center justify-center px-4 py-12 sm:px-6 lg:px-10">
+        <div className="absolute top-4 right-4 z-20">
+          <ThemeToggle compact />
+        </div>
         <div className="relative z-10 w-full max-w-[420px]">
           {/* Cabeçalho compacto da marca no mobile */}
           <div className="mb-8 flex flex-col items-center gap-2 text-center lg:hidden">

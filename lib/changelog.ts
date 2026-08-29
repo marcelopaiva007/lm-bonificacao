@@ -32,6 +32,18 @@ export type Versao = {
 /** Mais recente primeiro. */
 export const CHANGELOG: Versao[] = [
   {
+    numero: "1.16.0",
+    data: "2026-08-29",
+    titulo: "Tema claro (opcional) com botão para alternar",
+    mudancas: [
+      {
+        tipo: "adicionado",
+        texto:
+          "Agora dá para escolher entre tema escuro (padrão, como sempre foi) e tema claro. O botão fica no rodapé do menu lateral (e no canto da tela de login), com sol/lua, e a escolha fica salva no seu navegador. Nada muda para quem quiser continuar no escuro.",
+      },
+    ],
+  },
+  {
     numero: "1.15.2",
     data: "2026-08-28",
     titulo: "Login: logo volta a aparecer",
