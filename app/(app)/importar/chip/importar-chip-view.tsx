@@ -108,6 +108,7 @@ export function ImportarChipView({ periodoInicial }: { periodoInicial: string })
 
   const naoMapeados = (linhas ?? []).filter((l) => !l.funcionarioId);
   const totalAprovado = (linhas ?? []).reduce((acc, l) => acc + l.aprovado, 0);
+  const totalCancelado = (linhas ?? []).reduce((acc, l) => acc + l.cancelado, 0);
 
   return (
     <div className="space-y-6">
@@ -166,7 +167,8 @@ export function ImportarChipView({ periodoInicial }: { periodoInicial: string })
       <Card>
         <CardHeader>
           <CardTitle>
-            Vendas por vendedor — {totalAprovado} linha(s)
+            Vendas por vendedor — {totalAprovado} aprovada(s), {totalCancelado}{" "}
+            cancelada(s)
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -182,7 +184,9 @@ export function ImportarChipView({ periodoInicial }: { periodoInicial: string })
                 <TableRow>
                   <TableHead>Vendedor (sistema móvel)</TableHead>
                   <TableHead>Funcionário mapeado</TableHead>
-                  <TableHead className="text-right">Linhas</TableHead>
+                  <TableHead className="text-right">Vendas</TableHead>
+                  <TableHead className="text-right">Aprovadas</TableHead>
+                  <TableHead className="text-right">Canceladas</TableHead>
                   <TableHead>Situação</TableHead>
                 </TableRow>
               </TableHeader>
@@ -195,7 +199,9 @@ export function ImportarChipView({ periodoInicial }: { periodoInicial: string })
                         <span className="text-muted-foreground">—</span>
                       )}
                     </TableCell>
+                    <TableCell className="text-right">{l.quantidade}</TableCell>
                     <TableCell className="text-right">{l.aprovado}</TableCell>
+                    <TableCell className="text-right">{l.cancelado}</TableCell>
                     <TableCell>
                       {l.funcionarioId ? (
                         <Badge variant="outline" className="gap-1">

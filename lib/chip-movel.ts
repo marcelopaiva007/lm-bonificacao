@@ -1,101 +1,202 @@
 import "server-only";
 import { prisma } from "@/lib/prisma";
 import { recalcularFechamento } from "@/lib/bonificacao";
-import { matchFuncionario } from "@/lib/vendedor-match";
-import {
-  fetchRankingVendedores,
-  periodoParaMesAno,
-  type DashboardRankingVendedor,
-} from "@/lib/movel-dashboard-api";
+import { matchFuncionario, somenteDigitos } from "@/lib/vendedor-match";
 
-// Importação das vendas de chip do L&M Móvel via API EXTERNA agregada
-// (https://movel.assinelm.com/api/v1/vendas/dashboard). Substituiu, em ago/2026,
-// o antigo sync por login+JWT que puxava as vendas linha a linha
-// (/vendas/sales) — a API externa é autenticada por um token estático
-// (MOVEL_DASHBOARD_TOKEN), estável, e não quebra quando a senha da plataforma
-// muda. O cliente HTTP tipado está em lib/movel-dashboard-api.ts.
+// Importação automática das vendas de chip do L&M Movel
+// (https://movel.assinelm.com — plataforma própria de gerenciamento de chips,
+// com API REST em /api). Diferente do elleven, não há scraping: a API devolve
+// JSON com a venda completa (vendedor com nome+CPF, cliente, ICCID, plano,
+// status e datas).
 //
-// TRADE-OFFS desta fonte agregada (assumidos na decisão de troca):
-//  - O ranking identifica o vendedor só pelo NOME (sem CPF): o casamento com o
-//    cadastro de Funcionários é por nome (matchFuncionario cai direto no nome).
-//  - Não há separação aprovado × cancelado por vendedor: usamos `linhas` como
-//    a quantidade que gera bônus. ⚠️ ISSO ASSUME QUE `linhas` JÁ EXCLUI as
-//    vendas canceladas no mês. Se o L&M Móvel contar canceladas em `linhas`, o
-//    bônus paga a mais — CONFIRMAR a semântica com o time do Móvel.
-//  - Sem detalhe por venda (ICCID, cliente, plano por vendedor).
-//
-// Fluxo (syncChipMovel): fetch ranking-vendedores -> snapshot agregado em
-// chip_movel_ranking -> casamento com o cadastro -> regrava os LancamentoVenda
-// de origem CHIP_MOVEL do período (quantidade = linhas) -> recalcularFechamento.
-// O cálculo do bônus continua 100% pelas regras LOCAIS. Rodar mais de uma vez
-// no mesmo mês não duplica nada (snapshot regravado + lançamentos regravados).
+// Fluxo (syncChipMovel): login -> GET /vendas/sales?year&month (paginado) ->
+// snapshot em venda_chip_movel -> agregação por vendedor + casamento com o
+// cadastro de Funcionários (CPF -> nome exato -> tokens em ordem) -> regrava os
+// LancamentoVenda de origem CHIP_MOVEL do período -> recalcularFechamento.
+// Rodar mais de uma vez no mesmo dia/mês não duplica nada (snapshot + regrava).
 //
 // Variáveis de ambiente:
-//   MOVEL_DASHBOARD_TOKEN — token Bearer da API externa
-//   MOVEL_API_BASE — opcional (default https://movel.assinelm.com/api)
+//   MOVEL_LOGIN, MOVEL_PASSWORD — conta da plataforma (email + senha)
+//   MOVEL_API_BASE — opcional, default https://movel.assinelm.com/api
+
+const MOVEL_API_BASE_DEFAULT = "https://movel.assinelm.com/api";
 
 // Valor de `origem` dos lançamentos gerados por esta importação. Os lançamentos
 // desse período+origem são regravados a cada sync — nunca misturar com origem
 // MANUAL/IMPORTADO, que são preservados.
 export const ORIGEM_CHIP_MOVEL = "CHIP_MOVEL";
 
-// Snapshot agregado por vendedor (uma linha por vendedor/período). Substitui o
-// antigo venda_chip_movel (linha a linha), que deixou de ser alimentado. Mesmo
-// padrão de ensure-table sob demanda dos demais (o build não roda migrate).
-let chipRankingTableEnsured = false;
-export async function ensureChipRankingTable(): Promise<void> {
-  if (chipRankingTableEnsured) return;
+const PAGE_LIMIT = 100;
+const MAX_PAGES = 100;
+
+type VendaApi = {
+  id: number;
+  sellerId?: number | null;
+  seller?: { id: number; name: string } | null;
+  customer?: { name: string; document: string } | null;
+  customerName?: string | null;
+  document?: string | null;
+  msisdn?: string | null;
+  iccid?: string | null;
+  planName?: string | null;
+  finalPrice?: string | number | null;
+  status?: string | null;
+  soldAt?: string | null;
+  activatedAt?: string | null;
+  cancelledAt?: string | null;
+  churnedAt?: string | null;
+};
+
+type SellerApi = {
+  id: number;
+  name: string;
+  document?: string | null;
+};
+
+// Mesmo padrão do ensureRelatorioTable do sync-elleven: o build não roda
+// `prisma migrate deploy`, então a tabela é criada sob demanda (idempotente).
+let vendaChipTableEnsured = false;
+export async function ensureVendaChipTable(): Promise<void> {
+  if (vendaChipTableEnsured) return;
   // Schema-qualificado desde o cutover de 24/07/2026: sem o prefixo, o
   // IF NOT EXISTS checaria só o search_path (public) e criaria uma tabela
   // duplicada vazia lá, ignorando a real em "bonificacao".
   await prisma.$executeRawUnsafe(
-    `CREATE TABLE IF NOT EXISTS "bonificacao"."chip_movel_ranking" (
+    `CREATE TABLE IF NOT EXISTS "bonificacao"."venda_chip_movel" (
       "id" SERIAL NOT NULL,
+      "vendaId" INTEGER NOT NULL,
       "periodo" TEXT NOT NULL,
-      "sellerNome" TEXT NOT NULL,
-      "posicao" INTEGER,
-      "linhas" INTEGER NOT NULL DEFAULT 0,
-      "valor" DOUBLE PRECISION NOT NULL DEFAULT 0,
+      "sellerIdMovel" INTEGER,
+      "sellerNome" TEXT,
+      "sellerCpf" TEXT,
+      "clienteNome" TEXT,
+      "clienteCpf" TEXT,
+      "msisdn" TEXT,
+      "iccid" TEXT,
+      "planoNome" TEXT,
+      "planoPreco" TEXT,
+      "status" TEXT,
+      "soldAt" TEXT,
+      "activatedAt" TEXT,
+      "cancelledAt" TEXT,
       "syncedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      CONSTRAINT "chip_movel_ranking_pkey" PRIMARY KEY ("id")
+      CONSTRAINT "venda_chip_movel_pkey" PRIMARY KEY ("id")
     );`,
   );
   await prisma.$executeRawUnsafe(
-    `CREATE UNIQUE INDEX IF NOT EXISTS "chip_movel_ranking_periodo_seller_key" ON "bonificacao"."chip_movel_ranking"("periodo", "sellerNome");`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS "venda_chip_movel_vendaId_key" ON "bonificacao"."venda_chip_movel"("vendaId");`,
   );
   await prisma.$executeRawUnsafe(
-    `CREATE INDEX IF NOT EXISTS "chip_movel_ranking_periodo_idx" ON "bonificacao"."chip_movel_ranking"("periodo");`,
+    `CREATE INDEX IF NOT EXISTS "venda_chip_movel_periodo_idx" ON "bonificacao"."venda_chip_movel"("periodo");`,
   );
-  chipRankingTableEnsured = true;
+  vendaChipTableEnsured = true;
 }
 
-export type ChipRankingRow = {
-  sellerNome: string;
-  posicao: number | null;
-  linhas: number;
-  valor: number;
-  syncedAt: Date;
-};
+// Venda cancelada/churn não conta como aprovada nem gera bônus — mesmo critério
+// do elleven ("Status Contrato" cancelado).
+function isCancelada(v: {
+  status?: string | null;
+  cancelledAt?: string | null;
+  churnedAt?: string | null;
+}): boolean {
+  if (/cancel|churn/i.test(v.status || "")) return true;
+  return Boolean(v.cancelledAt || v.churnedAt);
+}
 
-// Lê o snapshot agregado do período. Usado pelo preview e pela conferência
-// (batimento) em lib/conferencia.ts, que passou a somar `linhas` por vendedor
-// em vez de contar vendas linha a linha.
-export async function lerRankingChip(
-  periodo: string,
-): Promise<ChipRankingRow[]> {
-  await ensureChipRankingTable();
-  return prisma.$queryRawUnsafe<ChipRankingRow[]>(
-    `SELECT "sellerNome", "posicao", "linhas", "valor", "syncedAt"
-       FROM "bonificacao"."chip_movel_ranking"
-      WHERE "periodo" = $1
-      ORDER BY "linhas" DESC`,
-    periodo,
-  );
+async function movelFetch(
+  path: string,
+  token: string | null,
+  init?: RequestInit,
+): Promise<Response> {
+  const base = process.env.MOVEL_API_BASE || MOVEL_API_BASE_DEFAULT;
+  return fetch(`${base}${path}`, {
+    ...init,
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(init?.headers || {}),
+    },
+    cache: "no-store",
+  });
+}
+
+async function movelLogin(): Promise<string> {
+  const email = process.env.MOVEL_LOGIN;
+  const senha = process.env.MOVEL_PASSWORD;
+  if (!email || !senha) {
+    throw new Error("MOVEL_LOGIN/MOVEL_PASSWORD não configurados nas env vars.");
+  }
+  const res = await movelFetch("/auth/login", null, {
+    method: "POST",
+    body: JSON.stringify({ email, senha }),
+  });
+  if (!res.ok) {
+    throw new Error(`Login no L&M Movel falhou (HTTP ${res.status}).`);
+  }
+  const data = (await res.json()) as { token?: string };
+  if (!data.token) throw new Error("Login no L&M Movel não retornou token.");
+  return data.token;
+}
+
+async function fetchVendasDoMes(
+  token: string,
+  year: number,
+  month: number,
+  log: (s: string) => void,
+): Promise<VendaApi[]> {
+  const vendas: VendaApi[] = [];
+  for (let page = 1; page <= MAX_PAGES; page++) {
+    const res = await movelFetch(
+      `/vendas/sales?year=${year}&month=${month}&page=${page}&limit=${PAGE_LIMIT}`,
+      token,
+    );
+    if (!res.ok) {
+      throw new Error(
+        `GET /vendas/sales (page ${page}) falhou (HTTP ${res.status}).`,
+      );
+    }
+    const body = (await res.json()) as {
+      data?: VendaApi[];
+      pagination?: { page: number; pages: number; total: number };
+    };
+    const lote = body.data ?? [];
+    vendas.push(...lote);
+    const pages = body.pagination?.pages ?? 1;
+    if (page === 1) {
+      log(
+        `Mês ${String(month).padStart(2, "0")}/${year}: ${body.pagination?.total ?? lote.length} venda(s) em ${pages} página(s).`,
+      );
+    }
+    if (page >= pages || lote.length === 0) break;
+  }
+  return vendas;
+}
+
+// Vendedores do L&M Movel (nome + CPF) — usados para resolver o CPF do
+// vendedor de cada venda, já que a venda traz só seller.{id,name}. O endpoint
+// pagina com limit default 20, por isso o loop até pagination.pages.
+async function fetchVendedores(token: string): Promise<Map<number, SellerApi>> {
+  const vendedores = new Map<number, SellerApi>();
+  for (let page = 1; page <= MAX_PAGES; page++) {
+    const res = await movelFetch(
+      `/vendedores?page=${page}&limit=${PAGE_LIMIT}`,
+      token,
+    );
+    if (!res.ok) break;
+    const body = (await res.json()) as {
+      data?: SellerApi[];
+      pagination?: { pages: number };
+    };
+    for (const s of body.data ?? []) vendedores.set(s.id, s);
+    const pages = body.pagination?.pages ?? 1;
+    if (page >= pages || (body.data ?? []).length === 0) break;
+  }
+  return vendedores;
 }
 
 export type LinhaChipMovel = {
   sellerNome: string;
-  sellerCpf: string | null; // sempre null nesta fonte (API externa não traz CPF)
+  sellerCpf: string | null;
   funcionarioId: string | null;
   funcionarioNome: string | null;
   quantidade: number;
@@ -111,52 +212,68 @@ export type ResumoAplicacaoChip = {
   naoMapeados: string[];
 };
 
-// Casa o ranking salvo do período com o cadastro de Funcionários (por nome).
+// Agrega as vendas salvas do período por vendedor e casa com o cadastro.
 async function agregarPorVendedor(periodo: string): Promise<LinhaChipMovel[]> {
-  const [ranking, funcionarios] = await Promise.all([
-    lerRankingChip(periodo),
+  const [vendas, funcionarios] = await Promise.all([
+    prisma.vendaChipMovel.findMany({ where: { periodo } }),
     prisma.funcionario.findMany({
       where: { ativo: true },
       select: { id: true, nome: true, cpf: true },
     }),
   ]);
 
-  const linhas: LinhaChipMovel[] = ranking.map((r) => {
+  type Grupo = {
+    sellerCpf: string | null;
+    quantidade: number;
+    aprovado: number;
+    cancelado: number;
+  };
+  const porVendedor = new Map<string, Grupo>();
+  for (const v of vendas) {
+    const nome = (v.sellerNome || "").trim() || "(sem vendedor na venda)";
+    const g =
+      porVendedor.get(nome) ??
+      ({ sellerCpf: null, quantidade: 0, aprovado: 0, cancelado: 0 } as Grupo);
+    g.sellerCpf = g.sellerCpf || v.sellerCpf || null;
+    g.quantidade++;
+    if (isCancelada(v)) g.cancelado++;
+    else g.aprovado++;
+    porVendedor.set(nome, g);
+  }
+
+  const linhas: LinhaChipMovel[] = [];
+  for (const [sellerNome, g] of porVendedor) {
     const match = matchFuncionario(funcionarios, {
-      nome: r.sellerNome,
-      cpf: null,
+      nome: sellerNome,
+      cpf: g.sellerCpf,
     });
-    // `linhas` é assumido como as vendas que geram bônus (aprovadas); a fonte
-    // agregada não separa canceladas por vendedor, então cancelado = 0.
-    return {
-      sellerNome: r.sellerNome,
-      sellerCpf: null,
+    linhas.push({
+      sellerNome,
+      sellerCpf: g.sellerCpf,
       funcionarioId: match?.id ?? null,
       funcionarioNome: match?.nome ?? null,
-      quantidade: r.linhas,
-      aprovado: r.linhas,
-      cancelado: 0,
-    };
-  });
+      quantidade: g.quantidade,
+      aprovado: g.aprovado,
+      cancelado: g.cancelado,
+    });
+  }
   linhas.sort((a, b) => b.quantidade - a.quantidade);
   return linhas;
 }
 
 // Preview para a tela de conferência (não grava nada).
 export async function previewChipMovel(periodo: string) {
+  await ensureVendaChipTable();
   const linhas = await agregarPorVendedor(periodo);
-  const agg = await prisma.$queryRawUnsafe<
-    { total: bigint | number | null; ultima: Date | null }[]
-  >(
-    `SELECT COALESCE(SUM("linhas"), 0) AS total, MAX("syncedAt") AS ultima
-       FROM "bonificacao"."chip_movel_ranking"
-      WHERE "periodo" = $1`,
-    periodo,
-  );
+  const ultimaSync = await prisma.vendaChipMovel.aggregate({
+    where: { periodo },
+    _max: { syncedAt: true },
+    _count: true,
+  });
   return {
     linhas,
-    totalVendas: Number(agg[0]?.total ?? 0),
-    ultimaSync: agg[0]?.ultima ?? null,
+    totalVendas: ultimaSync._count,
+    ultimaSync: ultimaSync._max.syncedAt,
   };
 }
 
@@ -229,38 +346,9 @@ export type ResultadoSyncChip = {
   log: string[];
 };
 
-// Regrava o snapshot agregado do período a partir do ranking da API externa.
-async function salvarRanking(
-  periodo: string,
-  ranking: DashboardRankingVendedor[],
-): Promise<number> {
-  await ensureChipRankingTable();
-  await prisma.$transaction(async (tx) => {
-    await tx.$executeRawUnsafe(
-      `DELETE FROM "bonificacao"."chip_movel_ranking" WHERE "periodo" = $1`,
-      periodo,
-    );
-    for (const r of ranking) {
-      const nome = (r.vendedor || "").trim();
-      if (!nome) continue;
-      await tx.$executeRawUnsafe(
-        `INSERT INTO "bonificacao"."chip_movel_ranking"
-           ("periodo", "sellerNome", "posicao", "linhas", "valor")
-         VALUES ($1, $2, $3, $4, $5)`,
-        periodo,
-        nome,
-        r.posicao ?? null,
-        r.linhas ?? 0,
-        r.valor ?? 0,
-      );
-    }
-  });
-  return ranking.length;
-}
-
-// Sincroniza um mês: busca o ranking na API externa, regrava o snapshot do
-// período e aplica os lançamentos. Usado pelo cron diário e pelo botão
-// "Sincronizar agora" da tela de conferência.
+// Sincroniza um mês: busca as vendas na API, regrava o snapshot do período e
+// aplica os lançamentos. Usado pelo cron diário e pelo botão "Sincronizar
+// agora" da tela de conferência.
 export async function syncChipMovel(
   year: number,
   month: number,
@@ -273,14 +361,57 @@ export async function syncChipMovel(
     console.log(line);
   };
 
-  const { mes, ano } = periodoParaMesAno(periodo);
+  await ensureVendaChipTable();
 
-  step(`Buscando ranking de ${periodo} na API externa do L&M Móvel...`);
-  const ranking = await fetchRankingVendedores(mes, ano);
-  step(`${ranking.length} vendedor(es) no ranking.`);
+  step("Autenticando na API do L&M Movel...");
+  const token = await movelLogin();
 
-  const salvos = await salvarRanking(periodo, ranking);
-  step(`Ranking de ${periodo} salvo no snapshot.`);
+  step(`Buscando vendas de ${periodo}...`);
+  const [vendas, vendedores] = await Promise.all([
+    fetchVendasDoMes(token, year, month, step),
+    fetchVendedores(token),
+  ]);
+
+  const registros = vendas.map((v) => {
+    const seller = v.sellerId != null ? vendedores.get(v.sellerId) : undefined;
+    return {
+      vendaId: v.id,
+      periodo,
+      sellerIdMovel: v.sellerId ?? v.seller?.id ?? null,
+      sellerNome: v.seller?.name ?? seller?.name ?? null,
+      sellerCpf: somenteDigitos(seller?.document) || null,
+      clienteNome: v.customer?.name ?? v.customerName ?? null,
+      clienteCpf: somenteDigitos(v.customer?.document ?? v.document) || null,
+      msisdn: v.msisdn ?? null,
+      iccid: v.iccid ?? null,
+      planoNome: v.planName ?? null,
+      planoPreco: v.finalPrice != null ? String(v.finalPrice) : null,
+      status: v.status ?? null,
+      soldAt: v.soldAt ?? null,
+      activatedAt: v.activatedAt ?? null,
+      cancelledAt: v.cancelledAt ?? v.churnedAt ?? null,
+    };
+  });
+
+  // Snapshot do período: remove tanto o período quanto quaisquer vendaIds que
+  // tenham mudado de mês desde o último sync, depois regrava tudo de uma vez.
+  await prisma.$transaction(async (tx) => {
+    await tx.vendaChipMovel.deleteMany({
+      where: {
+        OR: [
+          { periodo },
+          { vendaId: { in: registros.map((r) => r.vendaId) } },
+        ],
+      },
+    });
+    if (registros.length > 0) {
+      await tx.vendaChipMovel.createMany({
+        data: registros,
+        skipDuplicates: true,
+      });
+    }
+  });
+  step(`${registros.length} venda(s) salvas no snapshot de ${periodo}.`);
 
   step("Aplicando lançamentos de chip...");
   const aplicacao = await aplicarLancamentosChip(periodo);
@@ -298,7 +429,7 @@ export async function syncChipMovel(
   return {
     ok: true,
     periodo,
-    vendasSalvas: salvos,
+    vendasSalvas: registros.length,
     aplicacao,
     log,
   };

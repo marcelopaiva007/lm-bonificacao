@@ -1,14 +1,13 @@
 // Sincronização diária das vendas de chip do L&M Movel
-// (https://movel.assinelm.com). Usa a API EXTERNA agregada
-// (/api/v1/vendas/dashboard/ranking-vendedores), autenticada por token estático
-// — substituiu o antigo caminho login+JWT linha a linha. Toda a lógica está em
-// lib/chip-movel.ts (compartilhada com a tela /importar/chip).
+// (https://movel.assinelm.com). Sem scraping: a plataforma tem API REST própria
+// (login por email+senha -> JWT; GET /vendas/sales?year&month paginado). Toda a
+// lógica está em lib/chip-movel.ts (compartilhada com a tela /importar/chip).
 //
 // Sincroniza o mês corrente e, nos 3 primeiros dias do mês, também o mês
 // anterior (vendas de fim de mês que entram depois do fechamento do dia).
 //
 // Variáveis de ambiente:
-//   MOVEL_DASHBOARD_TOKEN — token Bearer da API externa do L&M Movel
+//   MOVEL_LOGIN, MOVEL_PASSWORD — conta da plataforma L&M Movel
 //   SYNC_CHIP_SECRET (ou SYNC_ELLEVEN_SECRET) — disparo manual via ?secret=...
 //   CRON_SECRET — enviado automaticamente pelo Vercel Cron
 import { NextRequest, NextResponse } from "next/server";
