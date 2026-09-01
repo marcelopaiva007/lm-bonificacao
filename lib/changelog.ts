@@ -32,6 +32,18 @@ export type Versao = {
 /** Mais recente primeiro. */
 export const CHANGELOG: Versao[] = [
   {
+    numero: "1.21.0",
+    data: "2026-08-29",
+    titulo: "Lançamentos de Vendas no padrão premium",
+    mudancas: [
+      {
+        tipo: "alterado",
+        texto:
+          "A tela de Lançamentos de Vendas ganhou o padrão premium: cabeçalho padronizado, cartão de vidro com o filtro de período e o total no topo, tabela com cabeçalho fixo e números alinhados. Lançar, editar e excluir continuam iguais, inclusive o modo somente-leitura quando o mês está fechado.",
+      },
+    ],
+  },
+  {
     numero: "1.20.0",
     data: "2026-08-29",
     titulo: "Pagamentos e Registro no padrão premium (e cards corrigidos)",

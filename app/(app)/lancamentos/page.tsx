@@ -1,6 +1,7 @@
 import { requireAdmin } from "@/lib/auth-guard";
 import { prisma } from "@/lib/prisma";
 import { periodoAtual } from "@/lib/periodo";
+import { PageHeader } from "@/components/ui/page-header";
 import { LancamentosView } from "./lancamentos-view";
 
 export default async function LancamentosPage({
@@ -28,13 +29,11 @@ export default async function LancamentosPage({
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Lançamentos de Vendas</h1>
-        <p className="text-muted-foreground">
-          Lance as vendas do mês por funcionário. A bonificação é recalculada
-          automaticamente a cada lançamento.
-        </p>
-      </div>
+      <PageHeader
+        eyebrow="Operação"
+        title="Lançamentos de Vendas"
+        description="Lance as vendas do mês por funcionário. A bonificação é recalculada automaticamente a cada lançamento."
+      />
       <LancamentosView
         periodo={periodo}
         funcionarios={funcionarios}

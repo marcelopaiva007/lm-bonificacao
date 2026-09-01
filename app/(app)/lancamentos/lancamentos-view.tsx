@@ -22,14 +22,7 @@ import {
   DialogFooter,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { DataTable, type Column } from "@/components/ui/data-table";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -78,39 +71,51 @@ export function LancamentosView({
 
   const totalVendido = lancamentos.reduce((acc, l) => acc + l.valorInstalado, 0);
 
+  const cols: Column<Lancamento>[] = [
+    { key: "func", header: "Funcionário", cell: (l) => <span className="font-medium">{l.funcionario.nome}</span> },
+    { key: "cidade", header: "Cidade", cell: (l) => l.funcionario.cidade?.nome ?? "—" },
+    { key: "qtd", header: "Qtd.", align: "right", width: "80px", cell: (l) => l.quantidade },
+    { key: "aprov", header: "Aprovado", align: "right", width: "104px", cell: (l) => l.aprovado },
+    { key: "canc", header: "Cancelado", align: "right", width: "108px", cell: (l) => l.cancelado },
+    {
+      key: "valor",
+      header: "Valor Instalado",
+      align: "right",
+      width: "150px",
+      cell: (l) => fmtMoeda(l.valorInstalado),
+    },
+    {
+      key: "origem",
+      header: "Origem",
+      width: "120px",
+      cell: (l) => (
+        <Badge variant={l.origem === "MANUAL" ? "secondary" : "outline"}>
+          {l.origem === "MANUAL" ? "Manual" : l.origem === "HISTORICO" ? "Histórico" : "Importado"}
+        </Badge>
+      ),
+    },
+    ...(!fechado
+      ? [
+          {
+            key: "acoes",
+            header: "Ações",
+            align: "right" as const,
+            width: "96px",
+            cell: (l: Lancamento) => (
+              <div className="flex justify-end gap-1">
+                <Button variant="ghost" size="icon" aria-label="Editar" onClick={() => setEditLancamento(l)}>
+                  <Pencil className="size-4" />
+                </Button>
+                <DeleteLancamentoButton lancamento={l} />
+              </div>
+            ),
+          } satisfies Column<Lancamento>,
+        ]
+      : []),
+  ];
+
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <Input
-            type="month"
-            value={periodo}
-            onChange={(e) => router.push(`/lancamentos?periodo=${e.target.value}`)}
-            className="w-44"
-          />
-          <span className="text-sm text-muted-foreground">
-            {lancamentos.length} lançamento(s) · Total vendido: {fmtMoeda(totalVendido)}
-          </span>
-        </div>
-        {!fechado && (
-          <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-            <DialogTrigger render={<Button />}>
-              <Plus className="size-4" />
-              Novo Lançamento
-            </DialogTrigger>
-            <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
-              <LancamentoForm
-                action={createLancamento}
-                title="Novo Lançamento"
-                periodo={periodo}
-                funcionarios={funcionarios}
-                onSuccess={() => setCreateOpen(false)}
-              />
-            </DialogContent>
-          </Dialog>
-        )}
-      </div>
-
       {fechado && (
         <Alert>
           <Lock className="size-4" />
@@ -121,56 +126,49 @@ export function LancamentosView({
         </Alert>
       )}
 
-      <div className="rounded-md border bg-background">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Funcionário</TableHead>
-              <TableHead>Cidade</TableHead>
-              <TableHead className="text-right">Qtd.</TableHead>
-              <TableHead className="text-right">Aprovado</TableHead>
-              <TableHead className="text-right">Cancelado</TableHead>
-              <TableHead className="text-right">Valor Instalado</TableHead>
-              <TableHead>Origem</TableHead>
-              {!fechado && <TableHead className="w-24 text-right">Ações</TableHead>}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {lancamentos.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={fechado ? 7 : 8} className="py-8 text-center text-muted-foreground">
-                  Nenhum lançamento neste período ainda.
-                </TableCell>
-              </TableRow>
-            )}
-            {lancamentos.map((l) => (
-              <TableRow key={l.id}>
-                <TableCell className="font-medium">{l.funcionario.nome}</TableCell>
-                <TableCell>{l.funcionario.cidade?.nome ?? "—"}</TableCell>
-                <TableCell className="text-right">{l.quantidade}</TableCell>
-                <TableCell className="text-right">{l.aprovado}</TableCell>
-                <TableCell className="text-right">{l.cancelado}</TableCell>
-                <TableCell className="text-right">{fmtMoeda(l.valorInstalado)}</TableCell>
-                <TableCell>
-                  <Badge variant={l.origem === "MANUAL" ? "secondary" : "outline"}>
-                    {l.origem === "MANUAL" ? "Manual" : l.origem === "HISTORICO" ? "Histórico" : "Importado"}
-                  </Badge>
-                </TableCell>
-                {!fechado && (
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-1">
-                      <Button variant="ghost" size="icon" onClick={() => setEditLancamento(l)}>
-                        <Pencil className="size-4" />
-                      </Button>
-                      <DeleteLancamentoButton lancamento={l} />
-                    </div>
-                  </TableCell>
-                )}
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
+      <section className="surface overflow-hidden rounded-xl">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 p-4">
+          <div className="flex flex-wrap items-center gap-3">
+            <Input
+              type="month"
+              value={periodo}
+              onChange={(e) => router.push(`/lancamentos?periodo=${e.target.value}`)}
+              className="h-9 w-44"
+            />
+            <span className="text-xs text-muted-foreground">
+              <span className="num">{lancamentos.length}</span> lançamento(s) · Total vendido:{" "}
+              <span className="num">{fmtMoeda(totalVendido)}</span>
+            </span>
+          </div>
+          {!fechado && (
+            <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+              <DialogTrigger render={<Button size="sm" className="shrink-0" />}>
+                <Plus className="size-4" />
+                Novo lançamento
+              </DialogTrigger>
+              <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
+                <LancamentoForm
+                  action={createLancamento}
+                  title="Novo Lançamento"
+                  periodo={periodo}
+                  funcionarios={funcionarios}
+                  onSuccess={() => setCreateOpen(false)}
+                />
+              </DialogContent>
+            </Dialog>
+          )}
+        </div>
+
+        <DataTable
+          columns={cols}
+          rows={lancamentos}
+          rowKey={(l) => l.id}
+          minWidth="900px"
+          maxHeight="640px"
+          emptyTitle="Nenhum lançamento neste período ainda"
+          emptyHint={fechado ? undefined : "Clique em “Novo lançamento” para adicionar."}
+        />
+      </section>
 
       <Dialog open={!!editLancamento} onOpenChange={(open) => !open && setEditLancamento(null)}>
         <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">

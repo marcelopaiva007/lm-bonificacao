@@ -8,6 +8,14 @@ Segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e
 > Ao publicar uma versão, atualize os dois — e o número em `package.json`.
 > Correção → _patch_ (1.9.x) · recurso → _minor_ (1.x.0) · quebra → _major_ (x.0.0).
 
+## [1.21.0] — 2026-08-29
+
+### Alterado
+- **Lançamentos de Vendas no padrão premium:** `PageHeader`, cartão de vidro com
+  o filtro de período e o total no topo (toolbar) e `DataTable` (cabeçalho fixo,
+  zebra, números mono à direita). CRUD e o modo somente-leitura de mês fechado
+  preservados.
+
 ## [1.20.0] — 2026-08-29
 
 ### Alterado
