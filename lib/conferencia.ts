@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { acharFuncionario } from "@/lib/elleven-core";
 import { agregarNegociacoesFunil, type LinhaFunil } from "@/lib/conferencia-funil";
 import { normalizarTexto } from "@/lib/text";
+import { lerRankingChip } from "@/lib/chip-movel";
 
 // Conferência entre as fontes: a fonte diz X, o sistema lançou Y, a bonificação
 // calculou sobre Z.
@@ -12,7 +13,7 @@ import { normalizarTexto } from "@/lib/text";
 // (linha de bonificação sem venda que a sustentasse) sobreviveu até hoje.
 //
 // As três colunas vêm de origens diferentes de propósito:
-//   fonte     → elleven_relatorio_linha / venda_chip_movel, dado cru capturado
+//   fonte     → elleven_relatorio_linha / chip_movel_ranking, dado cru capturado
 //   lançado   → LancamentoVenda, o que a importação gravou
 //   bonificado→ BonificacaoCalculada, a base do pagamento
 // Se a importação perder alguém no caminho, a diferença aparece aqui.
@@ -58,16 +59,14 @@ function normalizar(s: string): string {
  * sumir da conta.
  */
 export async function montarConferencia(periodo: string): Promise<ResumoConferencia> {
-  const [linhasFunil, vendasChip, lancamentos, bonificacoes, funcionariosAtivos] =
+  const [linhasFunil, rankingChip, lancamentos, bonificacoes, funcionariosAtivos] =
     await Promise.all([
     prisma.elevenRelatorioLinha.findMany({
       where: { relatorio: "funil-de-vendas", periodo },
       select: { dados: true },
     }),
-    prisma.vendaChipMovel.findMany({
-      where: { periodo },
-      select: { sellerNome: true, cancelledAt: true },
-    }),
+    // Fonte chip = snapshot agregado da API externa (linhas por vendedor).
+    lerRankingChip(periodo),
     prisma.lancamentoVenda.findMany({
       where: { periodo },
       include: { funcionario: { select: { nome: true } } },
@@ -111,14 +110,13 @@ export async function montarConferencia(periodo: string): Promise<ResumoConferen
     fonte.set(chave, atual);
   }
 
-  // --- Fonte: chip (venda cancelada não conta, como na importação) ---
-  for (const v of vendasChip) {
-    if (v.cancelledAt) continue;
-    const nomeNaFonte = (v.sellerNome ?? "").trim();
+  // --- Fonte: chip (ranking agregado; `linhas` já é o líquido do L&M Móvel) ---
+  for (const r of rankingChip) {
+    const nomeNaFonte = (r.sellerNome ?? "").trim();
     if (!nomeNaFonte) continue;
     const { chave, nome } = resolver(nomeNaFonte);
     const atual = fonte.get(chave) ?? { nome, vendas: 0 };
-    atual.vendas += 1;
+    atual.vendas += r.linhas;
     fonte.set(chave, atual);
   }
 
